@@ -1,0 +1,45 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 56;
+	objects = {
+/* Begin PBXGroup section */
+		00000000000000000000001 /* CortexOS */ = {
+			isa = PBXGroup;
+			children = (
+				00000000000000000000010 /* Shared */,
+				00000000000000000000020 /* iOS */,
+				00000000000000000000030 /* macOS */,
+			);
+			sourceTree = "<group>";
+		};
+		00000000000000000000010 /* Shared */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			name = Shared;
+			path = Shared;
+			sourceTree = "<group>";
+		};
+		00000000000000000000020 /* iOS */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			name = iOS;
+			path = iOS;
+			sourceTree = "<group>";
+		};
+		00000000000000000000030 /* macOS */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			name = macOS;
+			path = macOS;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+	};
+	rootObject = 00000000000000000000001;
+}
