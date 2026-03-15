@@ -1,0 +1,6 @@
+# Project-specific
+coupons.txt
+
+# Mac OS
+.DS_Store*
+._*
