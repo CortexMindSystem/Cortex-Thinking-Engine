@@ -157,11 +157,11 @@ struct FocusView: View {
         .shadow(color: .black.opacity(0.05), radius: 4, y: 2)
     }
 
-    private func profileSummaryCard(_ summary: String) -> some View {
+    private func profileSummaryCard(_ summary: [String: String]) -> some View {
         HStack {
             Image(systemName: "person.crop.circle")
                 .foregroundStyle(.purple)
-            Text(summary)
+            Text(summary.map { "\($0.key): \($0.value)" }.joined(separator: " · "))
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
         }

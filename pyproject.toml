@@ -1,0 +1,29 @@
+[tool.ruff]
+target-version = "py311"
+line-length = 120
+
+[tool.ruff.lint]
+select = [
+    "E",     # pycodestyle errors
+    "W",     # pycodestyle warnings
+    "F",     # pyflakes
+    "I",     # isort
+    "N",     # pep8-naming
+    "UP",    # pyupgrade
+    "B",     # flake8-bugbear
+    "S",     # flake8-bandit (security)
+    "SIM",   # flake8-simplify
+    "RUF",   # ruff-specific rules
+]
+ignore = [
+    "S101",    # allow assert in tests
+    "B008",    # allow function calls in default args (Pydantic Field)
+    "RUF001",  # allow ambiguous unicode in strings
+    "RUF002",  # allow ambiguous unicode in docstrings (en-dashes)
+    "RUF003",  # allow ambiguous unicode in comments
+    "UP042",   # allow StrEnum pattern
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**/*.py" = ["S101", "S106", "S104"]
+"scripts/**/*.py" = ["S602", "S311"]  # allow subprocess/random in scripts

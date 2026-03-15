@@ -1,8 +1,10 @@
 import random
 import string
 
+
 def generate_coupon():
-    return ''.join(random.choices(string.ascii_uppercase + string.digits, k=8))
+    return "".join(random.choices(string.ascii_uppercase + string.digits, k=8))
+
 
 coupons = [generate_coupon() for _ in range(50)]
 

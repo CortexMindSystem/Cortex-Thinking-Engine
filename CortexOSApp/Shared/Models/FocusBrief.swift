@@ -31,7 +31,7 @@ struct DailyBrief: Codable {
     let date: String
     let focusItems: [FocusItem]
     let digestQuality: [String: Double]
-    let profileSummary: String
+    let profileSummary: [String: String]
 
     enum CodingKeys: String, CodingKey {
         case date
@@ -40,11 +40,24 @@ struct DailyBrief: Codable {
         case profileSummary = "profile_summary"
     }
 
+    init(date: String = "", focusItems: [FocusItem] = [], digestQuality: [String: Double] = [:], profileSummary: [String: String] = [:]) {
+        self.date = date
+        self.focusItems = focusItems
+        self.digestQuality = digestQuality
+        self.profileSummary = profileSummary
+    }
+
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         date = try container.decode(String.self, forKey: .date)
         focusItems = try container.decode([FocusItem].self, forKey: .focusItems)
-        profileSummary = try container.decodeIfPresent(String.self, forKey: .profileSummary) ?? ""
+
+        // profileSummary may come as dict, string, or null from the API
+        if let dict = try? container.decode([String: String].self, forKey: .profileSummary) {
+            profileSummary = dict
+        } else {
+            profileSummary = [:]
+        }
 
         // digestQuality comes as mixed types from the API — normalise to [String: Double]
         if let raw = try? container.decode([String: Double].self, forKey: .digestQuality) {

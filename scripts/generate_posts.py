@@ -9,13 +9,13 @@ for note in notes[:3]:
     post = f"""
 Insight from my CortexOS research:
 
-{note['title']}
+{note["title"]}
 
 Key idea:
-{note['insight']}
+{note["insight"]}
 
 Action:
-{note['action']}
+{note["action"]}
 
 Building an AI context engine for developers.
 """

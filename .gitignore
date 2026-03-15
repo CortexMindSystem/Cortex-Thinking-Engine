@@ -1,6 +1,36 @@
 # Project-specific
 coupons.txt
+weekly_digest_*.md
 
 # Mac OS
 .DS_Store*
 ._*
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+dist/
+build/
+*.egg
+.pytest_cache/
+results.xml
+htmlcov/
+.coverage
+.ruff_cache/
+
+# Swift / Xcode
+.build/
+.swiftpm/
+DerivedData/
+xcuserdata/
+*.xcworkspace/xcuserdata/
+
+# IDE
+.idea/
+*.swp
+*.swo
+*~
+.vscode/
