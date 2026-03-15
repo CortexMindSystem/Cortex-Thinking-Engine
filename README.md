@@ -1,4 +1,6 @@
-# CortexOSLLM
+# CortexOS, Thinking Engine
+
+## Your operating system for thinking
 
 _CortexOS helps ambitious builders think faster by turning personal context into useful output._
 
