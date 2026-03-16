@@ -114,55 +114,150 @@ def contains_keyword(text: str, keywords: set[str]) -> bool:
     return any(kw in text_lower for kw in keywords)
 
 
+# ── Actionability keywords ──────────────────────────────────────
+
+ACTIONABLE_KEYWORDS: set[str] = {
+    "launch",
+    "release",
+    "open source",
+    "open-source",
+    "api",
+    "sdk",
+    "framework",
+    "tool",
+    "library",
+    "tutorial",
+    "guide",
+    "how to",
+    "how-to",
+    "build",
+    "deploy",
+    "implement",
+    "integrate",
+    "migrate",
+    "upgrade",
+    "available",
+    "announced",
+    "shipped",
+    "developer preview",
+}
+
+
 # ── Per-article scoring ────────────────────────────────────────
 
 
 @dataclass
 class ArticleScore:
-    """Score for a single article."""
+    """Score for a single article across four dimensions.
+
+    Dimensions:
+      - ai_relevance: how related to AI/ML topics
+      - project_relevance: how relevant to user's active goals/projects
+      - novelty: how new/unseen this topic is
+      - actionability: whether this leads to concrete action
+      - noise: penalty for irrelevant content
+      - composite: weighted final score
+    """
 
     title: str
     url: str = ""
+    ai_relevance: float = 0.0
+    project_relevance: float = 0.0
+    novelty: float = 0.0
+    actionability: float = 0.0
+    noise: float = 0.0
+    composite: float = 0.0
+    # Legacy aliases — kept for backward compat in existing tests
     ai_related: float = 0.0
     high_signal: float = 0.0
     context_overlap: float = 0.0
-    noise: float = 0.0
-    composite: float = 0.0
 
     def to_dict(self) -> dict:
         return {
             "title": self.title,
             "url": self.url,
-            "ai_related": self.ai_related,
-            "high_signal": self.high_signal,
-            "context_overlap": self.context_overlap,
+            "ai_relevance": round(self.ai_relevance, 3),
+            "project_relevance": round(self.project_relevance, 3),
+            "novelty": round(self.novelty, 3),
+            "actionability": round(self.actionability, 3),
             "noise": self.noise,
             "composite": round(self.composite, 3),
+            # Legacy keys for backward compat
+            "ai_related": self.ai_related,
+            "high_signal": self.high_signal,
+            "context_overlap": round(self.context_overlap, 3),
         }
 
 
-def score_article(title: str, url: str, context_tokens: set[str]) -> ArticleScore:
-    """Score a single article against keywords and user context."""
+def score_article(
+    title: str,
+    url: str,
+    context_tokens: set[str],
+    *,
+    seen_titles: set[str] | None = None,
+    ignored_topics: set[str] | None = None,
+    goal_tokens: set[str] | None = None,
+) -> ArticleScore:
+    """Score a single article across four dimensions + noise.
+
+    Dimensions:
+      ai_relevance (0.25): AI/ML keyword match
+      project_relevance (0.35): overlap with user goals/projects
+      novelty (0.20): not previously seen
+      actionability (0.20): actionable keywords present
+    """
     title_lower = title.lower()
     title_tokens = set(tokenize(title_lower))
+    _seen = seen_titles or set()
+    _ignored = ignored_topics or set()
+    _goals = goal_tokens or context_tokens
 
-    ai = 1.0 if contains_keyword(title_lower, AI_KEYWORDS) else 0.0
-    signal = 1.0 if contains_keyword(title_lower, HIGH_SIGNAL_KEYWORDS) else 0.0
-    noise = 1.0 if contains_keyword(title_lower, NOISE_KEYWORDS) else 0.0
+    # Dimension 1: AI relevance (granular, not binary)
+    ai_matches = sum(1 for kw in AI_KEYWORDS if kw in title_lower)
+    ai_relevance = min(ai_matches / 3.0, 1.0)  # 3+ matches = 1.0
 
-    overlap = len(title_tokens & context_tokens) / max(len(title_tokens), 1)
+    # Dimension 2: Project relevance (goal + interest overlap)
+    goal_overlap = len(title_tokens & _goals) / max(len(title_tokens), 1)
+    context_overlap = len(title_tokens & context_tokens) / max(len(title_tokens), 1)
+    project_relevance = min((goal_overlap * 0.6 + context_overlap * 0.4) * 1.5, 1.0)
 
-    # Weighted composite: signal and AI relevance dominate
-    composite = 0.35 * ai + 0.30 * signal + 0.25 * overlap - 0.10 * noise
+    # Dimension 3: Novelty (have we seen this before?)
+    novelty = 0.0 if title_lower.strip() in _seen else 1.0
+
+    # Dimension 4: Actionability (does this lead to concrete action?)
+    action_matches = sum(1 for kw in ACTIONABLE_KEYWORDS if kw in title_lower)
+    actionability = min(action_matches / 2.0, 1.0)  # 2+ matches = 1.0
+
+    # Noise detection (including user-defined ignored topics)
+    is_noise = contains_keyword(title_lower, NOISE_KEYWORDS)
+    is_ignored = any(ig in title_lower for ig in _ignored) if _ignored else False
+    noise = 1.0 if (is_noise or is_ignored) else 0.0
+
+    # Legacy: high_signal (kept for backward compat)
+    high_signal = 1.0 if contains_keyword(title_lower, HIGH_SIGNAL_KEYWORDS) else 0.0
+
+    # Weighted composite
+    composite = (
+        0.35 * project_relevance
+        + 0.25 * ai_relevance
+        + 0.20 * novelty
+        + 0.20 * actionability
+        - 0.10 * noise
+    )
 
     return ArticleScore(
         title=title,
         url=url,
-        ai_related=ai,
-        high_signal=signal,
-        context_overlap=round(overlap, 3),
+        ai_relevance=ai_relevance,
+        project_relevance=round(project_relevance, 3),
+        novelty=novelty,
+        actionability=actionability,
         noise=noise,
         composite=max(0.0, composite),
+        # Legacy fields
+        ai_related=1.0 if ai_relevance > 0 else 0.0,
+        high_signal=high_signal,
+        context_overlap=round(context_overlap, 3),
     )
 
 
@@ -196,6 +291,10 @@ class DigestScore:
 def evaluate_digest(
     markdown_text: str,
     context_snippets: list[str],
+    *,
+    seen_titles: set[str] | None = None,
+    ignored_topics: set[str] | None = None,
+    goal_tokens: set[str] | None = None,
 ) -> DigestScore:
     """Score an entire digest markdown file."""
     matches = ARTICLE_PATTERN.findall(markdown_text)
@@ -208,7 +307,17 @@ def evaluate_digest(
     for snippet in context_snippets:
         context_tokens.update(tokenize(snippet))
 
-    scores = [score_article(title, url, context_tokens) for title, url in matches]
+    scores = [
+        score_article(
+            title,
+            url,
+            context_tokens,
+            seen_titles=seen_titles,
+            ignored_topics=ignored_topics,
+            goal_tokens=goal_tokens,
+        )
+        for title, url in matches
+    ]
 
     total = len(scores)
     ai_count = sum(1 for s in scores if s.ai_related > 0)

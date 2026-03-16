@@ -61,7 +61,7 @@
 		68521227F783F7EEE011D484 /* FocusView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FocusView.swift; sourceTree = "<group>"; };
 		6CC8681C2FB3D28D1A65B4CE /* FocusBrief.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FocusBrief.swift; sourceTree = "<group>"; };
 		6DCCB089569B732DD5F4E62B /* PipelineView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PipelineView.swift; sourceTree = "<group>"; };
-		78CE4FA3A70257B60699E5C9 /* CortexOS-macOS.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "CortexOS-macOS.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		78CE4FA3A70257B60699E5C9 /* CortexOS.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = CortexOS.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		7ED83F6AB0177D62051212CE /* APIService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APIService.swift; sourceTree = "<group>"; };
 		806C7780C86DF26CEB501E9E /* ServerStatus.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ServerStatus.swift; sourceTree = "<group>"; };
 		8A68B29F8468FF48C1DAFE09 /* CortexOSApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CortexOSApp.swift; sourceTree = "<group>"; };
@@ -74,7 +74,7 @@
 		E1040BF0BCDC6B775AB8BFEB /* UserProfile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserProfile.swift; sourceTree = "<group>"; };
 		ED492439B9253F6CF71DC93B /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		F40F5AE2A6234C33C5D518E0 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
-		FE206CAC9EDAB0031B2A6271 /* CortexOS-iOS.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = "CortexOS-iOS.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		FE206CAC9EDAB0031B2A6271 /* CortexOS.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = CortexOS.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXGroup section */
@@ -119,8 +119,8 @@
 		5482D45D141D9BE0EA95352E /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				FE206CAC9EDAB0031B2A6271 /* CortexOS-iOS.app */,
-				78CE4FA3A70257B60699E5C9 /* CortexOS-macOS.app */,
+				FE206CAC9EDAB0031B2A6271 /* CortexOS.app */,
+				78CE4FA3A70257B60699E5C9 /* CortexOS.app */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -183,7 +183,7 @@
 			packageProductDependencies = (
 			);
 			productName = "CortexOS-macOS";
-			productReference = 78CE4FA3A70257B60699E5C9 /* CortexOS-macOS.app */;
+			productReference = 78CE4FA3A70257B60699E5C9 /* CortexOS.app */;
 			productType = "com.apple.product-type.application";
 		};
 		9289113ECDE79DBEECBD7E8E /* CortexOS-iOS */ = {
@@ -201,7 +201,7 @@
 			packageProductDependencies = (
 			);
 			productName = "CortexOS-iOS";
-			productReference = FE206CAC9EDAB0031B2A6271 /* CortexOS-iOS.app */;
+			productReference = FE206CAC9EDAB0031B2A6271 /* CortexOS.app */;
 			productType = "com.apple.product-type.application";
 		};
 /* End PBXNativeTarget section */
@@ -212,8 +212,6 @@
 			attributes = {
 				BuildIndependentTargetsInParallel = YES;
 				LastUpgradeCheck = 1600;
-				TargetAttributes = {
-				};
 			};
 			buildConfigurationList = 80397198902686EEC2DF110D /* Build configuration list for PBXProject "CortexOS" */;
 			developmentRegion = en;
@@ -382,6 +380,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				DEBUG_INFORMATION_FORMAT = dwarf;
+				DEVELOPMENT_TEAM = 2V8LZ2444Y;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = iOS/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
@@ -463,9 +462,11 @@
 				CODE_SIGN_ENTITLEMENTS = macOS/CortexOS.entitlements;
 				COMBINE_HIDPI_IMAGES = YES;
 				DEBUG_INFORMATION_FORMAT = dwarf;
+				"DEVELOPMENT_TEAM[sdk=macosx*]" = 2V8LZ2444Y;
 				ENABLE_HARDENED_RUNTIME = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = macOS/Info.plist;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.education";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
@@ -485,9 +486,11 @@
 				CODE_SIGN_ENTITLEMENTS = macOS/CortexOS.entitlements;
 				COMBINE_HIDPI_IMAGES = YES;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				"DEVELOPMENT_TEAM[sdk=macosx*]" = 2V8LZ2444Y;
 				ENABLE_HARDENED_RUNTIME = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = macOS/Info.plist;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.education";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
@@ -507,6 +510,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				DEVELOPMENT_TEAM = 2V8LZ2444Y;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = iOS/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;

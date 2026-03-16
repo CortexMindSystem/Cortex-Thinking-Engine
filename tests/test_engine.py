@@ -16,7 +16,7 @@ class TestEngineStatus:
     def test_status_returns_dict(self, tmp_data_dir):
         engine = _make_engine(tmp_data_dir)
         s = engine.status()
-        assert s["version"] == "0.1.0"
+        assert s["version"] == "0.2.0"
         assert s["notes_count"] == 0
         assert "llm_provider" in s
 

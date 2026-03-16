@@ -137,6 +137,8 @@ class FocusRequest(BaseModel):
 
 class ProfileResponse(BaseModel):
     name: str = ""
+    role: str = ""
+    preferred_style: str = ""
     goals: list[str] = Field(default_factory=list)
     interests: list[str] = Field(default_factory=list)
     current_projects: list[str] = Field(default_factory=list)
@@ -146,6 +148,8 @@ class ProfileResponse(BaseModel):
 
 class ProfileUpdate(BaseModel):
     name: str | None = None
+    role: str | None = None
+    preferred_style: str | None = None
     goals: list[str] | None = None
     interests: list[str] | None = None
     current_projects: list[str] | None = None

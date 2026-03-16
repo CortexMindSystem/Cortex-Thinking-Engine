@@ -64,7 +64,7 @@ class TestPipeline:
     def test_pipeline_all_steps_succeed(self, engine: CortexEngine):
         result = engine.run_pipeline()
         assert result["success"] is True
-        assert len(result["steps"]) == 5
+        assert len(result["steps"]) == 9
         for step in result["steps"]:
             assert step["status"] == "success"
 
