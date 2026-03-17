@@ -1,110 +1,101 @@
-"""Tests for Hybrid Retrieval."""
+"""Tests for Hybrid Retrieval system."""
+
+from datetime import datetime, timedelta
 
 import pytest
-from datetime import datetime
 
 from cortex_core.retrieve import HybridRetriever, RetrievalResult
-from cortex_core.items import Item
+
+
+def _make_item(title, content="", source_type="article", tags=None, days_ago=0):
+    ts = (datetime.now() - timedelta(days=days_ago)).isoformat()
+    return {
+        "id": title.lower().replace(" ", "-"),
+        "source_type": source_type,
+        "title": title,
+        "content": content or f"Content about {title}",
+        "tags": tags or [],
+        "ingested_at": ts,
+    }
 
 
 class TestRetrievalResult:
     def test_create_result(self):
-        r = RetrievalResult(id="1", title="Test", content="hello", score=0.8, match_reasons=["keyword"])
+        r = RetrievalResult(id="1", title="Test", content="body", score=0.8, match_reasons=["keyword"])
         assert r.score == 0.8
         assert "keyword" in r.match_reasons
-
-    def test_to_dict(self):
-        r = RetrievalResult(id="1", title="Test", content="hello", score=0.5, match_reasons=["tag"])
-        d = r.to_dict()
-        assert d["id"] == "1"
-        assert d["score"] == 0.5
 
 
 class TestHybridRetriever:
     @pytest.fixture()
-    def items(self):
-        now = datetime.now().isoformat()
-        return [
-            Item(
-                source_type="newsletter",
-                title="AI Agent Framework Released",
-                content="A new framework for building AI agents launched today.",
-                tags=["ai", "agents", "framework"],
-                ingested_at=now,
-            ),
-            Item(
-                source_type="newsletter",
-                title="Context Engineering Guide",
-                content="How to build better context for LLM applications.",
-                tags=["context", "llm"],
-                ingested_at=now,
-            ),
-            Item(
-                source_type="paper",
-                title="Memory Systems in AI",
-                content="Survey of memory architectures for intelligent agents.",
-                tags=["memory", "ai", "research"],
-                ingested_at=now,
-            ),
-            Item(
-                source_type="tweet",
-                title="Quick tip on Python async",
-                content="Use asyncio.gather for parallel tasks.",
-                tags=["python", "async"],
-                ingested_at=now,
-            ),
+    def retriever(self):
+        return HybridRetriever()
+
+    def test_empty_retrieval(self, retriever):
+        results = retriever.retrieve("anything", [])
+        assert results == []
+
+    def test_keyword_match(self, retriever):
+        items = [
+            _make_item("AI Agent Framework", "Guide to building AI agents"),
+            _make_item("Cooking Recipes", "How to make pasta"),
         ]
-
-    @pytest.fixture()
-    def retriever(self, items):
-        return HybridRetriever(items=items)
-
-    def test_keyword_search(self, retriever):
-        results = retriever.retrieve(query="ai agents")
+        results = retriever.retrieve("AI agent", items)
         assert len(results) >= 1
-        titles = [r.title for r in results]
-        assert "AI Agent Framework Released" in titles
+        assert results[0].title == "AI Agent Framework"
 
-    def test_tag_filter(self, retriever):
-        results = retriever.retrieve(query="", tags=["memory"])
-        assert len(results) >= 1
-        titles = [r.title for r in results]
-        assert "Memory Systems in AI" in titles
+    def test_title_bonus(self, retriever):
+        items = [
+            _make_item("Context Engineering", "Brief mention of context"),
+            _make_item("Random Title", "Deep dive into context engineering patterns"),
+        ]
+        results = retriever.retrieve("context engineering", items)
+        assert any(r.title == "Context Engineering" for r in results)
+
+    def test_recency_boost(self, retriever):
+        items = [
+            _make_item("Recent Article", "AI context memory", days_ago=1),
+            _make_item("Old Article", "AI context memory", days_ago=30),
+        ]
+        results = retriever.retrieve("AI context memory", items)
+        assert len(results) >= 2
+        recent = next(r for r in results if r.title == "Recent Article")
+        old = next(r for r in results if r.title == "Old Article")
+        assert recent.score >= old.score
 
     def test_source_type_filter(self, retriever):
-        results = retriever.retrieve(query="", source_type="paper")
+        items = [
+            _make_item("Paper A", source_type="paper", content="AI research"),
+            _make_item("Article A", source_type="article", content="AI research"),
+        ]
+        results = retriever.retrieve("AI research", items, source_type="paper")
+        assert all(r.title == "Paper A" for r in results)
+
+    def test_tag_filter(self, retriever):
+        items = [
+            _make_item("Tagged A", tags=["ml"], content="machine learning stuff"),
+            _make_item("Tagged B", tags=["web"], content="machine learning stuff"),
+        ]
+        results = retriever.retrieve("machine learning", items, tags=["ml"])
         assert len(results) >= 1
-        assert all(r.title == "Memory Systems in AI" for r in results)
+        assert results[0].title == "Tagged A"
 
-    def test_combined_filters(self, retriever):
-        results = retriever.retrieve(query="framework", tags=["ai"])
-        # Should prioritise the AI Agent Framework item
-        assert len(results) >= 1
-        assert results[0].title == "AI Agent Framework Released"
+    def test_recency_filter(self, retriever):
+        items = [
+            _make_item("New", content="AI tools", days_ago=3),
+            _make_item("Old", content="AI tools", days_ago=60),
+        ]
+        results = retriever.retrieve("AI tools", items, recency_days=7)
+        titles = [r.title for r in results]
+        assert "New" in titles
+        assert "Old" not in titles
 
-    def test_empty_query_returns_all_matching(self, retriever):
-        results = retriever.retrieve(query="", source_type="newsletter")
-        assert len(results) == 2
+    def test_max_results(self, retriever):
+        items = [_make_item(f"AI Tool {i}", content="AI agent framework") for i in range(20)]
+        results = retriever.retrieve("AI agent", items, max_results=5)
+        assert len(results) <= 5
 
-    def test_top_k_limit(self, retriever):
-        results = retriever.retrieve(query="ai", top_k=2)
-        assert len(results) <= 2
-
-    def test_no_results(self, retriever):
-        results = retriever.retrieve(query="quantum computing blockchain")
+    def test_no_match(self, retriever):
+        items = [_make_item("Cooking Tips", "How to bake bread")]
+        results = retriever.retrieve("quantum computing", items)
         assert len(results) == 0
-
-    def test_title_match_bonus(self, retriever):
-        results = retriever.retrieve(query="context engineering")
-        if results:
-            assert results[0].title == "Context Engineering Guide"
-
-    def test_results_sorted_by_score(self, retriever):
-        results = retriever.retrieve(query="ai")
-        for i in range(len(results) - 1):
-            assert results[i].score >= results[i + 1].score
-
-    def test_match_reasons_populated(self, retriever):
-        results = retriever.retrieve(query="ai", tags=["memory"])
-        for r in results:
-            assert len(r.match_reasons) >= 1

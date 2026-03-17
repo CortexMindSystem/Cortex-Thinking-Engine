@@ -1,7 +1,7 @@
 """Tests for Signal Detection and SignalStore."""
 
+
 import pytest
-from pathlib import Path
 
 from cortex_core.signals import (
     Signal,

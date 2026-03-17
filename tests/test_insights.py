@@ -1,7 +1,7 @@
 """Tests for structured Insight objects and InsightStore."""
 
+
 import pytest
-from pathlib import Path
 
 from cortex_core.insights import (
     Insight,

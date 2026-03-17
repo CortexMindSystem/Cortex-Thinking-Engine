@@ -1,8 +1,6 @@
 """Tests for structured Item extraction and ItemStore."""
 
-import json
 import pytest
-from pathlib import Path
 
 from cortex_core.items import (
     Item,
@@ -10,7 +8,6 @@ from cortex_core.items import (
     extract_items_from_digest,
     extract_items_from_notes,
 )
-
 
 SAMPLE_DIGEST = """# AI News
 
@@ -89,7 +86,7 @@ class TestItemStore:
     def test_batch_add(self, store_path):
         store = ItemStore(store_path)
         items = extract_items_from_digest(SAMPLE_DIGEST)
-        added = store.add_batch(items)
+        store.add_batch(items)
         assert store.count == 4
 
     def test_batch_dedup(self, store_path):
