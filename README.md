@@ -107,7 +107,7 @@ Configure model in `~/.cortexos/config.json`:
 
 ```bash
 make test          # all Python + Swift tests
-make test-python   # Python only (268 tests)
+make test-python   # Python only (276 tests)
 make test-swift    # Swift only (47 tests)
 make lint          # ruff + security
 ```
