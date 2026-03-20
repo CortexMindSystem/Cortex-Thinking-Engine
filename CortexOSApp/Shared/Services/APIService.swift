@@ -203,6 +203,26 @@ final class APIService: ObservableObject {
     func evaluateWhy(_ body: WhyEvaluateRequest) async throws -> DecisionResult {
         try await request("POST", path: "/why/evaluate", body: body)
     }
+
+    // MARK: - Sync
+
+    func fetchSnapshot() async throws -> SyncSnapshot {
+        try await request("GET", path: "/sync/snapshot")
+    }
+
+    // MARK: - Context (mutations)
+
+    func recordDecision(_ body: DecisionCreateRequest) async throws -> SyncDecision {
+        try await request("POST", path: "/context/decision", body: body)
+    }
+
+    func recordOutcome(_ body: OutcomeCreateRequest) async throws -> SyncDecision {
+        try await request("POST", path: "/context/outcome", body: body)
+    }
+
+    func storeInsight(_ body: InsightCreateRequest) async throws -> SyncInsight {
+        try await request("POST", path: "/context/insight", body: body)
+    }
 }
 
 // MARK: - Helpers

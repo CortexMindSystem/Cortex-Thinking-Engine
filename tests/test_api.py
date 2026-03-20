@@ -154,3 +154,55 @@ class TestPipelineEndpoints:
         assert resp.status_code == 200
         data = resp.json()
         assert "success" in data
+
+
+# ── Sync ────────────────────────────────────────────────────────
+
+
+class TestSyncEndpoints:
+    def test_snapshot_returns_200(self, client):
+        resp = client.get("/sync/snapshot")
+        assert resp.status_code == 200
+
+    def test_snapshot_has_required_keys(self, client):
+        data = client.get("/sync/snapshot").json()
+        for key in ("profile", "active_project", "priorities",
+                     "recent_decisions", "insights", "signals",
+                     "working_memory", "synced_at"):
+            assert key in data, f"missing key: {key}"
+
+    def test_snapshot_profile_shape(self, client):
+        profile = client.get("/sync/snapshot").json()["profile"]
+        assert isinstance(profile["goals"], list)
+        assert isinstance(profile["interests"], list)
+        assert isinstance(profile["current_projects"], list)
+        assert "name" in profile
+        assert "role" in profile
+
+    def test_snapshot_synced_at_is_iso(self, client):
+        data = client.get("/sync/snapshot").json()
+        # Should be a valid ISO timestamp
+        assert "T" in data["synced_at"]
+
+    def test_snapshot_recent_decisions_is_list(self, client):
+        data = client.get("/sync/snapshot").json()
+        assert isinstance(data["recent_decisions"], list)
+
+    def test_snapshot_signals_is_list(self, client):
+        data = client.get("/sync/snapshot").json()
+        assert isinstance(data["signals"], list)
+
+    def test_snapshot_working_memory_shape(self, client):
+        wm = client.get("/sync/snapshot").json()["working_memory"]
+        assert "date" in wm
+        assert isinstance(wm["todays_priorities"], list)
+
+    def test_snapshot_after_decision_includes_it(self, client):
+        client.post("/context/decision", json={
+            "decision": "Use rule-based scoring for v1",
+            "reason": "Simplicity over accuracy at this stage",
+            "project": "CortexOS",
+        })
+        decisions = client.get("/sync/snapshot").json()["recent_decisions"]
+        texts = [d["decision"] for d in decisions]
+        assert "Use rule-based scoring for v1" in texts

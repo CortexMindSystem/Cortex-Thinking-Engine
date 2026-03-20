@@ -484,6 +484,46 @@ class CortexEngine:
         """Return complete memory state for agent consumption."""
         return self.memory.full_context()
 
+    # ── Sync ────────────────────────────────────────────────────
+
+    def build_sync_snapshot(self) -> dict:
+        """Single-call snapshot of everything Apple clients need.
+
+        Bundles profile, active project, priorities, decisions,
+        insights, signals, and working memory into one dict.
+        Backend is source of truth — clients pull this on launch.
+        """
+        from datetime import UTC, datetime
+
+        profile = self.memory.profile
+
+        # Active project context (first project, if any)
+        active_project: dict | None = None
+        if profile.current_projects:
+            pm = self.memory.get_project(profile.current_projects[0])
+            active_project = pm.to_dict()
+
+        # Priority brief (may not exist yet)
+        priorities = self.decision_engine.get_previous_brief()
+
+        return {
+            "profile": {
+                "name": profile.name,
+                "role": profile.role,
+                "goals": profile.goals,
+                "interests": profile.interests,
+                "current_projects": profile.current_projects,
+                "ignored_topics": profile.ignored_topics,
+            },
+            "active_project": active_project,
+            "priorities": priorities,
+            "recent_decisions": self.get_recent_decisions(10),
+            "insights": self.get_insights(limit=10),
+            "signals": self.get_signals(),
+            "working_memory": self.memory.working.to_dict(),
+            "synced_at": datetime.now(UTC).isoformat(),
+        }
+
     # ── Why Engine ──────────────────────────────────────────────
 
     def evaluate_why(self, item_data: dict) -> dict:

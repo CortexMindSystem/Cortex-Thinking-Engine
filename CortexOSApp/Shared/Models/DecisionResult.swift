@@ -57,3 +57,43 @@ extension DecisionResult {
     /// Whether this item contradicts a prior assumption.
     var isContradiction: Bool { contradictionOrConfirmation == "contradicts" }
 }
+
+// MARK: - Context mutation requests
+
+struct DecisionCreateRequest: Codable {
+    let decision: String
+    let reason: String
+    var project: String = ""
+    var assumptions: [String] = []
+}
+
+struct OutcomeCreateRequest: Codable {
+    let decisionId: String
+    let outcome: String
+    var impactScore: Double = 0.0
+
+    enum CodingKeys: String, CodingKey {
+        case outcome
+        case decisionId = "decision_id"
+        case impactScore = "impact_score"
+    }
+}
+
+struct InsightCreateRequest: Codable {
+    let title: String
+    var summary: String = ""
+    var whyItMatters: String = ""
+    var architecturalImplication: String = ""
+    var nextAction: String = ""
+    var confidence: Double = 0.5
+    var tags: [String] = []
+    var relatedProject: String = ""
+
+    enum CodingKeys: String, CodingKey {
+        case title, summary, confidence, tags
+        case whyItMatters = "why_it_matters"
+        case architecturalImplication = "architectural_implication"
+        case nextAction = "next_action"
+        case relatedProject = "related_project"
+    }
+}
