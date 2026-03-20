@@ -41,7 +41,10 @@ def cortex_context():
 def relevant_article():
     return SourceItem(
         title="New AI Agent Memory Framework Released",
-        content="A framework for building persistent agent memory systems.",
+        content=(
+            "A framework to build persistent context memory for AI agent systems. "
+            "The engine supports layered recall and scoring."
+        ),
         source_type="article",
         url="https://example.com/agent-memory",
         tags=["ai", "agents"],
