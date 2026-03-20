@@ -63,6 +63,7 @@ open CortexOSApp/CortexOS.xcodeproj
 | **Decision Engine** | Priorities, what to ignore, what changed since yesterday |
 | **Hybrid Retrieval** | Metadata filters → keyword match → recency weighting |
 | **Self-Improvement** | Reading history enriches context → scoring improves over time |
+| **Why Engine** | Per-item evaluation: why it matters, project impact, contradiction detection, recommended action |
 | **Offline-First** | All scoring and focus generation are rule-based; no API key required |
 | **Spaced Repetition** | Leitner-style review intervals (1, 3, 7, 14, 30 days) |
 
@@ -83,6 +84,7 @@ Server runs on **port 8420**. Key endpoints:
 | `GET` | `/context/goals` | Active goals (agent context API) |
 | `GET` | `/context/signals` | Detected signals |
 | `POST` | `/context/retrieve` | Hybrid search across notes + insights |
+| `POST` | `/why/evaluate` | Per-item decision: why it matters, impact, action, ignore/watch |
 
 Full interactive docs at **http://localhost:8420/docs**.
 
@@ -105,7 +107,7 @@ Configure model in `~/.cortexos/config.json`:
 
 ```bash
 make test          # all Python + Swift tests
-make test-python   # Python only (224 tests)
+make test-python   # Python only (268 tests)
 make test-swift    # Swift only (47 tests)
 make lint          # ruff + security
 ```

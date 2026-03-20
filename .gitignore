@@ -2,6 +2,24 @@
 coupons.txt
 weekly_digest_*.md
 
+# Debug / scratch scripts
+_debug*.py
+debug_*.py
+scratch_*.py
+
+# Secrets & environment
+.env
+.env.*
+*.key
+
+# Logs & temp
+*.log
+*.tmp
+tmp/
+
+# Nested duplicate repo (accidental clone)
+Cortex-Thinking-Engine/
+
 # Mac OS
 .DS_Store*
 ._*
