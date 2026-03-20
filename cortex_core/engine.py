@@ -29,6 +29,7 @@ from cortex_core.posts import PostGenerator
 from cortex_core.retrieve import HybridRetriever
 from cortex_core.scoring import evaluate_digest
 from cortex_core.signals import SignalStore, detect_signals
+from cortex_core.why_engine import EvaluationContext, SourceItem, WhyEngine
 
 
 class CortexEngine:
@@ -54,6 +55,7 @@ class CortexEngine:
         self.signal_store = SignalStore(self.config.data_dir / "signals.json")
         self.decision_engine = DecisionEngine(self.config.data_dir)
         self.retriever = HybridRetriever()
+        self.why_engine = WhyEngine()
 
     # ------------------------------------------------------ knowledge CRUD
 
@@ -160,11 +162,28 @@ class CortexEngine:
         *,
         use_llm: bool = False,
     ) -> dict:
-        """Generate today's focus recommendations."""
+        """Generate today's focus recommendations.
+
+        Passes pre-computed scored articles, insights, and signals into
+        the FocusEngine so the brief reflects the full intelligence chain
+        instead of re-deriving everything from scratch.
+        """
+        # Gather pre-computed enrichment data
+        scored = self._latest_scored_articles() or []
+        insights_data = [i.to_dict() for i in self.insights.recent(20)]
+        signals_data = [s.to_dict() for s in self.signal_store.active_signals()]
+
+        kwargs = dict(
+            use_llm=use_llm,
+            scored_articles=scored if scored else None,
+            insights=insights_data if insights_data else None,
+            signals=signals_data if signals_data else None,
+        )
+
         if digest_path:
-            brief = self.focus.generate_from_file(Path(digest_path), use_llm=use_llm)
+            brief = self.focus.generate_from_file(Path(digest_path), **kwargs)
         else:
-            brief = self.focus.generate_from_latest(self.config.data_dir, use_llm=use_llm)
+            brief = self.focus.generate_from_latest(self.config.data_dir, **kwargs)
         self.focus.save_brief(brief, self.config.data_dir)
         return brief.to_dict()
 
@@ -464,6 +483,56 @@ class CortexEngine:
     def get_full_context(self) -> dict:
         """Return complete memory state for agent consumption."""
         return self.memory.full_context()
+
+    # ── Why Engine ──────────────────────────────────────────────
+
+    def evaluate_why(self, item_data: dict) -> dict:
+        """Evaluate a single source item through the Why Engine.
+
+        Assembles full evaluation context from all memory layers and
+        returns a structured DecisionResult.
+        """
+        item = SourceItem.from_dict(item_data)
+        context = self._build_evaluation_context()
+        result = self.why_engine.evaluate(item, context)
+        return result.to_dict()
+
+    def _build_evaluation_context(self) -> EvaluationContext:
+        """Assemble evaluation context from all four memory layers."""
+        profile = self.memory.profile
+
+        # Project layer: milestones, blockers from first active project
+        milestones: list[str] = []
+        blockers: list[str] = []
+        if profile.current_projects:
+            pm = self.memory.get_project(profile.current_projects[0])
+            milestones = [pm.current_milestone] if pm.current_milestone else []
+            blockers = list(pm.active_blockers)
+
+        # Decision history: recent decision descriptions
+        recent_decisions = [
+            d.decision for d in self.decision_engine.recent_decisions(10)
+        ]
+
+        # Research layer: themes
+        recent_themes = list(self.memory.research.recurring_themes)
+
+        # Assumptions: from recent decisions
+        assumptions: list[str] = []
+        for d in self.decision_engine.recent_decisions(5):
+            assumptions.extend(d.assumptions)
+
+        return EvaluationContext(
+            goals=profile.goals,
+            interests=profile.interests,
+            current_projects=profile.current_projects,
+            ignored_topics=profile.ignored_topics,
+            project_milestones=milestones,
+            project_blockers=blockers,
+            recent_decisions=recent_decisions,
+            recent_themes=recent_themes,
+            assumptions=assumptions,
+        )
 
     # ── Internal helpers ────────────────────────────────────────
 

@@ -178,3 +178,30 @@ class DigestEvalResponse(BaseModel):
     context_keyword_coverage: float = 0.0
     project_fit_score: float = 0.0
     top_articles: list[ArticleScoreResponse] = Field(default_factory=list)
+
+
+# ── Why Engine ────────────────────────────────────────────────────
+
+
+class WhyEvaluateRequest(BaseModel):
+    """Input for the Why Engine. Swift clients send this."""
+
+    title: str
+    content: str = ""
+    source_type: str = "article"  # article, note, link, digest_item, project_update
+    url: str = ""
+    tags: list[str] = Field(default_factory=list)
+
+
+class WhyEvaluateResponse(BaseModel):
+    """Structured decision output. Swift clients decode this."""
+
+    summary: str = ""
+    why_it_matters: str = ""
+    impact_on_active_project: str = ""
+    contradiction_or_confirmation: str = ""  # supports, contradicts, unclear
+    recommended_action: str = ""
+    ignore_or_watch: str = ""  # act_now, watch, ignore
+    confidence: float = 0.0
+    tags: list[str] = Field(default_factory=list)
+    evaluated_at: str = ""

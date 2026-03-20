@@ -1,9 +1,18 @@
 """Unit tests for the focus recommendation engine."""
 
-from cortex_core.focus import DailyBrief, FocusEngine, FocusItem, _infer_tags
+from cortex_core.focus import (
+    DailyBrief,
+    FocusEngine,
+    FocusItem,
+    _build_insight_lookup,
+    _build_signal_lookup,
+    _infer_tags,
+    _match_signal,
+    _ratio,
+)
 from cortex_core.knowledge import KnowledgeNote, KnowledgeStore
 from cortex_core.memory import ContextMemory
-from cortex_core.scoring import ArticleScore
+from cortex_core.scoring import ArticleScore, tokenize
 
 
 class TestFocusItem:
@@ -157,3 +166,136 @@ class TestFocusEngine:
         engine = self._make_engine(tmp_data_dir)
         engine.mark_read("Some Article", url="https://example.com", insight="Key point")
         assert engine.memory.already_read("Some Article")
+
+
+# ── Enrichment helper tests ─────────────────────────────────────
+
+
+class TestBuildSignalLookup:
+    def test_builds_index(self):
+        signals = [
+            {"topic": "ai agents", "frequency": 5, "status": "confirmed"},
+            {"topic": "rag", "frequency": 3, "status": "emerging"},
+        ]
+        lookup = _build_signal_lookup(signals)
+        assert "ai agents" in lookup
+        assert lookup["rag"]["frequency"] == 3
+
+    def test_skips_empty_topic(self):
+        signals = [{"topic": "", "frequency": 1}]
+        assert len(_build_signal_lookup(signals)) == 0
+
+    def test_empty_list(self):
+        assert _build_signal_lookup([]) == {}
+
+
+class TestBuildInsightLookup:
+    def test_builds_index(self):
+        insights = [
+            {"title": "AI Agents Rise", "why_it_matters": "Core trend"},
+            {"title": "RAG Updates", "next_action": "Evaluate"},
+        ]
+        lookup = _build_insight_lookup(insights)
+        assert "AI Agents Rise" in lookup
+        assert lookup["RAG Updates"]["next_action"] == "Evaluate"
+
+
+class TestMatchSignal:
+    def test_matches_topic(self):
+        signals = {"ai agents": {"topic": "ai agents", "frequency": 5, "status": "confirmed"}}
+        tokens = tokenize("new ai agent framework released")
+        result = _match_signal(tokens, signals)
+        assert result is not None
+        assert result["topic"] == "ai agents"
+
+    def test_no_match(self):
+        signals = {"ai agents": {"topic": "ai agents", "frequency": 5, "status": "confirmed"}}
+        tokens = tokenize("cooking recipe for pasta")
+        result = _match_signal(tokens, signals)
+        assert result is None
+
+    def test_best_match(self):
+        signals = {
+            "ai agents": {"topic": "ai agents", "frequency": 5, "status": "confirmed"},
+            "context engineering": {"topic": "context engineering", "frequency": 3, "status": "emerging"},
+        }
+        tokens = tokenize("context engineering for ai agents")
+        result = _match_signal(tokens, signals)
+        assert result is not None
+        # Both match with equal overlap (2 tokens each when tokenized); either is valid
+        assert result["topic"] in ("ai agents", "context engineering")
+
+
+class TestRatio:
+    def test_all_match(self):
+        articles = [ArticleScore(title="A", ai_related=True), ArticleScore(title="B", ai_related=True)]
+        assert _ratio(articles, lambda a: a.ai_related) == 1.0
+
+    def test_none_match(self):
+        articles = [ArticleScore(title="A", ai_related=False)]
+        assert _ratio(articles, lambda a: a.ai_related) == 0.0
+
+    def test_empty(self):
+        assert _ratio([], lambda a: a.ai_related) == 0.0
+
+
+class TestEnrichedFocusBrief:
+    """Test that generate_brief uses insights and signals when provided."""
+
+    def _make_engine(self, tmp_data_dir):
+        mem = ContextMemory(tmp_data_dir)
+        store = KnowledgeStore(tmp_data_dir / "notes.json")
+        return FocusEngine(mem, store)
+
+    def test_brief_with_scored_articles(self, tmp_data_dir):
+        engine = self._make_engine(tmp_data_dir)
+        articles = [
+            ArticleScore(title="AI Agent Framework", composite=0.8, ai_related=True, actionability=0.6),
+            ArticleScore(title="New RAG Pattern", composite=0.6, high_signal=True),
+        ]
+        brief = engine.generate_brief(scored_articles=articles, max_items=5)
+        assert len(brief.focus_items) == 2
+        assert brief.digest_quality is not None
+        assert brief.digest_quality["total_articles"] == 2
+
+    def test_brief_enriched_by_signal(self, tmp_data_dir):
+        engine = self._make_engine(tmp_data_dir)
+        articles = [ArticleScore(title="AI Agent Framework Released", composite=0.7, ai_related=True)]
+        signals = [{"topic": "ai agents", "frequency": 5, "status": "confirmed"}]
+        brief = engine.generate_brief(scored_articles=articles, signals=signals)
+        item = brief.focus_items[0]
+        assert "signal" in item.why_it_matters.lower() or "confirmed" in item.why_it_matters.lower()
+
+    def test_brief_enriched_by_insight(self, tmp_data_dir):
+        engine = self._make_engine(tmp_data_dir)
+        articles = [ArticleScore(title="AI Agent Framework", composite=0.7)]
+        insights = [
+            {
+                "title": "AI Agent Framework",
+                "why_it_matters": "Directly impacts CortexOS agent layer design.",
+                "next_action": "Prototype adapter integration this week.",
+                "architectural_implication": "",
+                "tags": ["agents", "architecture"],
+            }
+        ]
+        brief = engine.generate_brief(scored_articles=articles, insights=insights)
+        item = brief.focus_items[0]
+        assert item.why_it_matters == "Directly impacts CortexOS agent layer design."
+        assert item.next_action == "Prototype adapter integration this week."
+        assert "agents" in item.tags
+
+    def test_insight_takes_priority_over_signal(self, tmp_data_dir):
+        engine = self._make_engine(tmp_data_dir)
+        articles = [ArticleScore(title="AI Agent Framework", composite=0.7)]
+        insights = [{"title": "AI Agent Framework", "why_it_matters": "Insight text", "tags": []}]
+        signals = [{"topic": "ai agents", "frequency": 5, "status": "confirmed"}]
+        brief = engine.generate_brief(scored_articles=articles, insights=insights, signals=signals)
+        # Insight should take priority
+        assert brief.focus_items[0].why_it_matters == "Insight text"
+
+    def test_backward_compatible_without_enrichment(self, tmp_data_dir, sample_digest_text):
+        """Original calling pattern still works."""
+        engine = self._make_engine(tmp_data_dir)
+        brief = engine.generate_brief(sample_digest_text, max_items=3)
+        assert len(brief.focus_items) <= 3
+        assert brief.digest_quality is not None

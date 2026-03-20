@@ -17,7 +17,7 @@ from pathlib import Path
 from cortex_core.knowledge import KnowledgeStore
 from cortex_core.llm import LLMProvider
 from cortex_core.memory import ContextMemory
-from cortex_core.scoring import ArticleScore, evaluate_digest
+from cortex_core.scoring import ArticleScore, evaluate_digest, tokenize
 
 
 @dataclass
@@ -116,16 +116,39 @@ class FocusEngine:
         *,
         max_items: int = 5,
         use_llm: bool = False,
+        scored_articles: list[ArticleScore] | None = None,
+        insights: list[dict] | None = None,
+        signals: list[dict] | None = None,
     ) -> DailyBrief:
-        """Generate today's focus brief."""
+        """Generate today's focus brief.
+
+        When *scored_articles*, *insights*, and *signals* are supplied
+        (e.g. by the pipeline), the engine skips redundant re-scoring
+        and uses the full intelligence chain to produce richer items.
+        """
         context_snippets = self.memory.get_context_snippets()
 
         brief = DailyBrief()
         brief.profile_summary = self.memory.summary()
 
-        # Score digest if provided
-        scored_articles: list[ArticleScore] = []
-        if digest_text:
+        # Build signal and insight lookup tables for enrichment
+        signal_topics = _build_signal_lookup(signals or [])
+        insight_map = _build_insight_lookup(insights or [])
+
+        # Use pre-computed scored articles if provided, else score digest
+        if scored_articles is not None:
+            # Filter to relevant unread articles
+            articles = [
+                a for a in scored_articles
+                if a.composite >= 0.2 and not self.memory.already_read(a.title)
+            ]
+            brief.digest_quality = {
+                "total_articles": len(scored_articles),
+                "ai_article_ratio": _ratio(scored_articles, lambda a: a.ai_related),
+                "high_signal_ratio": _ratio(scored_articles, lambda a: a.high_signal),
+                "project_fit_score": _ratio(scored_articles, lambda a: a.project_relevance > 0.3),
+            }
+        elif digest_text:
             digest_score = evaluate_digest(digest_text, context_snippets)
             brief.digest_quality = {
                 "total_articles": digest_score.total_articles,
@@ -133,10 +156,12 @@ class FocusEngine:
                 "high_signal_ratio": digest_score.high_signal_ratio,
                 "project_fit_score": digest_score.project_fit_score,
             }
-            # Filter to high-signal articles, skip already-read
-            scored_articles = [
-                a for a in digest_score.articles if a.composite >= 0.2 and not self.memory.already_read(a.title)
+            articles = [
+                a for a in digest_score.articles
+                if a.composite >= 0.2 and not self.memory.already_read(a.title)
             ]
+        else:
+            articles = []
 
         # Also pull recent unactioned knowledge notes
         recent_notes = self.store.notes[:10]
@@ -144,8 +169,15 @@ class FocusEngine:
         # Build focus items from scored articles
         focus_items: list[FocusItem] = []
 
-        for article in scored_articles[:max_items]:
-            item = self._llm_focus_item(article) if use_llm and self.llm else self._rule_focus_item(article)
+        for article in articles[:max_items]:
+            if use_llm and self.llm:
+                item = self._llm_focus_item(article)
+            else:
+                item = self._rule_focus_item(
+                    article,
+                    signal_topics=signal_topics,
+                    insight_map=insight_map,
+                )
             focus_items.append(item)
 
         # Fill remaining slots from knowledge notes
@@ -173,17 +205,64 @@ class FocusEngine:
     # ── Focus item strategies ───────────────────────────────────
 
     @staticmethod
-    def _rule_focus_item(article: ArticleScore) -> FocusItem:
-        """Create a focus item using rule-based logic."""
-        if article.ai_related:
-            why = f"{article.title} signals a shift in AI systems that affects CortexOS architecture."
-            action = "Read the article, extract the key insight, and add to research backlog."
+    def _rule_focus_item(
+        article: ArticleScore,
+        *,
+        signal_topics: dict[str, dict] | None = None,
+        insight_map: dict[str, dict] | None = None,
+    ) -> FocusItem:
+        """Create a focus item using rule-based logic, enriched by signals and insights."""
+        title_lower = article.title.lower()
+        title_tokens = tokenize(title_lower)
+
+        # Check if this article matches a known signal
+        matched_signal = _match_signal(title_tokens, signal_topics or {})
+
+        # Check if there's a related insight
+        matched_insight = insight_map.get(article.title) if insight_map else None
+
+        # Build why_it_matters — prefer insight over signal over generic
+        if matched_insight and matched_insight.get("why_it_matters"):
+            why = matched_insight["why_it_matters"]
+        elif matched_signal:
+            sig = matched_signal
+            why = (
+                f"'{sig['topic']}' is a {sig['status']} signal "
+                f"(appeared {sig['frequency']}x across sources). "
+                f"{article.title} adds to this pattern."
+            )
+        elif article.project_relevance > 0.3:
+            why = f"Directly relevant to active projects (project fit: {article.project_relevance:.0%})."
+        elif article.ai_related:
+            why = f"AI-relevant with actionability score {article.actionability:.0%}."
         elif article.high_signal:
-            why = f"{article.title} is relevant to developer productivity and system design."
-            action = "Skim for applicable patterns and note any architecture implications."
+            why = f"High-signal content (novelty: {article.novelty:.0%}, relevance: {article.composite:.0%})."
         else:
-            why = f"{article.title} may contain useful context for ongoing projects."
-            action = "Quick review — bookmark if relevant, skip if not."
+            why = f"Moderate relevance ({article.composite:.0%}). Worth a quick scan."
+
+        # Build next_action — prefer insight over generic
+        _default_action = "Review and decide if action is needed."
+        if (
+            matched_insight
+            and matched_insight.get("next_action")
+            and matched_insight["next_action"] != _default_action
+        ):
+            action = matched_insight["next_action"]
+        elif matched_insight and matched_insight.get("architectural_implication"):
+            action = f"Evaluate implication: {matched_insight['architectural_implication']}"
+        elif article.actionability > 0.5:
+            action = "Read in full — likely contains actionable patterns or tools."
+        elif article.project_relevance > 0.3:
+            action = "Extract key insight and link to relevant project notes."
+        else:
+            action = "Skim for applicable patterns; bookmark if relevant."
+
+        # Merge tags from article + insight
+        tags = _infer_tags(article)
+        if matched_insight:
+            for t in matched_insight.get("tags", []):
+                if t not in tags:
+                    tags.append(t)
 
         return FocusItem(
             rank=0,
@@ -192,7 +271,7 @@ class FocusEngine:
             next_action=action,
             source_url=article.url,
             relevance_score=article.composite,
-            tags=_infer_tags(article),
+            tags=tags,
         )
 
     def _llm_focus_item(self, article: ArticleScore) -> FocusItem:
@@ -236,17 +315,55 @@ class FocusEngine:
 
     # ── File-based workflow ─────────────────────────────────────
 
-    def generate_from_file(self, digest_path: Path, *, max_items: int = 5, use_llm: bool = False) -> DailyBrief:
+    def generate_from_file(
+        self,
+        digest_path: Path,
+        *,
+        max_items: int = 5,
+        use_llm: bool = False,
+        scored_articles: list[ArticleScore] | None = None,
+        insights: list[dict] | None = None,
+        signals: list[dict] | None = None,
+    ) -> DailyBrief:
         """Load a digest file and generate the brief."""
         text = digest_path.read_text(encoding="utf-8")
-        return self.generate_brief(text, max_items=max_items, use_llm=use_llm)
+        return self.generate_brief(
+            text,
+            max_items=max_items,
+            use_llm=use_llm,
+            scored_articles=scored_articles,
+            insights=insights,
+            signals=signals,
+        )
 
-    def generate_from_latest(self, directory: Path, *, max_items: int = 5, use_llm: bool = False) -> DailyBrief:
+    def generate_from_latest(
+        self,
+        directory: Path,
+        *,
+        max_items: int = 5,
+        use_llm: bool = False,
+        scored_articles: list[ArticleScore] | None = None,
+        insights: list[dict] | None = None,
+        signals: list[dict] | None = None,
+    ) -> DailyBrief:
         """Find the latest digest and generate."""
         candidates = sorted(directory.glob("weekly_digest_*.md"))
         if not candidates:
-            return self.generate_brief(max_items=max_items, use_llm=use_llm)
-        return self.generate_from_file(candidates[-1], max_items=max_items, use_llm=use_llm)
+            return self.generate_brief(
+                max_items=max_items,
+                use_llm=use_llm,
+                scored_articles=scored_articles,
+                insights=insights,
+                signals=signals,
+            )
+        return self.generate_from_file(
+            candidates[-1],
+            max_items=max_items,
+            use_llm=use_llm,
+            scored_articles=scored_articles,
+            insights=insights,
+            signals=signals,
+        )
 
     def save_brief(self, brief: DailyBrief, directory: Path) -> Path:
         """Save brief as both JSON and Markdown."""
@@ -280,3 +397,40 @@ def _infer_tags(article: ArticleScore) -> list[str]:
         if any(kw in title_lower for kw in keywords):
             tags.append(tag)
     return tags or ["general"]
+
+
+# ── Enrichment helpers (module-private) ─────────────────────
+
+
+def _build_signal_lookup(signals: list[dict]) -> dict[str, dict]:
+    """Index signals by topic for fast matching."""
+    return {s["topic"]: s for s in signals if s.get("topic")}
+
+
+def _build_insight_lookup(insights: list[dict]) -> dict[str, dict]:
+    """Index insights by title for matching against articles."""
+    return {i["title"]: i for i in insights if i.get("title")}
+
+
+def _match_signal(
+    title_tokens: set[str] | list[str],
+    signal_topics: dict[str, dict],
+) -> dict | None:
+    """Return the best matching signal for a set of title tokens, or None."""
+    best: dict | None = None
+    best_overlap = 0
+    tokens = set(title_tokens)
+    for topic, sig in signal_topics.items():
+        topic_tokens = set(tokenize(topic))
+        overlap = len(tokens & topic_tokens)
+        if overlap > 0 and overlap > best_overlap:
+            best = sig
+            best_overlap = overlap
+    return best
+
+
+def _ratio(articles: list[ArticleScore], pred) -> float:
+    """Compute the ratio of articles satisfying *pred*."""
+    if not articles:
+        return 0.0
+    return sum(1 for a in articles if pred(a)) / len(articles)
