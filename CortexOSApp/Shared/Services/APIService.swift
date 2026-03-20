@@ -197,6 +197,12 @@ final class APIService: ObservableObject {
     func evaluateDigest(_ body: DigestEvalRequest = DigestEvalRequest()) async throws -> DigestScore {
         try await request("POST", path: "/digest/evaluate", body: body)
     }
+
+    // MARK: - Why Engine
+
+    func evaluateWhy(_ body: WhyEvaluateRequest) async throws -> DecisionResult {
+        try await request("POST", path: "/why/evaluate", body: body)
+    }
 }
 
 // MARK: - Helpers
