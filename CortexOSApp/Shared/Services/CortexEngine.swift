@@ -209,4 +209,14 @@ final class CortexEngine: ObservableObject {
             errorMessage = error.localizedDescription
         }
     }
+
+    // MARK: - Feedback (was this useful?)
+
+    func sendFeedback(item: String, useful: Bool) async {
+        do {
+            try await api.sendFeedback(FeedbackRequest(item: item, useful: useful))
+        } catch {
+            // Silent — feedback is best-effort, never block UX
+        }
+    }
 }

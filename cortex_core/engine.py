@@ -405,6 +405,15 @@ class CortexEngine:
         dec = self.decision_engine.record_outcome(decision_id, outcome, impact_score)
         return dec.to_dict() if dec else None
 
+    def record_feedback(self, *, item: str, useful: bool) -> None:
+        """Record user feedback on a focus item (was this useful?).
+
+        Stores in working memory so the next priority brief can
+        incorporate what the user found valuable or not.
+        """
+        tag = "useful" if useful else "not_useful"
+        self.memory.working.temporary_notes.append(f"[{tag}] {item}")
+
     def get_decisions(self, *, project: str | None = None, limit: int = 10) -> list[dict]:
         """Get recent decisions, optionally filtered by project."""
         if project:

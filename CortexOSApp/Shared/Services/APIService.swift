@@ -223,6 +223,12 @@ final class APIService: ObservableObject {
     func storeInsight(_ body: InsightCreateRequest) async throws -> SyncInsight {
         try await request("POST", path: "/context/insight", body: body)
     }
+
+    // MARK: - Feedback
+
+    func sendFeedback(_ body: FeedbackRequest) async throws {
+        try await requestNoContent("POST", path: "/context/feedback", body: body)
+    }
 }
 
 // MARK: - Helpers

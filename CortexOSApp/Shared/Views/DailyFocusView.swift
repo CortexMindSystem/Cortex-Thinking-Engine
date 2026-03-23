@@ -2,9 +2,9 @@
 //  DailyFocusView.swift
 //  CortexOS
 //
-//  The most important screen. Shows today's top priorities,
-//  why they matter, and the next action. No scrolling if ≤ 3.
-//  Feels like "today matters".
+//  The only screen that really matters.
+//  Open → Understand → Act → Close.
+//  No scrolling if ≤ 3 priorities. No clutter. Pre-computed clarity.
 //
 
 import SwiftUI
@@ -33,56 +33,65 @@ struct DailyFocusView: View {
         .refreshable { await engine.sync() }
     }
 
-    // MARK: - Sync-powered focus (priority brief)
+    // MARK: - Sync-powered focus
 
     @ViewBuilder
     private func focusContent(_ brief: PriorityBrief) -> some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: CortexSpacing.xl) {
-                // Date header
-                Text(brief.date)
-                    .font(CortexFont.caption)
-                    .foregroundStyle(CortexColor.textTertiary)
+        let needsScroll = brief.priorities.count > 3
 
-                // Priorities — the core
-                if !brief.priorities.isEmpty {
-                    VStack(alignment: .leading, spacing: CortexSpacing.sm) {
-                        Text("Priorities")
-                            .font(CortexFont.headline)
-                            .foregroundStyle(CortexColor.textPrimary)
+        Group {
+            if needsScroll {
+                ScrollView { focusBody(brief) }
+            } else {
+                focusBody(brief)
+            }
+        }
+    }
 
-                        PriorityList(priorities: brief.priorities)
-                    }
+    @ViewBuilder
+    private func focusBody(_ brief: PriorityBrief) -> some View {
+        VStack(alignment: .leading, spacing: CortexSpacing.lg) {
+            // Date — subtle
+            Text(brief.date)
+                .font(CortexFont.caption)
+                .foregroundStyle(CortexColor.textTertiary)
+                .padding(.bottom, CortexSpacing.xs)
+
+            // Priorities — no header, just show them
+            ForEach(Array(brief.priorities.prefix(5).enumerated()), id: \.element.title) { index, priority in
+                FocusPriorityCard(priority: priority, position: index + 1) { useful in
+                    Task { await engine.sendFeedback(item: priority.title, useful: useful) }
                 }
+            }
 
-                // Emerging signals
-                if !brief.emergingSignals.isEmpty {
-                    VStack(alignment: .leading, spacing: CortexSpacing.sm) {
-                        Text("Emerging Signals")
-                            .font(CortexFont.captionMedium)
-                            .foregroundStyle(CortexColor.textSecondary)
+            // Ignored today — first-class citizen
+            if !brief.ignored.isEmpty {
+                VStack(alignment: .leading, spacing: CortexSpacing.xs) {
+                    Text("Ignored today")
+                        .font(CortexFont.captionMedium)
+                        .foregroundStyle(CortexColor.textTertiary)
 
-                        FlowTags(items: brief.emergingSignals)
-                    }
-                }
-
-                // Changes since yesterday
-                if !brief.changesSinceYesterday.isEmpty {
-                    VStack(alignment: .leading, spacing: CortexSpacing.sm) {
-                        Text("Changed Since Yesterday")
-                            .font(CortexFont.captionMedium)
-                            .foregroundStyle(CortexColor.textSecondary)
-
-                        ForEach(brief.changesSinceYesterday, id: \.self) { change in
-                            Label(change, systemImage: "arrow.triangle.2.circlepath")
+                    ForEach(brief.ignored, id: \.self) { item in
+                        HStack(spacing: CortexSpacing.xs) {
+                            Image(systemName: "minus.circle")
+                                .font(.caption2)
+                                .foregroundStyle(CortexColor.textTertiary)
+                            Text(item)
                                 .font(CortexFont.caption)
-                                .foregroundStyle(CortexColor.textSecondary)
+                                .foregroundStyle(CortexColor.textTertiary)
                         }
                     }
                 }
+                .padding(.top, CortexSpacing.sm)
             }
-            .padding(CortexSpacing.xl)
+
+            // Emerging signals — compact pills, only if present
+            if !brief.emergingSignals.isEmpty {
+                FlowTags(items: brief.emergingSignals)
+                    .padding(.top, CortexSpacing.xs)
+            }
         }
+        .padding(CortexSpacing.xl)
     }
 
     // MARK: - Legacy focus (DailyBrief from /focus/today)
@@ -104,7 +113,99 @@ struct DailyFocusView: View {
     }
 }
 
-// MARK: - Legacy row (for /focus/today data)
+// MARK: - Focus Priority Card (with feedback)
+
+private struct FocusPriorityCard: View {
+    let priority: SyncPriority
+    let position: Int
+    let onFeedback: (Bool) -> Void
+
+    @State private var feedbackGiven: Bool? = nil
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: CortexSpacing.sm) {
+            HStack(alignment: .top, spacing: CortexSpacing.md) {
+                // Rank badge
+                Text("\(position)")
+                    .font(CortexFont.captionMedium)
+                    .foregroundStyle(.white)
+                    .frame(width: 24, height: 24)
+                    .background(CortexColor.rank(position))
+                    .clipShape(Circle())
+
+                VStack(alignment: .leading, spacing: CortexSpacing.xs) {
+                    Text(priority.title)
+                        .font(CortexFont.bodyMedium)
+                        .foregroundStyle(CortexColor.textPrimary)
+
+                    if !priority.whyItMatters.isEmpty {
+                        Text(priority.whyItMatters)
+                            .font(CortexFont.caption)
+                            .foregroundStyle(CortexColor.textSecondary)
+                            .lineLimit(2)
+                    }
+
+                    if !priority.nextStep.isEmpty {
+                        Label {
+                            Text(priority.nextStep)
+                                .lineLimit(1)
+                        } icon: {
+                            Image(systemName: "arrow.right.circle.fill")
+                        }
+                        .font(CortexFont.caption)
+                        .foregroundStyle(CortexColor.accent)
+                    }
+                }
+
+                Spacer(minLength: 0)
+            }
+
+            // Feedback — was this useful?
+            if feedbackGiven == nil {
+                HStack(spacing: CortexSpacing.md) {
+                    Spacer()
+                    Button { submitFeedback(true) } label: {
+                        Label("Yes", systemImage: "hand.thumbsup")
+                            .font(CortexFont.caption)
+                    }
+                    .buttonStyle(.plain)
+                    .foregroundStyle(CortexColor.textTertiary)
+
+                    Button { submitFeedback(false) } label: {
+                        Label("No", systemImage: "hand.thumbsdown")
+                            .font(CortexFont.caption)
+                    }
+                    .buttonStyle(.plain)
+                    .foregroundStyle(CortexColor.textTertiary)
+                }
+            } else {
+                HStack {
+                    Spacer()
+                    Label(
+                        feedbackGiven == true ? "Noted" : "Got it",
+                        systemImage: "checkmark"
+                    )
+                    .font(CortexFont.caption)
+                    .foregroundStyle(CortexColor.textTertiary)
+                }
+                .transition(.opacity)
+            }
+        }
+        .padding(CortexSpacing.md)
+        .background(CortexColor.bgSurface)
+        .clipShape(RoundedRectangle(cornerRadius: CortexRadius.card, style: .continuous))
+        .cortexShadow()
+    }
+
+    private func submitFeedback(_ useful: Bool) {
+        withAnimation(.easeOut(duration: 0.2)) {
+            feedbackGiven = useful
+        }
+        onFeedback(useful)
+    }
+}
+
+// MARK: - Legacy row
 
 private struct LegacyFocusRow: View {
     let item: FocusItem
@@ -151,7 +252,6 @@ struct FlowTags: View {
     let items: [String]
 
     var body: some View {
-        // Simple horizontal scroll for now — wrapping layout is complex
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: CortexSpacing.xs) {
                 ForEach(items, id: \.self) { item in

@@ -2,8 +2,8 @@
 //  QuickCaptureView.swift
 //  CortexOS
 //
-//  Minimal friction capture — add a note, link, or thought.
-//  Almost zero UI. Submit and done.
+//  Zero friction capture. Type a thought, paste a link, hit return.
+//  No fields, no labels, no categories. Just capture.
 //
 
 import SwiftUI
@@ -11,113 +11,100 @@ import SwiftUI
 struct QuickCaptureView: View {
     @EnvironmentObject private var engine: CortexEngine
 
-    @State private var title = ""
-    @State private var insight = ""
-    @State private var url = ""
-    @State private var tags = ""
+    @State private var text = ""
     @State private var saved = false
 
+    private var canSave: Bool {
+        !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
+    /// Detect if the text contains a URL
+    private var detectedURL: String? {
+        let words = text.split(separator: " ").map(String.init)
+        return words.first { $0.hasPrefix("http://") || $0.hasPrefix("https://") }
+    }
+
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: CortexSpacing.lg) {
-                // Title (required)
-                VStack(alignment: .leading, spacing: CortexSpacing.xs) {
-                    Text("Title")
-                        .font(CortexFont.captionMedium)
-                        .foregroundStyle(CortexColor.textSecondary)
-                    TextField("What did you learn?", text: $title)
-                        .textFieldStyle(.roundedBorder)
-                }
+        VStack(spacing: CortexSpacing.lg) {
+            Spacer()
 
-                // Insight
-                VStack(alignment: .leading, spacing: CortexSpacing.xs) {
-                    Text("Insight")
-                        .font(CortexFont.captionMedium)
-                        .foregroundStyle(CortexColor.textSecondary)
-                    TextField("Key takeaway...", text: $insight, axis: .vertical)
-                        .textFieldStyle(.roundedBorder)
-                        .lineLimit(3...6)
-                }
+            // Single input — thought or link
+            TextField("What's on your mind?", text: $text, axis: .vertical)
+                .font(CortexFont.body)
+                .lineLimit(1...6)
+                .textFieldStyle(.plain)
+                .padding(CortexSpacing.md)
+                .background(CortexColor.bgSurface)
+                .clipShape(RoundedRectangle(cornerRadius: CortexRadius.card, style: .continuous))
+                .cortexShadow()
+                .onSubmit { if canSave { Task { await save() } } }
+                #if os(iOS)
+                .textInputAutocapitalization(.sentences)
+                #endif
 
-                // URL (optional)
-                VStack(alignment: .leading, spacing: CortexSpacing.xs) {
-                    Text("Source URL")
-                        .font(CortexFont.captionMedium)
-                        .foregroundStyle(CortexColor.textSecondary)
-                    TextField("https://...", text: $url)
-                        .textFieldStyle(.roundedBorder)
-                        #if os(iOS)
-                        .keyboardType(.URL)
-                        .textInputAutocapitalization(.never)
-                        #endif
-                }
-
-                // Tags
-                VStack(alignment: .leading, spacing: CortexSpacing.xs) {
-                    Text("Tags")
-                        .font(CortexFont.captionMedium)
-                        .foregroundStyle(CortexColor.textSecondary)
-                    TextField("ai, memory, signals", text: $tags)
-                        .textFieldStyle(.roundedBorder)
-                        #if os(iOS)
-                        .textInputAutocapitalization(.never)
-                        #endif
-                }
-
-                // Save
-                Button {
-                    Task { await save() }
-                } label: {
-                    HStack {
-                        Spacer()
-                        Label("Save", systemImage: "plus.circle.fill")
-                            .font(CortexFont.bodyMedium)
-                        Spacer()
-                    }
-                    .padding(.vertical, CortexSpacing.md)
-                }
-                .buttonStyle(.borderedProminent)
-                .tint(CortexColor.accent)
-                .disabled(title.trimmingCharacters(in: .whitespaces).isEmpty)
-
-                // Success
-                if saved {
-                    Label("Saved", systemImage: "checkmark.circle.fill")
+            // Link indicator (auto-detected, no input needed)
+            if let url = detectedURL {
+                HStack(spacing: CortexSpacing.xs) {
+                    Image(systemName: "link")
+                        .font(.caption2)
+                    Text(url)
                         .font(CortexFont.caption)
-                        .foregroundStyle(CortexColor.success)
-                        .transition(.opacity)
+                        .lineLimit(1)
                 }
+                .foregroundStyle(CortexColor.accent)
+                .transition(.opacity)
             }
-            .padding(CortexSpacing.xl)
+
+            // Save
+            Button {
+                Task { await save() }
+            } label: {
+                HStack {
+                    Spacer()
+                    Label("Save", systemImage: "plus.circle.fill")
+                        .font(CortexFont.bodyMedium)
+                    Spacer()
+                }
+                .padding(.vertical, CortexSpacing.md)
+            }
+            .buttonStyle(.borderedProminent)
+            .tint(CortexColor.accent)
+            .disabled(!canSave)
+
+            // Saved confirmation
+            if saved {
+                Label("Saved", systemImage: "checkmark.circle.fill")
+                    .font(CortexFont.caption)
+                    .foregroundStyle(CortexColor.success)
+                    .transition(.opacity)
+            }
+
+            Spacer()
         }
+        .padding(.horizontal, CortexSpacing.xl)
         .background(CortexColor.bgPrimary)
         .navigationTitle("Capture")
     }
 
     private func save() async {
-        let parsedTags = tags
-            .split(separator: ",")
-            .map { $0.trimmingCharacters(in: .whitespaces) }
-            .filter { !$0.isEmpty }
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
 
         let note = NoteCreateRequest(
-            title: title.trimmingCharacters(in: .whitespaces),
-            insight: insight,
-            sourceURL: url,
-            tags: parsedTags
+            title: trimmed,
+            insight: "",
+            sourceURL: detectedURL ?? "",
+            tags: []
         )
 
-        await engine.createNote(note)
+        let success = await engine.createNote(note)
+        guard success else { return }
 
         withAnimation {
             saved = true
-            title = ""
-            insight = ""
-            url = ""
-            tags = ""
+            text = ""
         }
 
-        // Auto-dismiss success after 2s
         try? await Task.sleep(for: .seconds(2))
         withAnimation { saved = false }
     }

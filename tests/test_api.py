@@ -206,3 +206,16 @@ class TestSyncEndpoints:
         decisions = client.get("/sync/snapshot").json()["recent_decisions"]
         texts = [d["decision"] for d in decisions]
         assert "Use rule-based scoring for v1" in texts
+
+    def test_feedback_useful(self, client):
+        r = client.post("/context/feedback", json={"item": "Build sync layer", "useful": True})
+        assert r.status_code == 204
+
+    def test_feedback_not_useful(self, client):
+        r = client.post("/context/feedback", json={"item": "Refactor naming", "useful": False})
+        assert r.status_code == 204
+
+    def test_feedback_stores_in_working_memory(self, client):
+        client.post("/context/feedback", json={"item": "Ship MVP", "useful": True})
+        wm = client.get("/sync/snapshot").json()["working_memory"]
+        assert any("Ship MVP" in n for n in wm["temporary_notes"])

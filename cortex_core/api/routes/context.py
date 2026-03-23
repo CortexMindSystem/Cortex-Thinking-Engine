@@ -155,3 +155,18 @@ async def retrieve(body: RetrieveRequest) -> list[dict]:
         tags=body.tags,
         max_results=body.max_results,
     )
+
+
+# ── Feedback (UX loop) ──────────────────────────────────────
+
+
+class FeedbackCreate(BaseModel):
+    item: str
+    useful: bool
+
+
+@router.post("/feedback", status_code=204)
+async def record_feedback(body: FeedbackCreate) -> None:
+    """Record user feedback on a focus item (was this useful?)."""
+    engine = get_engine()
+    engine.record_feedback(item=body.item, useful=body.useful)

@@ -97,3 +97,10 @@ struct InsightCreateRequest: Codable {
         case relatedProject = "related_project"
     }
 }
+
+// MARK: - Feedback
+
+struct FeedbackRequest: Codable {
+    let item: String
+    let useful: Bool
+}
