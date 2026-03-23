@@ -20,6 +20,7 @@ final class CortexEngine: ObservableObject {
     @Published var dailyBrief: DailyBrief?
     @Published var profile: UserProfile = .empty
     @Published var digestScore: DigestScore?
+    @Published var snapshot: SyncSnapshot?
     @Published var isConnected = false
     @Published var isLoading = false
     @Published var errorMessage: String?
@@ -192,6 +193,19 @@ final class CortexEngine: ObservableObject {
             digestScore = try await api.evaluateDigest()
             errorMessage = nil
         } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    // MARK: - Sync (single-call pull)
+
+    func sync() async {
+        do {
+            snapshot = try await api.fetchSnapshot()
+            isConnected = true
+            errorMessage = nil
+        } catch {
+            isConnected = false
             errorMessage = error.localizedDescription
         }
     }

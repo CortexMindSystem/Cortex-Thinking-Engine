@@ -2,7 +2,8 @@
 //  ContentView.swift
 //  CortexOS
 //
-//  Root navigation structure shared by iOS and macOS.
+//  Root navigation — iOS: 4 focused tabs, macOS: sidebar + detail.
+//  Pulls sync snapshot on launch.
 //
 
 import SwiftUI
@@ -12,126 +13,97 @@ struct ContentView: View {
 
     var body: some View {
         #if os(iOS)
-        TabView {
-            NavigationStack {
-                FocusView()
-            }
-            .tabItem {
-                Label("Focus", systemImage: "sparkles")
-            }
-
-            NavigationStack {
-                DashboardView()
-            }
-            .tabItem {
-                Label("Dashboard", systemImage: "brain.head.profile")
-            }
-
-            NavigationStack {
-                DigestView()
-            }
-            .tabItem {
-                Label("Digest", systemImage: "chart.bar.xaxis")
-            }
-
-            NavigationStack {
-                KnowledgeListView()
-            }
-            .tabItem {
-                Label("Knowledge", systemImage: "doc.text.fill")
-            }
-
-            NavigationStack {
-                PipelineView()
-            }
-            .tabItem {
-                Label("Pipeline", systemImage: "arrow.triangle.branch")
-            }
-
-            NavigationStack {
-                PostsView()
-            }
-            .tabItem {
-                Label("Posts", systemImage: "text.bubble.fill")
-            }
-
-            NavigationStack {
-                ProfileView()
-            }
-            .tabItem {
-                Label("Profile", systemImage: "person.crop.circle")
-            }
-
-            NavigationStack {
-                SettingsView()
-            }
-            .tabItem {
-                Label("Settings", systemImage: "gear")
-            }
-        }
-        .environmentObject(engine)
+        iOSRoot
         #else
+        macOSRoot
+        #endif
+    }
+
+    // MARK: - iOS (4 tabs — daily decisions)
+
+    #if os(iOS)
+    private var iOSRoot: some View {
+        TabView {
+            NavigationStack { DailyFocusView() }
+                .tabItem { Label("Focus", systemImage: "sparkles") }
+
+            NavigationStack { InsightFeedView() }
+                .tabItem { Label("Insights", systemImage: "lightbulb") }
+
+            NavigationStack { QuickCaptureView() }
+                .tabItem { Label("Capture", systemImage: "plus.circle") }
+
+            NavigationStack { ContextView() }
+                .tabItem { Label("Context", systemImage: "brain.head.profile") }
+        }
+        .tint(CortexColor.accent)
+        .environmentObject(engine)
+        .task { await engine.sync() }
+    }
+    #endif
+
+    // MARK: - macOS (sidebar — deep thinking)
+
+    #if os(macOS)
+    @State private var selection: MacSection? = .focus
+
+    private var macOSRoot: some View {
         NavigationSplitView {
-            List {
-                NavigationLink {
-                    FocusView()
-                } label: {
+            List(selection: $selection) {
+                Section("Intelligence") {
                     Label("Focus", systemImage: "sparkles")
+                        .tag(MacSection.focus)
+                    Label("Insights", systemImage: "lightbulb")
+                        .tag(MacSection.insights)
+                    Label("Signals", systemImage: "antenna.radiowaves.left.and.right")
+                        .tag(MacSection.signals)
                 }
 
-                NavigationLink {
-                    DashboardView()
-                } label: {
-                    Label("Dashboard", systemImage: "brain.head.profile")
+                Section("Depth") {
+                    Label("Decisions", systemImage: "checkmark.seal")
+                        .tag(MacSection.decisions)
+                    Label("Memory", systemImage: "brain")
+                        .tag(MacSection.memory)
+                    Label("Knowledge", systemImage: "doc.text")
+                        .tag(MacSection.knowledge)
                 }
 
-                NavigationLink {
-                    DigestView()
-                } label: {
-                    Label("Digest", systemImage: "chart.bar.xaxis")
-                }
-
-                NavigationLink {
-                    KnowledgeListView()
-                } label: {
-                    Label("Knowledge", systemImage: "doc.text.fill")
-                }
-
-                NavigationLink {
-                    PipelineView()
-                } label: {
+                Section("System") {
                     Label("Pipeline", systemImage: "arrow.triangle.branch")
-                }
-
-                NavigationLink {
-                    PostsView()
-                } label: {
-                    Label("Posts", systemImage: "text.bubble.fill")
-                }
-
-                Spacer()
-
-                NavigationLink {
-                    ProfileView()
-                } label: {
+                        .tag(MacSection.pipeline)
                     Label("Profile", systemImage: "person.crop.circle")
-                }
-
-                NavigationLink {
-                    SettingsView()
-                } label: {
+                        .tag(MacSection.profile)
                     Label("Settings", systemImage: "gear")
+                        .tag(MacSection.settings)
                 }
             }
             .navigationTitle("CortexOS")
             .listStyle(.sidebar)
         } detail: {
-            FocusView()
+            Group {
+                switch selection {
+                case .focus:       DailyFocusView()
+                case .insights:    InsightFeedView()
+                case .signals:     SignalsView()
+                case .decisions:   DecisionHistoryView()
+                case .memory:      MemoryExplorerView()
+                case .knowledge:   KnowledgeListView()
+                case .pipeline:    PipelineView()
+                case .profile:     ProfileView()
+                case .settings:    SettingsView()
+                case nil:          DailyFocusView()
+                }
+            }
         }
         .environmentObject(engine)
         .frame(minWidth: 800, minHeight: 500)
-        #endif
+        .task { await engine.sync() }
     }
+
+    enum MacSection: Hashable {
+        case focus, insights, signals, decisions, memory, knowledge, pipeline, profile, settings
+    }
+    #endif
 }
 
 #Preview {
