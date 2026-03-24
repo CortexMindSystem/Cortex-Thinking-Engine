@@ -11,10 +11,10 @@ import SwiftUI
 // MARK: - Colors
 
 enum CortexColor {
-    // Backgrounds
-    static let bgPrimary    = Color("bgPrimary",    bundle: nil)  // fallback below
-    static let bgSecondary  = Color("bgSecondary",  bundle: nil)
-    static let bgSurface    = Color("bgSurface",    bundle: nil)
+    // Backgrounds — adaptive dark-first
+    static let bgPrimary   = Color(light: Color(white: 0.98), dark: Color(white: 0.07))
+    static let bgSecondary = Color(light: Color(white: 0.94), dark: Color(white: 0.11))
+    static let bgSurface   = Color(light: .white, dark: Color(white: 0.14))
 
     // Text
     static let textPrimary   = Color.primary
@@ -51,28 +51,9 @@ enum CortexColor {
     }
 }
 
-// MARK: - Color fallbacks (no asset catalog needed)
+// MARK: - Color helpers
 
 extension Color {
-    init(_ name: String, bundle: Bundle?) {
-        // Try asset catalog first, fall back to hardcoded
-        if let _ = bundle {
-            self.init(name)
-        } else {
-            // Programmatic dark-first palette
-            switch name {
-            case "bgPrimary":
-                self = Color(light: Color(white: 0.98), dark: Color(white: 0.07))
-            case "bgSecondary":
-                self = Color(light: Color(white: 0.94), dark: Color(white: 0.11))
-            case "bgSurface":
-                self = Color(light: .white, dark: Color(white: 0.14))
-            default:
-                self = .clear
-            }
-        }
-    }
-
     /// Adaptive color for light/dark mode.
     init(light: Color, dark: Color) {
         #if os(iOS)

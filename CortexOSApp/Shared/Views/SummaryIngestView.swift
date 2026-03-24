@@ -46,7 +46,7 @@ struct SummaryIngestView: View {
                 .textFieldStyle(.plain)
                 .padding(CortexSpacing.sm)
                 .background(CortexColor.bgSurface)
-                .clipShape(RoundedRectangle(cornerRadius: CortexRadius.input, style: .continuous))
+                .clipShape(RoundedRectangle(cornerRadius: CortexRadius.small, style: .continuous))
 
             // Submit
             Button {

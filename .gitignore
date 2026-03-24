@@ -11,6 +11,8 @@ scratch_*.py
 .env
 .env.*
 *.key
+*.pem
+*.p8
 
 # Logs & temp
 *.log
@@ -52,3 +54,11 @@ xcuserdata/
 *.swo
 *~
 .vscode/
+# Build artifacts
+CortexOSApp/*.ipa
+CortexOSApp/*.pkg
+CortexOSApp/*.dSYM.zip
+CortexOSApp/CortexOS.app/
+CortexOSApp/generate_icons.py
+CortexOSApp/fastlane/report.xml
+CortexOSApp/fastlane/README.md
