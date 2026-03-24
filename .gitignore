@@ -10,9 +10,12 @@ scratch_*.py
 # Secrets & environment
 .env
 .env.*
+*.cer
 *.key
-*.pem
+*.p12
 *.p8
+*.pem
+*.secret
 
 # Logs & temp
 *.log
@@ -22,43 +25,45 @@ tmp/
 # Nested duplicate repo (accidental clone)
 Cortex-Thinking-Engine/
 
-# Mac OS
-.DS_Store*
+# macOS
 ._*
+.DS_Store*
 
 # Python
 __pycache__/
-*.py[cod]
-*.egg-info/
-.venv/
-venv/
-dist/
-build/
 *.egg
-.pytest_cache/
-results.xml
-htmlcov/
+*.egg-info/
+*.py[cod]
 .coverage
+.pytest_cache/
 .ruff_cache/
+.venv/
+build/
+dist/
+htmlcov/
+results.xml
+venv/
 
 # Swift / Xcode
 .build/
 .swiftpm/
+*.dSYM
+*.dSYM.zip
+*.xcarchive
 DerivedData/
 xcuserdata/
-*.xcworkspace/xcuserdata/
 
 # IDE
 .idea/
+.vscode/
 *.swp
 *.swo
 *~
-.vscode/
+
 # Build artifacts
 CortexOSApp/*.ipa
 CortexOSApp/*.pkg
-CortexOSApp/*.dSYM.zip
 CortexOSApp/CortexOS.app/
-CortexOSApp/generate_icons.py
-CortexOSApp/fastlane/report.xml
 CortexOSApp/fastlane/README.md
+CortexOSApp/fastlane/report.xml
+CortexOSApp/generate_icons.py
