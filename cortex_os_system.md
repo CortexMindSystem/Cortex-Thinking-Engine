@@ -12,13 +12,13 @@ CortexOS is a three-tier system:
 ## Core Pipeline
 
 ```
-RSS Feeds (weekly_digest.py)
-    ↓
-Digest (Markdown)
-    ↓
-DigestProcessor → KnowledgeStore (JSON)
-    ↓
-ScoringEngine (scoring.py)
+RSS Feeds (weekly_digest.py)             User Summaries (markdown)
+    ↓                                        ↓
+Digest (Markdown)                        extract_items_from_summary()
+    ↓                                        ↓
+DigestProcessor → KnowledgeStore         Items + KnowledgeNotes
+    ↓                                        ↓
+ScoringEngine (scoring.py)          ←── unified Item pool
     ↓  ai_article_ratio, high_signal_ratio, signal_to_noise_ratio,
     ↓  context_keyword_coverage, project_fit_score
     ↓
@@ -45,6 +45,7 @@ PostGenerator → Social Posts (optional)
 | `scoring.py`    | Article & digest quality scoring (weighted composite)  |
 | `knowledge.py`  | Knowledge note CRUD with search and tagging            |
 | `digest.py`     | Parse markdown digests into knowledge notes            |
+| `items.py`      | Structured items + markdown parser (digest & summary)  |
 | `posts.py`      | Generate social posts from knowledge notes             |
 | `pipeline.py`   | Step-based pipeline with status tracking               |
 | `llm.py`        | LLM provider abstraction (OpenAI, Anthropic, offline)  |

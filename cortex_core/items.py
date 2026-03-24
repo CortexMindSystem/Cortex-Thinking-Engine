@@ -27,6 +27,7 @@ SourceType = Literal[
     "blog_export",
     "project_doc",
     "manual",
+    "summary",
 ]
 
 
@@ -93,6 +94,80 @@ def extract_items_from_digest(text: str) -> list[Item]:
                 content=title,  # digest items have title-only content
             )
             items.append(item)
+
+    return items
+
+
+def extract_items_from_summary(text: str, *, source: str = "", tags: list[str] | None = None) -> list[Item]:
+    """Parse a user-written markdown summary into structured Items.
+
+    Splits on headings (## / ###) and double-newlines.
+    Each section becomes one Item with title from the heading
+    and content from the body.
+    """
+    items: list[Item] = []
+    base_tags = tags or []
+
+    # Split into heading-delimited sections
+    section_re = re.compile(r"^(#{1,3})\s+(.+)", re.MULTILINE)
+    parts = section_re.split(text)
+
+    # parts: [preamble, level, title, body, level, title, body, ...]
+    # Handle preamble (text before first heading)
+    preamble = parts[0].strip() if parts else ""
+    if preamble:
+        items.append(Item(
+            source_type="summary",
+            title=source or "User Summary",
+            content=preamble,
+            tags=list(base_tags),
+            raw_metadata={"source": source} if source else {},
+        ))
+
+    # Process heading groups (level, title, body)
+    i = 1
+    while i + 2 < len(parts):
+        heading = parts[i + 1].strip()
+        body = parts[i + 2].strip()
+        i += 3
+
+        if not body:
+            continue
+
+        # Split long bodies into paragraphs (separated by blank lines)
+        paragraphs = [p.strip() for p in re.split(r"\n\s*\n", body) if p.strip()]
+
+        if len(paragraphs) <= 3:
+            # Keep as one item
+            items.append(Item(
+                source_type="summary",
+                title=heading,
+                content=body,
+                section=heading,
+                tags=list(base_tags),
+                raw_metadata={"source": source} if source else {},
+            ))
+        else:
+            # One item per paragraph for long sections
+            for idx, para in enumerate(paragraphs, 1):
+                items.append(Item(
+                    source_type="summary",
+                    title=f"{heading} ({idx})",
+                    content=para,
+                    section=heading,
+                    tags=list(base_tags),
+                    raw_metadata={"source": source} if source else {},
+                ))
+
+    # Fallback: no headings at all — treat whole text as one item
+    if not items and text.strip():
+        items.append(Item(
+            source_type="summary",
+            title=source or "User Summary",
+            content=text.strip(),
+            tags=list(base_tags),
+            raw_metadata={"source": source} if source else {},
+        ))
 
     return items
 

@@ -56,12 +56,13 @@ def create_app() -> FastAPI:
     )
 
     # Register routers
-    from cortex_core.api.routes import context, digest, focus, health, knowledge, pipeline, posts, profile, sync, why
+    from cortex_core.api.routes import context, digest, focus, health, ingest, knowledge, pipeline, posts, profile, sync, why
 
     app.include_router(health.router)
     app.include_router(focus.router)  # primary feature
     app.include_router(why.router)  # why engine — per-item intelligence
     app.include_router(sync.router)  # single-call sync for Apple clients
+    app.include_router(ingest.router)  # user summary ingestion
     app.include_router(context.router)  # agent context API
     app.include_router(profile.router)
     app.include_router(knowledge.router)

@@ -104,3 +104,27 @@ struct FeedbackRequest: Codable {
     let item: String
     let useful: Bool
 }
+
+// MARK: - Summary Ingestion
+
+struct SummaryIngestRequest: Codable {
+    let content: String
+    var source: String = ""
+    var tags: [String] = []
+    var createNotes: Bool = true
+
+    enum CodingKeys: String, CodingKey {
+        case content, source, tags
+        case createNotes = "create_notes"
+    }
+}
+
+struct IngestResult: Codable {
+    let itemsIngested: Int
+    let notesCreated: Int
+
+    enum CodingKeys: String, CodingKey {
+        case itemsIngested = "items_ingested"
+        case notesCreated = "notes_created"
+    }
+}

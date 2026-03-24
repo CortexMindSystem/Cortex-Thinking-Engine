@@ -20,7 +20,7 @@ from cortex_core.decisions import DecisionEngine
 from cortex_core.digest import DigestProcessor
 from cortex_core.focus import FocusEngine
 from cortex_core.insights import InsightStore, generate_insight_from_note
-from cortex_core.items import ItemStore, extract_items_from_digest
+from cortex_core.items import ItemStore, extract_items_from_digest, extract_items_from_summary
 from cortex_core.knowledge import KnowledgeNote, KnowledgeStore
 from cortex_core.llm import LLMProvider
 from cortex_core.memory import ContextMemory
@@ -292,6 +292,51 @@ class CortexEngine:
         raw_items = extract_items_from_digest(text)
         added = self.items.add_batch(raw_items)
         return [i.to_dict() for i in added]
+
+    # ============================================================
+    # Summary ingestion (user-authored content)
+    # ============================================================
+
+    def ingest_summary(
+        self,
+        text: str,
+        *,
+        source: str = "",
+        tags: list[str] | None = None,
+        create_notes: bool = True,
+    ) -> dict:
+        """Ingest a user-written markdown summary.
+
+        1. Parses into Items (raw preservation)
+        2. Optionally creates KnowledgeNotes for each section
+        3. Returns count of items and notes created
+
+        This is how personal analysis and summaries become
+        part of the CortexOS context layer.
+        """
+        raw_items = extract_items_from_summary(text, source=source, tags=tags)
+        added_items = self.items.add_batch(raw_items)
+
+        notes_created: list[dict] = []
+        if create_notes:
+            for item in added_items:
+                note = KnowledgeNote(
+                    title=item.title,
+                    insight=item.content,
+                    implication="",
+                    action="",
+                    source_url=item.url,
+                    tags=item.tags,
+                )
+                saved = self.store.add(note)
+                notes_created.append(saved.to_dict())
+
+        return {
+            "items_ingested": len(added_items),
+            "notes_created": len(notes_created),
+            "items": [i.to_dict() for i in added_items],
+            "notes": notes_created,
+        }
 
     # ============================================================
     # NEW: Signal detection

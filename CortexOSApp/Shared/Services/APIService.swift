@@ -229,6 +229,12 @@ final class APIService: ObservableObject {
     func sendFeedback(_ body: FeedbackRequest) async throws {
         try await requestNoContent("POST", path: "/context/feedback", body: body)
     }
+
+    // MARK: - Summary Ingestion
+
+    func ingestSummary(_ body: SummaryIngestRequest) async throws -> IngestResult {
+        try await request("POST", path: "/ingest/summary", body: body)
+    }
 }
 
 // MARK: - Helpers

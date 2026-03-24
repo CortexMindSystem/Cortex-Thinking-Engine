@@ -79,6 +79,15 @@ struct QuickCaptureView: View {
                     .transition(.opacity)
             }
 
+            // Link to summary ingestion
+            NavigationLink {
+                SummaryIngestView()
+            } label: {
+                Label("Ingest a longer summary", systemImage: "square.and.arrow.down")
+                    .font(CortexFont.caption)
+                    .foregroundStyle(CortexColor.textTertiary)
+            }
+
             Spacer()
         }
         .padding(.horizontal, CortexSpacing.xl)

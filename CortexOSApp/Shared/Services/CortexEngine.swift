@@ -219,4 +219,22 @@ final class CortexEngine: ObservableObject {
             // Silent — feedback is best-effort, never block UX
         }
     }
+
+    // MARK: - Summary Ingestion
+
+    @Published var lastIngestResult: IngestResult?
+
+    func ingestSummary(content: String, source: String = "", tags: [String] = []) async -> Bool {
+        isLoading = true
+        defer { isLoading = false }
+        do {
+            let request = SummaryIngestRequest(content: content, source: source, tags: tags)
+            lastIngestResult = try await api.ingestSummary(request)
+            errorMessage = nil
+            return true
+        } catch {
+            errorMessage = error.localizedDescription
+            return false
+        }
+    }
 }

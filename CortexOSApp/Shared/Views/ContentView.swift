@@ -52,6 +52,8 @@ struct ContentView: View {
                     .tag(MacSection.focus)
                 Label("Insights", systemImage: "lightbulb")
                     .tag(MacSection.insights)
+                Label("Ingest", systemImage: "square.and.arrow.down")
+                    .tag(MacSection.ingest)
                 Label("Memory", systemImage: "brain")
                     .tag(MacSection.memory)
                 Label("Decisions", systemImage: "checkmark.seal")
@@ -63,6 +65,7 @@ struct ContentView: View {
             switch selection {
             case .focus:       DailyFocusView()
             case .insights:    InsightFeedView()
+            case .ingest:      SummaryIngestView()
             case .memory:      MemoryExplorerView()
             case .decisions:   DecisionHistoryView()
             case nil:          DailyFocusView()
@@ -74,7 +77,7 @@ struct ContentView: View {
     }
 
     enum MacSection: Hashable {
-        case focus, insights, memory, decisions
+        case focus, insights, ingest, memory, decisions
     }
     #endif
 }
