@@ -103,6 +103,19 @@ Configure model in `~/.cortexos/config.json`:
 
 ---
 
+## Deploy to TestFlight
+
+Requires [Fastlane](https://fastlane.tools) and an App Store Connect API key (`.p8`).
+
+```bash
+cd CortexOSApp
+fastlane ios testflight_release   # iOS
+fastlane mac testflight_release   # macOS
+fastlane all_testflight           # both
+```
+
+---
+
 ## Tests
 
 ```bash
