@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from cortex_core.items import Item, extract_items_from_summary
+from cortex_core.items import extract_items_from_summary
 
 
 # ── Parser tests ─────────────────────────────────────────────
@@ -160,7 +160,7 @@ class TestIngestSummary:
         md = "## Topic\n\nSame content."
         r1 = engine.ingest_summary(md)
         assert r1["items_ingested"] == 1
-        r2 = engine.ingest_summary(md)
+        engine.ingest_summary(md)
         # Second call should deduplicate — item count stays at 1
         assert engine.items.count == 1
 
