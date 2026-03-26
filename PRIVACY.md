@@ -1,4 +1,4 @@
-# Privacy Policy — CortexOS
+# Privacy Policy — [CortexOS](https://github.com/CortexMindSystem/)
 
 _Last updated: March 25, 2026_
 
@@ -24,7 +24,7 @@ CortexOS is designed with privacy as a core principle. We do **not** collect, st
 - CortexOS does not knowingly collect information from children under 13.
 
 ## Contact
-For any privacy questions, contact: [Pierre-Henry Soria](mailto:pierrehs@hotmail.com)
+For any privacy questions, contact [Pierre-Henry](mailto:pierre@pierrehenry.dev)
 
 ---
 
@@ -33,4 +33,4 @@ For any privacy questions, contact: [Pierre-Henry Soria](mailto:pierrehs@hotmail
 - No analytics, ads, or tracking.
 - You are in full control of your data.
 
-© 2026 Pierre-Henry Soria
+© 2026 [Pierre-Henry Soria](https://pierrehenry.dev)
