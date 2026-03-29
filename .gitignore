@@ -65,6 +65,5 @@ xcuserdata/
 CortexOSApp/*.ipa
 CortexOSApp/*.pkg
 CortexOSApp/CortexOS.app/
-CortexOSApp/fastlane/README.md
 CortexOSApp/fastlane/report.xml
 CortexOSApp/generate_icons.py
