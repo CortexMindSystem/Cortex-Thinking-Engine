@@ -1,11 +1,11 @@
 > [!IMPORTANT]
 > Before using Fastlane for CortexOS, you must first clone the shared Fastlane configuration:
 >
-> git clone https://github.com/CortexMindSystem/fastlane
+> `git clone https://github.com/CortexMindSystem/fastlane`
 >
 > or (SSH):
 >
-> git clone git@github.com:CortexMindSystem/fastlane.git
+> `git clone git@github.com:CortexMindSystem/fastlane.git`
 >
 > Then, copy the `Appfile` and `Fastfile` from the cloned repository into your local `CortexOSApp/fastlane/` directory:
 >
