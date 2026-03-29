@@ -2,7 +2,7 @@
 
 ### _A context, memory, and prioritisation engine for ambitious builders and AI agents_
 
-![CortexOS](logo.png)
+![CortexOS Mind System](logo.png)
 
 > [!Note]
 > CortexOS turns scattered inputs (RSS feeds, notes, digests) into grounded daily actions — answering **"What should I focus on today?"** using your personal goals, projects, and reading history as context. Works fully offline; LLM is optional.
