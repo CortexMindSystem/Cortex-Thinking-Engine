@@ -25,9 +25,12 @@ tmp/
 # Nested duplicate repo (accidental clone)
 Cortex-Thinking-Engine/
 
+# Fastlane config (contains Apple ID, team info)
+CortexOSApp/fastlane/Appfile
+
 # macOS
 ._*
-.DS_Store*
+.DS_Store
 
 # Python
 __pycache__/
