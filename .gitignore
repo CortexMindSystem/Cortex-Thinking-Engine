@@ -23,7 +23,6 @@ scratch_*.py
 tmp/
 
 # Fastlane config (do not commit sensitive files)
-CortexOSApp/fastlane/README.md
 CortexOSApp/fastlane/Appfile
 CortexOSApp/fastlane/Fastfile
 
