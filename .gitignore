@@ -22,11 +22,10 @@ scratch_*.py
 *.tmp
 tmp/
 
-# Nested duplicate repo (accidental clone)
-Cortex-Thinking-Engine/
-
-# Fastlane config (contains Apple ID, team info)
+# Fastlane config (do not commit sensitive files)
+CortexOSApp/fastlane/README.md
 CortexOSApp/fastlane/Appfile
+CortexOSApp/fastlane/Fastfile
 
 # macOS
 ._*
