@@ -1,4 +1,4 @@
-[!IMPORTANT]
+> [!IMPORTANT]
 > Before using Fastlane for CortexOS, you must first clone the shared Fastlane configuration:
 >
 > git clone https://github.com/CortexMindSystem/fastlane
