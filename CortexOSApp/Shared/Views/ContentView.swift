@@ -33,6 +33,9 @@ struct ContentView: View {
 
             NavigationStack { InsightFeedView() }
                 .tabItem { Label("Insights", systemImage: "lightbulb") }
+
+            NavigationStack { SettingsView() }
+                .tabItem { Label("Settings", systemImage: "gearshape") }
         }
         .tint(CortexColor.accent)
         .environmentObject(engine)
