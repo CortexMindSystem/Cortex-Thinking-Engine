@@ -210,6 +210,23 @@ final class CortexEngine: ObservableObject {
         }
     }
 
+    // MARK: - Decisions
+
+    func recordDecision(_ request: DecisionCreateRequest) async -> Bool {
+        do {
+            let decision = try await api.recordDecision(request)
+            // Merge into local snapshot if available
+            if snapshot != nil {
+                await sync()
+            }
+            errorMessage = nil
+            return true
+        } catch {
+            errorMessage = error.localizedDescription
+            return false
+        }
+    }
+
     // MARK: - Feedback (was this useful?)
 
     func sendFeedback(item: String, useful: Bool) async {

@@ -3,8 +3,8 @@
 //  CortexOS
 //
 //  Root navigation — radically simple.
-//  iOS: Focus is the hero. Capture + Insights secondary.
-//  macOS: 4 sidebar items. That's it.
+//  iOS: Focus is the hero. Decide + Capture secondary.
+//  macOS: 5 sidebar items. That's it.
 //
 
 import SwiftUI
@@ -20,26 +20,46 @@ struct ContentView: View {
         #endif
     }
 
-    // MARK: - iOS (3 tabs — Focus first, always)
+    // MARK: - iOS (3 tabs — Focus / Decide / Capture)
 
     #if os(iOS)
+    @State private var showSettings = false
+
     private var iOSRoot: some View {
         TabView {
-            NavigationStack { DailyFocusView() }
-                .tabItem { Label("Focus", systemImage: "sparkles") }
+            NavigationStack {
+                DailyFocusView()
+                    .toolbar {
+                        ToolbarItem(placement: .topBarTrailing) {
+                            Button { showSettings = true } label: {
+                                Image(systemName: "gearshape")
+                                    .foregroundStyle(CortexColor.textTertiary)
+                            }
+                        }
+                    }
+            }
+            .tabItem { Label("Focus", systemImage: "sparkles") }
+
+            NavigationStack { QuickDecisionView() }
+                .tabItem { Label("Decide", systemImage: "checkmark.seal") }
 
             NavigationStack { QuickCaptureView() }
                 .tabItem { Label("Capture", systemImage: "plus.circle") }
-
-            NavigationStack { InsightFeedView() }
-                .tabItem { Label("Insights", systemImage: "lightbulb") }
-
-            NavigationStack { SettingsView() }
-                .tabItem { Label("Settings", systemImage: "gearshape") }
         }
         .tint(CortexColor.accent)
         .environmentObject(engine)
         .task { await engine.sync() }
+        .sheet(isPresented: $showSettings) {
+            NavigationStack {
+                SettingsView()
+                    .environmentObject(engine)
+                    .toolbar {
+                        ToolbarItem(placement: .topBarTrailing) {
+                            Button("Done") { showSettings = false }
+                        }
+                    }
+            }
+        }
     }
     #endif
 

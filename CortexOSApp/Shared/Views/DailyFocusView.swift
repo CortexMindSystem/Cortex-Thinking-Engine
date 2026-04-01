@@ -19,18 +19,70 @@ struct DailyFocusView: View {
             } else if let legacy = engine.dailyBrief {
                 legacyContent(legacy)
             } else {
-                EmptyStateView(
-                    icon: "sparkles",
-                    title: "No focus brief yet",
-                    message: "Run the pipeline to generate today's priorities.",
-                    actionTitle: "Generate",
-                    action: { Task { await engine.generateFocusBrief() } }
-                )
+                VStack(spacing: CortexSpacing.xl) {
+                    EmptyStateView(
+                        icon: "sparkles",
+                        title: "No focus brief yet",
+                        message: "CortexOS distils your top 3 priorities.\nConnect to the server and run the pipeline.",
+                        actionTitle: "Generate Focus",
+                        action: { Task { await engine.generateFocusBrief() } }
+                    )
+
+                    // Orientation: show what CortexOS knows
+                    if let snapshot = engine.snapshot {
+                        quickContextCard(snapshot)
+                    }
+                }
             }
         }
         .background(CortexColor.bgPrimary)
         .navigationTitle("Focus")
         .refreshable { await engine.sync() }
+    }
+
+    // MARK: - Quick context when empty
+
+    @ViewBuilder
+    private func quickContextCard(_ snapshot: SyncSnapshot) -> some View {
+        VStack(alignment: .leading, spacing: CortexSpacing.sm) {
+            if let project = snapshot.activeProject {
+                HStack(spacing: CortexSpacing.xs) {
+                    Image(systemName: "folder.fill")
+                        .font(.caption)
+                        .foregroundStyle(CortexColor.accent)
+                    Text(project.projectName)
+                        .font(CortexFont.captionMedium)
+                        .foregroundStyle(CortexColor.textPrimary)
+                }
+            }
+
+            if !snapshot.profile.goals.isEmpty {
+                VStack(alignment: .leading, spacing: CortexSpacing.xxs) {
+                    Text("Your goals")
+                        .font(CortexFont.mono)
+                        .foregroundStyle(CortexColor.textTertiary)
+                    ForEach(snapshot.profile.goals.prefix(3), id: \.self) { goal in
+                        Text("→ \(goal)")
+                            .font(CortexFont.caption)
+                            .foregroundStyle(CortexColor.textSecondary)
+                    }
+                }
+            }
+
+            if !snapshot.signals.isEmpty {
+                HStack(spacing: CortexSpacing.xs) {
+                    ForEach(snapshot.signals.prefix(3)) { signal in
+                        ContextTag(text: signal.topic)
+                    }
+                }
+            }
+        }
+        .padding(CortexSpacing.lg)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(CortexColor.bgSurface)
+        .clipShape(RoundedRectangle(cornerRadius: CortexRadius.card, style: .continuous))
+        .cortexShadow()
+        .padding(.horizontal, CortexSpacing.xl)
     }
 
     // MARK: - Sync-powered focus
