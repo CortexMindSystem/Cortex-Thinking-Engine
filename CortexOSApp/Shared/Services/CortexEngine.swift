@@ -214,7 +214,7 @@ final class CortexEngine: ObservableObject {
 
     func recordDecision(_ request: DecisionCreateRequest) async -> Bool {
         do {
-            let decision = try await api.recordDecision(request)
+            _ = try await api.recordDecision(request)
             // Merge into local snapshot if available
             if snapshot != nil {
                 await sync()

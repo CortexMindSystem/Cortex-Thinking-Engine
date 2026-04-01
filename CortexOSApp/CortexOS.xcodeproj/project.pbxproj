@@ -61,6 +61,7 @@
 		B7A4DC0A6632E9194C6DC7EC /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = B245C0F1ACBE90E1E66E446B /* Theme.swift */; };
 		BA172640530928DA8F2B28ED /* DecisionHistoryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 09AE60E8198E1E03FF2C9DC2 /* DecisionHistoryView.swift */; };
 		BBFADD1949CF1D30AF5A1897 /* KnowledgeNote.swift in Sources */ = {isa = PBXBuildFile; fileRef = D7069ADE1D4517A68074A941 /* KnowledgeNote.swift */; };
+		BD947C3057157494BE09EC87 /* QuickDecisionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01786C49893DB4FC10B08AFF /* QuickDecisionView.swift */; };
 		C0CDF557F0DF8483EF306DB8 /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = B245C0F1ACBE90E1E66E446B /* Theme.swift */; };
 		C0DE21C721526FAEA51B8059 /* InsightFeedView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7313EFB35830133EE4155F5C /* InsightFeedView.swift */; };
 		D1C8E371EB4678190E0A8BA0 /* PipelineStatus.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0C93989C1DC62F928E1750B3 /* PipelineStatus.swift */; };
@@ -73,6 +74,7 @@
 		E7B7D43C0C232EAF35C66E26 /* CortexOSApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A68B29F8468FF48C1DAFE09 /* CortexOSApp.swift */; };
 		EAC85FABCCFF67D9FC4A6C45 /* QuickCaptureView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD13E98FF86C1B2615DFB8AC /* QuickCaptureView.swift */; };
 		EBA7E81547BA33758E8DE7AE /* ProfileView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CEF3C538200AE588B7C603D3 /* ProfileView.swift */; };
+		EBD4F8874EBCA6FB566EAE36 /* QuickDecisionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01786C49893DB4FC10B08AFF /* QuickDecisionView.swift */; };
 		F493F39713E5F26E86430BAC /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F40F5AE2A6234C33C5D518E0 /* SettingsView.swift */; };
 		F55CE3FD2BD0007E434AABDB /* SyncSnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3A4B10FE4642391FE81849AE /* SyncSnapshot.swift */; };
 		F7E503F388B685A2F6645292 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F40F5AE2A6234C33C5D518E0 /* SettingsView.swift */; };
@@ -82,6 +84,7 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		01786C49893DB4FC10B08AFF /* QuickDecisionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickDecisionView.swift; sourceTree = "<group>"; };
 		0186408DFF9E447F42325042 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		06C2841B2C4D29372134655D /* DailyFocusView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DailyFocusView.swift; sourceTree = "<group>"; };
 		09AE60E8198E1E03FF2C9DC2 /* DecisionHistoryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DecisionHistoryView.swift; sourceTree = "<group>"; };
@@ -157,6 +160,7 @@
 				C0E9AF06C1DDBFA0A3A6C727 /* PostsView.swift */,
 				CEF3C538200AE588B7C603D3 /* ProfileView.swift */,
 				BD13E98FF86C1B2615DFB8AC /* QuickCaptureView.swift */,
+				01786C49893DB4FC10B08AFF /* QuickDecisionView.swift */,
 				F40F5AE2A6234C33C5D518E0 /* SettingsView.swift */,
 				AF5C598DE62C71A3374C52A0 /* SignalsView.swift */,
 				EDAF6B17B98DBF6A1DDF49E0 /* SummaryIngestView.swift */,
@@ -374,6 +378,7 @@
 				94D3A87FDB92DF18F8797D5B /* PriorityList.swift in Sources */,
 				FEA350E145EDA5EF44589E39 /* ProfileView.swift in Sources */,
 				EAC85FABCCFF67D9FC4A6C45 /* QuickCaptureView.swift in Sources */,
+				EBD4F8874EBCA6FB566EAE36 /* QuickDecisionView.swift in Sources */,
 				96B633ED217CEDF82AE843B3 /* ServerStatus.swift in Sources */,
 				F7E503F388B685A2F6645292 /* SettingsView.swift in Sources */,
 				540D96792597DB4E018959FC /* SignalsView.swift in Sources */,
@@ -416,6 +421,7 @@
 				76C449D9D0FFA14BFA81CBBF /* PriorityList.swift in Sources */,
 				EBA7E81547BA33758E8DE7AE /* ProfileView.swift in Sources */,
 				885CAE17980EB7774400917C /* QuickCaptureView.swift in Sources */,
+				BD947C3057157494BE09EC87 /* QuickDecisionView.swift in Sources */,
 				9944C2C539ACCC45B94EA89F /* ServerStatus.swift in Sources */,
 				F493F39713E5F26E86430BAC /* SettingsView.swift in Sources */,
 				F8D0249C1024A86E5FC42C2E /* SignalsView.swift in Sources */,
@@ -465,7 +471,7 @@
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				CODE_SIGN_STYLE = Automatic;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 202603251510;
+				CURRENT_PROJECT_VERSION = 202604020818;
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				DEVELOPMENT_TEAM = 2V8LZ2444Y;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
@@ -554,7 +560,7 @@
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				CODE_SIGN_STYLE = Automatic;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 202603251510;
+				CURRENT_PROJECT_VERSION = 202604020818;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				DEVELOPMENT_TEAM = 2V8LZ2444Y;
 				ENABLE_NS_ASSERTIONS = NO;
