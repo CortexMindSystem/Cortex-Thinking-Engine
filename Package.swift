@@ -21,6 +21,8 @@ let package = Package(
             path: "CortexOSApp/Shared",
             exclude: ["Assets.xcassets", "CortexOSApp.swift"],
             sources: [
+                "Components",
+                "Design",
                 "Models",
                 "Services",
                 "Views",
