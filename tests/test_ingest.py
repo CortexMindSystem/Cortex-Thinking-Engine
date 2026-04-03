@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import pytest
-
 from cortex_core.items import extract_items_from_summary
 
 
@@ -181,10 +180,9 @@ class TestIngestSummary:
 
 @pytest.fixture()
 def ingest_client(tmp_path):
-    import cortex_core.api.server as server_module
-
     from fastapi.testclient import TestClient
 
+    import cortex_core.api.server as server_module
     from cortex_core.api.server import create_app
     from cortex_core.config import CortexConfig
     from cortex_core.engine import CortexEngine
