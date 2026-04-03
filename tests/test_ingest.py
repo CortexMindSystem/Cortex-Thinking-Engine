@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import pytest
+
 from cortex_core.items import extract_items_from_summary
 
 
