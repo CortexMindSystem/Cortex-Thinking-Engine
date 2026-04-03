@@ -56,7 +56,19 @@ def create_app() -> FastAPI:
     )
 
     # Register routers
-    from cortex_core.api.routes import context, digest, focus, health, ingest, knowledge, pipeline, posts, profile, sync, why
+    from cortex_core.api.routes import (
+        context,
+        digest,
+        focus,
+        health,
+        ingest,
+        knowledge,
+        pipeline,
+        posts,
+        profile,
+        sync,
+        why,
+    )
 
     app.include_router(health.router)
     app.include_router(focus.router)  # primary feature

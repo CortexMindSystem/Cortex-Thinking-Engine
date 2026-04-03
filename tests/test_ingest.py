@@ -182,10 +182,12 @@ class TestIngestSummary:
 @pytest.fixture()
 def ingest_client(tmp_path):
     import cortex_core.api.server as server_module
+
+    from fastapi.testclient import TestClient
+
     from cortex_core.api.server import create_app
     from cortex_core.config import CortexConfig
     from cortex_core.engine import CortexEngine
-    from fastapi.testclient import TestClient
 
     cfg = CortexConfig(data_dir=tmp_path)
     engine = CortexEngine(config=cfg)
