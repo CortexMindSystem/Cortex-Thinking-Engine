@@ -67,3 +67,8 @@ CortexOSApp/*.pkg
 CortexOSApp/CortexOS.app/
 CortexOSApp/fastlane/report.xml
 CortexOSApp/generate_icons.py
+
+# Screenshot generation artifacts
+CortexOSApp/screenshot_results/
+CortexOSApp/store_assets/marketing/
+CortexOSApp/store_assets/**/*_raw.png
