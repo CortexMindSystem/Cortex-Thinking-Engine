@@ -13,6 +13,7 @@
 		1A6D7895A3BA05FA38AFC34C /* ContextView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD53E240EE5BEA06D52A091B /* ContextView.swift */; };
 		1A7D64121DCB76486B6E85A6 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5C81BB2D559BBB48F8E3C773 /* ContentView.swift */; };
 		1E6FACEA91A3D1F792EEE77F /* CortexEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92F7EAF5E556E281CE9F848D /* CortexEngine.swift */; };
+		20C580E96180CFE49CF17075 /* ScreenshotTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A3C27B713A626BD359E35539 /* ScreenshotTests.swift */; };
 		274B0794B776BBECF2857C1C /* ContextView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD53E240EE5BEA06D52A091B /* ContextView.swift */; };
 		2AF7B10CE2929DCEC41ABC2B /* DailyFocusView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 06C2841B2C4D29372134655D /* DailyFocusView.swift */; };
 		2F1533E0941F02C7DF1279B5 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = ED492439B9253F6CF71DC93B /* Assets.xcassets */; };
@@ -34,6 +35,7 @@
 		61E6B87DCBE7E228E1E9CB8C /* PipelineStatus.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0C93989C1DC62F928E1750B3 /* PipelineStatus.swift */; };
 		638C6BB926ACE5B77CC79945 /* DigestScore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 50975A34E60FCED32F3B65C2 /* DigestScore.swift */; };
 		66869F5ED2E35942CB4A865C /* EmptyStateView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC832AEEF1CE27B7F0470381 /* EmptyStateView.swift */; };
+		69EC3771A83BAE919CBFA7C7 /* ScreenshotTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A3C27B713A626BD359E35539 /* ScreenshotTests.swift */; };
 		6AA8D37A4A14E2C5B7700B88 /* SummaryIngestView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EDAF6B17B98DBF6A1DDF49E0 /* SummaryIngestView.swift */; };
 		6D4A94B835D700183C584BBD /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5C81BB2D559BBB48F8E3C773 /* ContentView.swift */; };
 		6D4E79118F9730FEAB75B942 /* UserProfile.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1040BF0BCDC6B775AB8BFEB /* UserProfile.swift */; };
@@ -83,6 +85,23 @@
 		FEA350E145EDA5EF44589E39 /* ProfileView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CEF3C538200AE588B7C603D3 /* ProfileView.swift */; };
 /* End PBXBuildFile section */
 
+/* Begin PBXContainerItemProxy section */
+		52A04D5C5471618CD9E46C33 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = A2F7D667D97D8BFD9B246442 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 478B9E8325E8EDB61C4E58F1;
+			remoteInfo = "CortexOS-macOS";
+		};
+		B68B022399AA36688D2A5C32 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = A2F7D667D97D8BFD9B246442 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 9289113ECDE79DBEECBD7E8E;
+			remoteInfo = "CortexOS-iOS";
+		};
+/* End PBXContainerItemProxy section */
+
 /* Begin PBXFileReference section */
 		01786C49893DB4FC10B08AFF /* QuickDecisionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickDecisionView.swift; sourceTree = "<group>"; };
 		0186408DFF9E447F42325042 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
@@ -96,8 +115,10 @@
 		3A4B10FE4642391FE81849AE /* SyncSnapshot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncSnapshot.swift; sourceTree = "<group>"; };
 		50975A34E60FCED32F3B65C2 /* DigestScore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DigestScore.swift; sourceTree = "<group>"; };
 		5C81BB2D559BBB48F8E3C773 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+		63BCBB6AA2F201EA97963BB5 /* CortexOS-macOS-UITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "CortexOS-macOS-UITests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
 		6669B3D4C7E9E8EE9B8C65AF /* SocialPost.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SocialPost.swift; sourceTree = "<group>"; };
 		68521227F783F7EEE011D484 /* FocusView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FocusView.swift; sourceTree = "<group>"; };
+		686A3F0DF07BE408DC36644A /* CortexOS-iOS-UITests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = "CortexOS-iOS-UITests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
 		6B9D01C665875FEE55307014 /* MemoryExplorerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MemoryExplorerView.swift; sourceTree = "<group>"; };
 		6CC8681C2FB3D28D1A65B4CE /* FocusBrief.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FocusBrief.swift; sourceTree = "<group>"; };
 		6DCCB089569B732DD5F4E62B /* PipelineView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PipelineView.swift; sourceTree = "<group>"; };
@@ -108,6 +129,7 @@
 		8A68B29F8468FF48C1DAFE09 /* CortexOSApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CortexOSApp.swift; sourceTree = "<group>"; };
 		92F7EAF5E556E281CE9F848D /* CortexEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CortexEngine.swift; sourceTree = "<group>"; };
 		A2A993C377436BBCC18F755F /* DigestView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DigestView.swift; sourceTree = "<group>"; };
+		A3C27B713A626BD359E35539 /* ScreenshotTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScreenshotTests.swift; sourceTree = "<group>"; };
 		A60520F36A8F01A98FEA4894 /* KnowledgeListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KnowledgeListView.swift; sourceTree = "<group>"; };
 		AA75246885E7EFCE5CCB72D6 /* ContextTag.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContextTag.swift; sourceTree = "<group>"; };
 		AF5C598DE62C71A3374C52A0 /* SignalsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SignalsView.swift; sourceTree = "<group>"; };
@@ -143,6 +165,14 @@
 			path = Shared;
 			sourceTree = "<group>";
 		};
+		36A5304225FB72EA2F2C1238 /* UITests */ = {
+			isa = PBXGroup;
+			children = (
+				A3C27B713A626BD359E35539 /* ScreenshotTests.swift */,
+			);
+			path = UITests;
+			sourceTree = "<group>";
+		};
 		4BBFE728DF2C995E3CFDE55D /* Views */ = {
 			isa = PBXGroup;
 			children = (
@@ -174,6 +204,7 @@
 				5625726EEC4A1BD1548B0721 /* iOS */,
 				C2AA20F82949400978577633 /* macOS */,
 				2AEE41587F14374356954FFC /* Shared */,
+				36A5304225FB72EA2F2C1238 /* UITests */,
 				5482D45D141D9BE0EA95352E /* Products */,
 			);
 			sourceTree = "<group>";
@@ -181,7 +212,9 @@
 		5482D45D141D9BE0EA95352E /* Products */ = {
 			isa = PBXGroup;
 			children = (
+				686A3F0DF07BE408DC36644A /* CortexOS-iOS-UITests.xctest */,
 				FE206CAC9EDAB0031B2A6271 /* CortexOS-iOS.app */,
+				63BCBB6AA2F201EA97963BB5 /* CortexOS-macOS-UITests.xctest */,
 				78CE4FA3A70257B60699E5C9 /* CortexOS-macOS.app */,
 			);
 			name = Products;
@@ -252,6 +285,24 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
+		0DA937660E7FA94BC5AA74AC /* CortexOS-iOS-UITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = D6EBD0F8C097742782BEF023 /* Build configuration list for PBXNativeTarget "CortexOS-iOS-UITests" */;
+			buildPhases = (
+				D399652F8CD380932FB44580 /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				30D3706A4812523CE890BEDE /* PBXTargetDependency */,
+			);
+			name = "CortexOS-iOS-UITests";
+			packageProductDependencies = (
+			);
+			productName = "CortexOS-iOS-UITests";
+			productReference = 686A3F0DF07BE408DC36644A /* CortexOS-iOS-UITests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
+		};
 		478B9E8325E8EDB61C4E58F1 /* CortexOS-macOS */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = DE174034B4BC05C491F325FA /* Build configuration list for PBXNativeTarget "CortexOS-macOS" */;
@@ -269,6 +320,24 @@
 			productName = "CortexOS-macOS";
 			productReference = 78CE4FA3A70257B60699E5C9 /* CortexOS-macOS.app */;
 			productType = "com.apple.product-type.application";
+		};
+		48566068873B85D9B4B03162 /* CortexOS-macOS-UITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 4E021E4282EB056AF696B279 /* Build configuration list for PBXNativeTarget "CortexOS-macOS-UITests" */;
+			buildPhases = (
+				4BAED53BE355E763D5F1108A /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				5B0119964A7C6C72F959A22A /* PBXTargetDependency */,
+			);
+			name = "CortexOS-macOS-UITests";
+			packageProductDependencies = (
+			);
+			productName = "CortexOS-macOS-UITests";
+			productReference = 63BCBB6AA2F201EA97963BB5 /* CortexOS-macOS-UITests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
 		};
 		9289113ECDE79DBEECBD7E8E /* CortexOS-iOS */ = {
 			isa = PBXNativeTarget;
@@ -297,9 +366,19 @@
 				BuildIndependentTargetsInParallel = YES;
 				LastUpgradeCheck = 1600;
 				TargetAttributes = {
+					0DA937660E7FA94BC5AA74AC = {
+						DevelopmentTeam = 2V8LZ2444Y;
+						ProvisioningStyle = Automatic;
+						TestTargetID = 9289113ECDE79DBEECBD7E8E;
+					};
 					478B9E8325E8EDB61C4E58F1 = {
 						DevelopmentTeam = 2V8LZ2444Y;
 						ProvisioningStyle = Automatic;
+					};
+					48566068873B85D9B4B03162 = {
+						DevelopmentTeam = 2V8LZ2444Y;
+						ProvisioningStyle = Automatic;
+						TestTargetID = 478B9E8325E8EDB61C4E58F1;
 					};
 					9289113ECDE79DBEECBD7E8E = {
 						DevelopmentTeam = 2V8LZ2444Y;
@@ -322,7 +401,9 @@
 			projectRoot = "";
 			targets = (
 				9289113ECDE79DBEECBD7E8E /* CortexOS-iOS */,
+				0DA937660E7FA94BC5AA74AC /* CortexOS-iOS-UITests */,
 				478B9E8325E8EDB61C4E58F1 /* CortexOS-macOS */,
+				48566068873B85D9B4B03162 /* CortexOS-macOS-UITests */,
 			);
 		};
 /* End PBXProject section */
@@ -390,6 +471,22 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		4BAED53BE355E763D5F1108A /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				20C580E96180CFE49CF17075 /* ScreenshotTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		D399652F8CD380932FB44580 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				69EC3771A83BAE919CBFA7C7 /* ScreenshotTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		D4F5EFABF4580907C9BBEAC7 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -435,6 +532,19 @@
 		};
 /* End PBXSourcesBuildPhase section */
 
+/* Begin PBXTargetDependency section */
+		30D3706A4812523CE890BEDE /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 9289113ECDE79DBEECBD7E8E /* CortexOS-iOS */;
+			targetProxy = B68B022399AA36688D2A5C32 /* PBXContainerItemProxy */;
+		};
+		5B0119964A7C6C72F959A22A /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 478B9E8325E8EDB61C4E58F1 /* CortexOS-macOS */;
+			targetProxy = 52A04D5C5471618CD9E46C33 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
 /* Begin XCBuildConfiguration section */
 		002115FDF6F62C885010D445 /* Debug */ = {
 			isa = XCBuildConfiguration;
@@ -471,7 +581,7 @@
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				CODE_SIGN_STYLE = Automatic;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 202604021331;
+				CURRENT_PROJECT_VERSION = 1;
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				DEVELOPMENT_TEAM = 2V8LZ2444Y;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
@@ -525,6 +635,60 @@
 			};
 			name = Debug;
 		};
+		6B0AE64129BA552736815968 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				COMBINE_HIDPI_IMAGES = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				PRODUCT_BUNDLE_IDENTIFIER = me.ph7.cortexos.macos.uitests;
+				SDKROOT = macosx;
+				TEST_TARGET_NAME = "CortexOS-macOS";
+			};
+			name = Release;
+		};
+		6EADF9320DBC70485692F121 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = me.ph7.cortexos.ios.uitests;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = "CortexOS-iOS";
+			};
+			name = Release;
+		};
+		78BCE7559308F1340E27AB3C /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = me.ph7.cortexos.ios.uitests;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = "CortexOS-iOS";
+			};
+			name = Debug;
+		};
 		A8C23489409D0834921F7995 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -560,7 +724,7 @@
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				CODE_SIGN_STYLE = Automatic;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 202604021331;
+				CURRENT_PROJECT_VERSION = 1;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				DEVELOPMENT_TEAM = 2V8LZ2444Y;
 				ENABLE_NS_ASSERTIONS = NO;
@@ -630,6 +794,24 @@
 			};
 			name = Release;
 		};
+		CFA3691F8069B7C86AE10078 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				COMBINE_HIDPI_IMAGES = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				PRODUCT_BUNDLE_IDENTIFIER = me.ph7.cortexos.macos.uitests;
+				SDKROOT = macosx;
+				TEST_TARGET_NAME = "CortexOS-macOS";
+			};
+			name = Debug;
+		};
 		E20170A36A5C07A76B802C2B /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -656,6 +838,15 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
+		4E021E4282EB056AF696B279 /* Build configuration list for PBXNativeTarget "CortexOS-macOS-UITests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				CFA3691F8069B7C86AE10078 /* Debug */,
+				6B0AE64129BA552736815968 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
 		80397198902686EEC2DF110D /* Build configuration list for PBXProject "CortexOS" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
@@ -670,6 +861,15 @@
 			buildConfigurations = (
 				1FCA20945124E64A6FC616C8 /* Debug */,
 				E20170A36A5C07A76B802C2B /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		D6EBD0F8C097742782BEF023 /* Build configuration list for PBXNativeTarget "CortexOS-iOS-UITests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				78BCE7559308F1340E27AB3C /* Debug */,
+				6EADF9320DBC70485692F121 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Debug;

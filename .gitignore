@@ -53,6 +53,7 @@ venv/
 *.xcarchive
 DerivedData/
 xcuserdata/
+**/*.xcworkspace/xcshareddata/
 
 # IDE
 .idea/
@@ -72,3 +73,4 @@ CortexOSApp/generate_icons.py
 CortexOSApp/screenshot_results/
 CortexOSApp/store_assets/marketing/
 CortexOSApp/store_assets/**/*_raw.png
+scripts/capture_screenshots.sh

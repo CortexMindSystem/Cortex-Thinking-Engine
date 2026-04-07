@@ -114,15 +114,50 @@ targets:
           DEBUG_INFORMATION_FORMAT: dwarf-with-dsym
           SWIFT_COMPILATION_MODE: wholemodule
 
+  CortexOS-iOS-UITests:
+    type: bundle.ui-testing
+    platform: iOS
+    deploymentTarget: "17.0"
+    sources:
+      - path: UITests
+        excludes:
+          - "**/.DS_Store"
+    dependencies:
+      - target: CortexOS-iOS
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: me.ph7.cortexos.ios.uitests
+        GENERATE_INFOPLIST_FILE: YES
+        TEST_TARGET_NAME: CortexOS-iOS
+
+  CortexOS-macOS-UITests:
+    type: bundle.ui-testing
+    platform: macOS
+    deploymentTarget: "14.0"
+    sources:
+      - path: UITests
+        excludes:
+          - "**/.DS_Store"
+    dependencies:
+      - target: CortexOS-macOS
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: me.ph7.cortexos.macos.uitests
+        GENERATE_INFOPLIST_FILE: YES
+        TEST_TARGET_NAME: CortexOS-macOS
+
 schemes:
   CortexOS-iOS:
     build:
       targets:
         CortexOS-iOS: all
+        CortexOS-iOS-UITests: [test]
     run:
       config: Debug
     test:
       config: Debug
+      targets:
+        - CortexOS-iOS-UITests
     archive:
       config: Release
 
@@ -130,9 +165,12 @@ schemes:
     build:
       targets:
         CortexOS-macOS: all
+        CortexOS-macOS-UITests: [test]
     run:
       config: Debug
     test:
       config: Debug
+      targets:
+        - CortexOS-macOS-UITests
     archive:
       config: Release
