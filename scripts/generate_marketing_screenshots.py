@@ -24,68 +24,44 @@ RAW_DIR = ROOT / "CortexOSApp" / "screenshot_results"
 OUTPUT_DIR = ASSETS_DIR / "marketing"
 
 # CortexOS Brand Colors (vibrant, electric aesthetic)
-BRAND_GRADIENT_START = (15, 23, 42)      # Deep navy
-BRAND_GRADIENT_MID = (88, 28, 135)       # Vivid purple
-BRAND_GRADIENT_END = (157, 23, 77)       # Hot magenta
-BRAND_ACCENT_CYAN = (6, 182, 212)        # Electric cyan
-BRAND_ACCENT_VIOLET = (139, 92, 246)     # Bright violet
-BRAND_ACCENT_PINK = (236, 72, 153)       # Hot pink
-BRAND_ACCENT_BLUE = (59, 130, 246)       # Electric blue
-BRAND_TEXT_PRIMARY = (255, 255, 255)     # White
+BRAND_GRADIENT_START = (15, 23, 42)  # Deep navy
+BRAND_GRADIENT_MID = (88, 28, 135)  # Vivid purple
+BRAND_GRADIENT_END = (157, 23, 77)  # Hot magenta
+BRAND_ACCENT_CYAN = (6, 182, 212)  # Electric cyan
+BRAND_ACCENT_VIOLET = (139, 92, 246)  # Bright violet
+BRAND_ACCENT_PINK = (236, 72, 153)  # Hot pink
+BRAND_ACCENT_BLUE = (59, 130, 246)  # Electric blue
+BRAND_TEXT_PRIMARY = (255, 255, 255)  # White
 BRAND_TEXT_SECONDARY = (255, 255, 255, 200)  # White with alpha
 
 # Marketing copy for each screen
 IPHONE_MARKETING = {
-    "01_focus": {
-        "headline": "Focus on\nWhat Matters",
-        "subheadline": "AI-powered daily priorities"
-    },
-    "02_decide": {
-        "headline": "Decide\nwith Clarity",
-        "subheadline": "Record decisions that compound"
-    },
-    "03_capture": {
-        "headline": "Capture\nEvery Thought",
-        "subheadline": "Quick notes that build memory"
-    },
-    "04_settings": {
-        "headline": "Your Thinking\nSystem",
-        "subheadline": "Personalized to how you work"
-    },
+    "01_focus": {"headline": "Focus on\nWhat Matters", "subheadline": "AI-powered daily priorities"},
+    "02_decide": {"headline": "Decide\nwith Clarity", "subheadline": "Record decisions that compound"},
+    "03_capture": {"headline": "Capture\nEvery Thought", "subheadline": "Quick notes that build memory"},
+    "04_settings": {"headline": "Your Thinking\nSystem", "subheadline": "Personalized to how you work"},
 }
 
 MAC_MARKETING = {
-    "01_focus": {
-        "headline": "Your Command Center\nfor Clear Thinking",
-        "subheadline": "See what matters today"
-    },
+    "01_focus": {"headline": "Your Command Center\nfor Clear Thinking", "subheadline": "See what matters today"},
     "02_insights": {
         "headline": "Insights That\nSurface Automatically",
-        "subheadline": "Patterns you didn't know you had"
+        "subheadline": "Patterns you didn't know you had",
     },
-    "03_ingest": {
-        "headline": "Feed Your\nSecond Brain",
-        "subheadline": "Import knowledge effortlessly"
-    },
-    "04_memory": {
-        "headline": "Your Memory,\nOrganized",
-        "subheadline": "Everything searchable, always ready"
-    },
-    "05_decisions": {
-        "headline": "Decisions That\nCompound",
-        "subheadline": "Build on past wisdom"
-    },
+    "03_ingest": {"headline": "Feed Your\nSecond Brain", "subheadline": "Import knowledge effortlessly"},
+    "04_memory": {"headline": "Your Memory,\nOrganized", "subheadline": "Everything searchable, always ready"},
+    "05_decisions": {"headline": "Decisions That\nCompound", "subheadline": "Build on past wisdom"},
 }
 
 # App Store screenshot dimensions
 DIMENSIONS = {
-    "iPhone_6.9": (1320, 2868),   # iPhone 16 Pro Max
-    "iPhone_6.7": (1290, 2796),   # iPhone 14 Pro Max
-    "iPhone_6.5": (1242, 2688),   # iPhone 11 Pro Max
-    "iPhone_5.5": (1242, 2208),   # iPhone 8 Plus
-    "iPad_13": (2064, 2752),      # iPad Pro 13"
-    "iPad_12.9": (2048, 2732),    # iPad Pro 12.9"
-    "Mac": (2880, 1800),          # macOS
+    "iPhone_6.9": (1320, 2868),  # iPhone 16 Pro Max
+    "iPhone_6.7": (1290, 2796),  # iPhone 14 Pro Max
+    "iPhone_6.5": (1242, 2688),  # iPhone 11 Pro Max
+    "iPhone_5.5": (1242, 2208),  # iPhone 8 Plus
+    "iPad_13": (2064, 2752),  # iPad Pro 13"
+    "iPad_12.9": (2048, 2732),  # iPad Pro 12.9"
+    "Mac": (2880, 1800),  # macOS
 }
 
 
@@ -116,6 +92,7 @@ def create_gradient(size, start_color, end_color, direction="vertical"):
 def create_vibrant_background(size, variant=0):
     """Create a super vibrant multi-color gradient background with glowing orbs."""
     import math
+
     width, height = size
 
     # Create base with rich 3-stop gradient
@@ -248,7 +225,7 @@ def get_font(size, bold=False, style="headline"):
         if os.path.exists(path):
             try:
                 # For .ttc files, index 0 is usually regular, higher indices are bolder
-                if path.endswith('.ttc'):
+                if path.endswith(".ttc"):
                     index = 10 if bold or style == "headline" else 0  # Avenir Next Bold
                     return ImageFont.truetype(path, size, index=index)
                 return ImageFont.truetype(path, size)
@@ -259,8 +236,14 @@ def get_font(size, bold=False, style="headline"):
 
 
 def draw_text_with_glow(
-    image, position, text, font, fill=(255, 255, 255),
-    glow_color=(0, 0, 0), glow_radius=15, accent_glow=True,
+    image,
+    position,
+    text,
+    font,
+    fill=(255, 255, 255),
+    glow_color=(0, 0, 0),
+    glow_radius=15,
+    accent_glow=True,
 ):
     """Draw text with a strong glow effect and optional accent color for appeal."""
     from PIL import Image as PILImage
@@ -316,8 +299,8 @@ def draw_text_with_shadow(draw, position, text, font, fill=(255, 255, 255), shad
     x, y = position
     # Draw multiple shadow layers for a blur/glow effect
     shadow_offsets = [
-        (8, 8, (0, 0, 0, 60)),   # Outer shadow
-        (6, 6, (0, 0, 0, 80)),   # Middle shadow
+        (8, 8, (0, 0, 0, 60)),  # Outer shadow
+        (6, 6, (0, 0, 0, 80)),  # Middle shadow
         (4, 4, (0, 0, 0, 100)),  # Inner shadow
         (2, 2, (0, 0, 0, 140)),  # Close shadow
     ]
@@ -400,8 +383,13 @@ def create_iphone_screenshot(raw_path, marketing_info, output_size, variant=0):
         sub_x = (width - sub_width) // 2
         sub_y = text_y + total_text_height + int(height * 0.02)
         draw_text_with_glow(
-            bg, (sub_x, sub_y), subheadline, sub_font,
-            fill=(220, 230, 255), glow_radius=10, accent_glow=False,
+            bg,
+            (sub_x, sub_y),
+            subheadline,
+            sub_font,
+            fill=(220, 230, 255),
+            glow_radius=10,
+            accent_glow=False,
         )
 
     return bg.convert("RGB")
@@ -481,8 +469,13 @@ def create_mac_screenshot(raw_path, marketing_info, output_size, variant=0):
         sub_font = get_font(sub_font_size, style="body")
         sub_y = text_y + len(lines) * int(headline_font_size * 1.2) + 30
         draw_text_with_glow(
-            bg, (text_x, sub_y), subheadline, sub_font,
-            fill=(220, 230, 255), glow_radius=12, accent_glow=False,
+            bg,
+            (text_x, sub_y),
+            subheadline,
+            sub_font,
+            fill=(220, 230, 255),
+            glow_radius=12,
+            accent_glow=False,
         )
 
     return bg.convert("RGB")
