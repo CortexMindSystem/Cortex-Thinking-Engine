@@ -7,6 +7,11 @@ _debug*.py
 debug_*.py
 scratch_*.py
 
+# Personal development scripts (ignore all except build tools)
+scripts/*
+!scripts/generate_marketing_screenshots.py
+!scripts/generate_app_icon.sh
+
 # Secrets & environment
 .env
 .env.*
@@ -73,4 +78,3 @@ CortexOSApp/generate_icons.py
 CortexOSApp/screenshot_results/
 CortexOSApp/store_assets/marketing/
 CortexOSApp/store_assets/**/*_raw.png
-scripts/capture_screenshots.sh
