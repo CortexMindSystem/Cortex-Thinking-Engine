@@ -11,7 +11,8 @@ Creates professional marketing screenshots with:
 
 import os
 from pathlib import Path
-from PIL import Image, ImageDraw, ImageFont, ImageFilter
+
+from PIL import Image, ImageDraw, ImageFilter, ImageFont
 
 # ─────────────────────────────────────────────────────────
 # Configuration
@@ -40,7 +41,7 @@ IPHONE_MARKETING = {
         "subheadline": "AI-powered daily priorities"
     },
     "02_decide": {
-        "headline": "Decide\nwith Clarity", 
+        "headline": "Decide\nwith Clarity",
         "subheadline": "Record decisions that compound"
     },
     "03_capture": {
@@ -93,7 +94,7 @@ def create_gradient(size, start_color, end_color, direction="vertical"):
     width, height = size
     gradient = Image.new("RGB", size)
     draw = ImageDraw.Draw(gradient)
-    
+
     if direction == "vertical":
         for y in range(height):
             ratio = y / height
@@ -108,7 +109,7 @@ def create_gradient(size, start_color, end_color, direction="vertical"):
             g = int(start_color[1] * (1 - ratio) + end_color[1] * ratio)
             b = int(start_color[2] * (1 - ratio) + end_color[2] * ratio)
             draw.line([(x, 0), (x, height)], fill=(r, g, b))
-    
+
     return gradient
 
 
@@ -116,10 +117,10 @@ def create_vibrant_background(size, variant=0):
     """Create a super vibrant multi-color gradient background with glowing orbs."""
     import math
     width, height = size
-    
+
     # Create base with rich 3-stop gradient
     bg = Image.new("RGB", size)
-    
+
     for y in range(height):
         ratio = y / height
         # 3-stop gradient: navy -> purple -> magenta
@@ -133,15 +134,15 @@ def create_vibrant_background(size, variant=0):
             r = int(BRAND_GRADIENT_MID[0] * (1 - t) + BRAND_GRADIENT_END[0] * t)
             g = int(BRAND_GRADIENT_MID[1] * (1 - t) + BRAND_GRADIENT_END[1] * t)
             b = int(BRAND_GRADIENT_MID[2] * (1 - t) + BRAND_GRADIENT_END[2] * t)
-        
+
         for x in range(width):
             # Add slight horizontal variation
             x_ratio = x / width
             shift = int(10 * math.sin(x_ratio * math.pi))
             bg.putpixel((x, y), (min(255, r + shift), g, min(255, b + shift)))
-    
+
     bg = bg.convert("RGBA")
-    
+
     # Add glowing accent orbs based on variant
     orb_configs = [
         # Variant 0: Cyan top-right, pink bottom-left
@@ -153,14 +154,14 @@ def create_vibrant_background(size, variant=0):
         # Variant 3: Cyan center, violet bottom-right
         [(0.5, 0.35, BRAND_ACCENT_CYAN, 0.3), (0.8, 0.75, BRAND_ACCENT_VIOLET, 0.25)],
     ]
-    
+
     orbs = orb_configs[variant % len(orb_configs)]
-    
+
     for ox_ratio, oy_ratio, color, size_ratio in orbs:
         orb_x = int(width * ox_ratio)
         orb_y = int(height * oy_ratio)
         orb_radius = int(max(width, height) * size_ratio)
-        
+
         # Create orb with gaussian-like falloff
         orb = Image.new("RGBA", size, (0, 0, 0, 0))
         for dy in range(-orb_radius, orb_radius + 1):
@@ -173,11 +174,11 @@ def create_vibrant_background(size, variant=0):
                         intensity = math.exp(-3 * (dist / orb_radius) ** 2)
                         alpha = int(120 * intensity)
                         orb.putpixel((px, py), (*color, alpha))
-        
+
         # Blur the orb for softer glow
         orb = orb.filter(ImageFilter.GaussianBlur(orb_radius // 4))
         bg = Image.alpha_composite(bg, orb)
-    
+
     return bg
 
 
@@ -188,12 +189,12 @@ def add_device_frame(screenshot, device_type="iphone", corner_radius=40):
     mask = Image.new("L", size, 0)
     draw = ImageDraw.Draw(mask)
     draw.rounded_rectangle([0, 0, size[0], size[1]], radius=corner_radius, fill=255)
-    
+
     # Apply mask
     output = Image.new("RGBA", size, (0, 0, 0, 0))
     output.paste(screenshot, (0, 0))
     output.putalpha(mask)
-    
+
     return output
 
 
@@ -202,29 +203,26 @@ def add_shadow(image, offset=(20, 20), blur_radius=40, shadow_color=(0, 0, 0, 10
     # Create shadow
     shadow_size = (image.size[0] + blur_radius * 2, image.size[1] + blur_radius * 2)
     shadow = Image.new("RGBA", shadow_size, (0, 0, 0, 0))
-    
+
     # Get alpha channel from original image
-    if image.mode == "RGBA":
-        alpha = image.split()[3]
-    else:
-        alpha = Image.new("L", image.size, 255)
-    
+    alpha = image.split()[3] if image.mode == "RGBA" else Image.new("L", image.size, 255)
+
     # Create shadow layer
     shadow_layer = Image.new("RGBA", image.size, shadow_color)
     shadow_layer.putalpha(alpha)
-    
+
     # Paste shadow
     shadow.paste(shadow_layer, (blur_radius + offset[0], blur_radius + offset[1]))
-    
+
     # Blur shadow
     shadow = shadow.filter(ImageFilter.GaussianBlur(blur_radius // 2))
-    
+
     # Composite original on top
     final_size = (shadow_size[0] + abs(offset[0]), shadow_size[1] + abs(offset[1]))
     final = Image.new("RGBA", final_size, (0, 0, 0, 0))
     final.paste(shadow, (0, 0), shadow)
     final.paste(image, (blur_radius, blur_radius), image if image.mode == "RGBA" else None)
-    
+
     return final
 
 
@@ -245,7 +243,7 @@ def get_font(size, bold=False, style="headline"):
             "/System/Library/Fonts/SFNS.ttf",
             "/System/Library/Fonts/Helvetica.ttc",
         ]
-    
+
     for path in font_paths:
         if os.path.exists(path):
             try:
@@ -254,41 +252,44 @@ def get_font(size, bold=False, style="headline"):
                     index = 10 if bold or style == "headline" else 0  # Avenir Next Bold
                     return ImageFont.truetype(path, size, index=index)
                 return ImageFont.truetype(path, size)
-            except:
+            except Exception:  # noqa: S112
                 continue
-    
+
     return ImageFont.load_default()
 
 
-def draw_text_with_glow(image, position, text, font, fill=(255, 255, 255), glow_color=(0, 0, 0), glow_radius=15, accent_glow=True):
+def draw_text_with_glow(
+    image, position, text, font, fill=(255, 255, 255),
+    glow_color=(0, 0, 0), glow_radius=15, accent_glow=True,
+):
     """Draw text with a strong glow effect and optional accent color for appeal."""
     from PIL import Image as PILImage
-    
+
     x, y = int(position[0]), int(position[1])
-    
+
     # Get text size
     temp_draw = ImageDraw.Draw(image)
     bbox = temp_draw.textbbox((0, 0), text, font=font)
     text_width = bbox[2] - bbox[0]
     text_height = bbox[3] - bbox[1]
-    
+
     # Create a larger canvas for the glow
     padding = int(glow_radius * 3)
     glow_size = (int(text_width + padding * 2), int(text_height + padding * 2))
-    
+
     # Create dark glow layer for contrast
     glow_layer = PILImage.new("RGBA", glow_size, (0, 0, 0, 0))
     glow_draw = ImageDraw.Draw(glow_layer)
-    
+
     # Draw multiple copies of text for thick dark glow
     for ox in range(-4, 5):
         for oy in range(-4, 5):
             glow_draw.text((padding + ox, padding + oy), text, font=font, fill=(0, 0, 0, 180))
-    
+
     # Blur the dark glow
     glow_layer = glow_layer.filter(ImageFilter.GaussianBlur(glow_radius))
     image.paste(glow_layer, (x - padding, y - padding), glow_layer)
-    
+
     # Add subtle accent color glow (cyan/violet) for appeal
     if accent_glow:
         accent_layer = PILImage.new("RGBA", glow_size, (0, 0, 0, 0))
@@ -299,7 +300,7 @@ def draw_text_with_glow(image, position, text, font, fill=(255, 255, 255), glow_
                 accent_draw.text((padding + ox, padding + oy), text, font=font, fill=(100, 200, 255, 60))
         accent_layer = accent_layer.filter(ImageFilter.GaussianBlur(glow_radius // 2))
         image.paste(accent_layer, (x - padding, y - padding), accent_layer)
-    
+
     # Draw crisp text on top with subtle warm white
     draw = ImageDraw.Draw(image)
     # Soft outline for crispness
@@ -329,32 +330,32 @@ def draw_text_with_shadow(draw, position, text, font, fill=(255, 255, 255), shad
 def create_iphone_screenshot(raw_path, marketing_info, output_size, variant=0):
     """Create a marketing screenshot for iPhone."""
     width, height = output_size
-    
+
     # Create vibrant gradient background with glowing orbs
     bg = create_vibrant_background(output_size, variant=variant)
-    
+
     # Load and process screenshot
     try:
         screenshot = Image.open(raw_path).convert("RGBA")
     except Exception as e:
         print(f"  ⚠️  Could not load {raw_path}: {e}")
         return bg
-    
+
     # Calculate screenshot size (65% of height, maintaining aspect ratio)
     target_height = int(height * 0.58)
     aspect = screenshot.size[0] / screenshot.size[1]
     target_width = int(target_height * aspect)
-    
+
     screenshot = screenshot.resize((target_width, target_height), Image.Resampling.LANCZOS)
-    
+
     # Add rounded corners and shadow
     screenshot = add_device_frame(screenshot, corner_radius=int(target_width * 0.04))
     screenshot = add_shadow(screenshot, offset=(15, 25), blur_radius=50)
-    
+
     # Position screenshot (centered, bottom third)
     ss_x = (width - screenshot.size[0]) // 2
     ss_y = height - screenshot.size[1] + 40
-    
+
     # Add dark gradient overlay at top for text readability
     text_area_height = int(height * 0.35)
     overlay = Image.new("RGBA", (width, text_area_height), (0, 0, 0, 0))
@@ -364,21 +365,21 @@ def create_iphone_screenshot(raw_path, marketing_info, output_size, variant=0):
         alpha = int(120 * (1 - y_pos / text_area_height) ** 0.6)
         overlay_draw.line([(0, y_pos), (width, y_pos)], fill=(0, 0, 0, alpha))
     bg.paste(overlay, (0, 0), overlay)
-    
+
     bg.paste(screenshot, (ss_x, ss_y), screenshot)
-    
+
     # Add marketing text with glow effect
     # Headline
     headline_font_size = int(width * 0.09)  # Slightly larger
     headline_font = get_font(headline_font_size, bold=True, style="headline")
-    
+
     headline = marketing_info.get("headline", "CortexOS")
-    
+
     # Calculate text position (centered, top area)
     lines = headline.split("\n")
     total_text_height = len(lines) * (headline_font_size * 1.2)
     text_y = int(height * 0.07)
-    
+
     for i, line in enumerate(lines):
         # Get text bounding box for centering
         temp_draw = ImageDraw.Draw(bg)
@@ -387,7 +388,7 @@ def create_iphone_screenshot(raw_path, marketing_info, output_size, variant=0):
         text_x = (width - text_width) // 2
         line_y = text_y + i * int(headline_font_size * 1.2)
         draw_text_with_glow(bg, (text_x, line_y), line, headline_font, glow_radius=18)
-    
+
     # Subheadline with glow
     subheadline = marketing_info.get("subheadline", "")
     if subheadline:
@@ -398,8 +399,11 @@ def create_iphone_screenshot(raw_path, marketing_info, output_size, variant=0):
         sub_width = bbox[2] - bbox[0]
         sub_x = (width - sub_width) // 2
         sub_y = text_y + total_text_height + int(height * 0.02)
-        draw_text_with_glow(bg, (sub_x, sub_y), subheadline, sub_font, fill=(220, 230, 255), glow_radius=10, accent_glow=False)
-    
+        draw_text_with_glow(
+            bg, (sub_x, sub_y), subheadline, sub_font,
+            fill=(220, 230, 255), glow_radius=10, accent_glow=False,
+        )
+
     return bg.convert("RGB")
 
 
@@ -411,38 +415,38 @@ def create_ipad_screenshot(raw_path, marketing_info, output_size, variant=0):
 def create_mac_screenshot(raw_path, marketing_info, output_size, variant=0):
     """Create a marketing screenshot for Mac (horizontal layout)."""
     width, height = output_size
-    
+
     # Create vibrant gradient background with glowing orbs
     bg = create_vibrant_background(output_size, variant=variant)
-    
+
     # Load and process screenshot
     try:
         screenshot = Image.open(raw_path).convert("RGBA")
     except Exception as e:
         print(f"  ⚠️  Could not load {raw_path}: {e}")
         return bg
-    
+
     # Calculate screenshot size (70% of width, maintaining aspect ratio)
     target_width = int(width * 0.65)
     aspect = screenshot.size[1] / screenshot.size[0]
     target_height = int(target_width * aspect)
-    
+
     # Cap height if needed
     if target_height > height * 0.75:
         target_height = int(height * 0.75)
         target_width = int(target_height / aspect)
-    
+
     screenshot = screenshot.resize((target_width, target_height), Image.Resampling.LANCZOS)
-    
+
     # Add rounded corners and shadow
     screenshot = add_device_frame(screenshot, corner_radius=int(target_width * 0.015))
     screenshot = add_shadow(screenshot, offset=(20, 30), blur_radius=60)
-    
+
     # Position screenshot (right side, ensure it doesn't overlap text area)
     text_area_end = int(width * 0.38)  # Text area takes ~38% of width
     ss_x = max(text_area_end + 20, width - screenshot.size[0] - int(width * 0.02))
     ss_y = (height - screenshot.size[1]) // 2 + 20
-    
+
     # Add dark gradient overlay on left side for text readability
     overlay = Image.new("RGBA", (width, height), (0, 0, 0, 0))
     overlay_draw = ImageDraw.Draw(overlay)
@@ -452,33 +456,35 @@ def create_mac_screenshot(raw_path, marketing_info, output_size, variant=0):
         alpha = int(140 * (1 - x_pos / gradient_width) ** 0.6)
         overlay_draw.line([(x_pos, 0), (x_pos, height)], fill=(0, 0, 0, alpha))
     bg = Image.alpha_composite(bg, overlay)
-    
+
     bg.paste(screenshot, (ss_x, ss_y), screenshot)
-    
+
     # Add marketing text (left side) with glow for readability
     headline_font_size = int(height * 0.085)  # Slightly larger for impact
     headline_font = get_font(headline_font_size, bold=True, style="headline")
-    
+
     headline = marketing_info.get("headline", "CortexOS")
-    
-    # Text area is left 35% of width
-    text_area_width = int(width * 0.32)
+
+    # Text area is left 5% of width
     text_x = int(width * 0.05)
     text_y = (height - headline_font_size * 3) // 2 - 40
-    
+
     lines = headline.split("\n")
     for i, line in enumerate(lines):
         line_y = text_y + i * int(headline_font_size * 1.2)
         draw_text_with_glow(bg, (text_x, line_y), line, headline_font, glow_radius=25)
-    
+
     # Subheadline with glow
     subheadline = marketing_info.get("subheadline", "")
     if subheadline:
         sub_font_size = int(height * 0.038)
         sub_font = get_font(sub_font_size, style="body")
         sub_y = text_y + len(lines) * int(headline_font_size * 1.2) + 30
-        draw_text_with_glow(bg, (text_x, sub_y), subheadline, sub_font, fill=(220, 230, 255), glow_radius=12, accent_glow=False)
-    
+        draw_text_with_glow(
+            bg, (text_x, sub_y), subheadline, sub_font,
+            fill=(220, 230, 255), glow_radius=12, accent_glow=False,
+        )
+
     return bg.convert("RGB")
 
 
@@ -487,72 +493,72 @@ def process_all_screenshots():
     print("═" * 55)
     print(" CortexOS — Marketing Screenshot Generator")
     print("═" * 55)
-    
+
     # Create output directories
     for device in DIMENSIONS:
         (OUTPUT_DIR / device).mkdir(parents=True, exist_ok=True)
-    
+
     # Process iPhone screenshots
     print("\n📱 Processing iPhone screenshots...")
     for device in ["iPhone_6.9", "iPhone_6.7", "iPhone_6.5", "iPhone_5.5"]:
         print(f"\n  {device}:")
         output_size = DIMENSIONS[device]
-        
+
         for idx, (screen_name, marketing) in enumerate(IPHONE_MARKETING.items()):
             raw_path = ASSETS_DIR / device / f"{screen_name}.png"
-            
+
             # Try raw folder first, then assets folder
             if not raw_path.exists():
                 raw_path = RAW_DIR / "iphone_raw" / f"{screen_name}.png"
-            
+
             if raw_path.exists():
                 print(f"    → {screen_name}")
                 result = create_iphone_screenshot(raw_path, marketing, output_size, variant=idx)
                 result.save(OUTPUT_DIR / device / f"{screen_name}.png", quality=95)
             else:
                 print(f"    ⚠️  Missing: {screen_name}")
-    
+
     # Process iPad screenshots
     print("\n📱 Processing iPad screenshots...")
     for device in ["iPad_13", "iPad_12.9"]:
         print(f"\n  {device}:")
         output_size = DIMENSIONS[device]
-        
+
         for idx, (screen_name, marketing) in enumerate(IPHONE_MARKETING.items()):  # Same screens as iPhone
             raw_path = ASSETS_DIR / device / f"{screen_name}.png"
-            
+
             if not raw_path.exists():
                 raw_path = RAW_DIR / "ipad_raw" / f"{screen_name}.png"
-            
+
             if raw_path.exists():
                 print(f"    → {screen_name}")
                 result = create_ipad_screenshot(raw_path, marketing, output_size, variant=idx)
                 result.save(OUTPUT_DIR / device / f"{screen_name}.png", quality=95)
             else:
                 print(f"    ⚠️  Missing: {screen_name}")
-    
+
     # Process Mac screenshots
     print("\n🖥️  Processing Mac screenshots...")
     output_size = DIMENSIONS["Mac"]
-    
+
     for idx, (screen_name, marketing) in enumerate(MAC_MARKETING.items()):
         raw_path = ASSETS_DIR / "Mac" / f"{screen_name}.png"
-        
+
         if not raw_path.exists():
             raw_path = RAW_DIR / "mac_raw" / f"{screen_name}.png"
-        
+
         if raw_path.exists():
             print(f"    → {screen_name}")
             result = create_mac_screenshot(raw_path, marketing, output_size, variant=idx)
             result.save(OUTPUT_DIR / "Mac" / f"{screen_name}.png", quality=95)
         else:
             print(f"    ⚠️  Missing: {screen_name}")
-    
+
     print("\n" + "═" * 55)
-    print(f" ✅ Marketing screenshots saved to:")
+    print(" ✅ Marketing screenshots saved to:")
     print(f"    {OUTPUT_DIR}")
     print("═" * 55)
-    
+
     # Summary
     print("\nGenerated screenshots:")
     for device in DIMENSIONS:
