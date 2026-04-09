@@ -2,12 +2,11 @@
 //  SettingsView.swift
 //  CortexOS
 //
-//  System settings and connection configuration.
+//  Minimal settings. Connection, identity, about.
+//  No dashboard metrics. No developer tools exposed.
 //
 
 import SwiftUI
-
-// MARK: - Settings View
 
 struct SettingsView: View {
     @EnvironmentObject private var engine: CortexEngine
@@ -15,74 +14,71 @@ struct SettingsView: View {
     @State private var connectionFeedback: ConnectionFeedback?
     @State private var isTesting = false
 
-    // Identity (persisted via UserDefaults)
     @AppStorage("cortex_system_name") private var systemName: String = "CortexOS"
-    @AppStorage("cortex_mode") private var mode: String = "Focused Thinking"
 
     var body: some View {
         Form {
-            // MARK: - CortexOS System
-            Section {
-                SystemStatusRow(isConnected: engine.isConnected)
-            } header: {
-                Text("CortexOS System")
-            } footer: {
-                if !engine.isConnected {
-                    Text("Connect to enable CortexOS")
-                        .foregroundStyle(.secondary)
-                }
-            }
-
             // MARK: - Connection
-            Section("Connection") {
-                TextField("Endpoint URL", text: $serverURL)
-                    #if os(iOS)
-                    .keyboardType(.URL)
-                    .textInputAutocapitalization(.never)
-                    #endif
-                    .onChange(of: serverURL) { _, newValue in
-                        engine.api.baseURL = newValue
-                    }
-                    .onAppear {
-                        serverURL = engine.api.baseURL
-                    }
+            Section {
+                HStack(spacing: CortexSpacing.sm) {
+                    Circle()
+                        .fill(engine.isConnected ? Color.green : Color.red.opacity(0.6))
+                        .frame(width: 8, height: 8)
+                    Text(engine.isConnected ? "Connected" : "Offline")
+                        .font(CortexFont.body)
+                        .foregroundStyle(CortexColor.textPrimary)
+                    Spacer()
+                }
 
-                HStack {
-                    Button {
-                        Task { await testConnection() }
-                    } label: {
-                        HStack(spacing: 8) {
-                            Text("Test Connection")
-                            if isTesting {
-                                ProgressView()
-                                    .controlSize(.small)
+                DisclosureGroup("Server") {
+                    TextField("Endpoint URL", text: $serverURL)
+                        #if os(iOS)
+                        .keyboardType(.URL)
+                        .textInputAutocapitalization(.never)
+                        #endif
+                        .onChange(of: serverURL) { _, newValue in
+                            engine.api.baseURL = newValue
+                        }
+                        .onAppear {
+                            serverURL = engine.api.baseURL
+                        }
+
+                    HStack {
+                        Button {
+                            Task { await testConnection() }
+                        } label: {
+                            HStack(spacing: CortexSpacing.xs) {
+                                Text("Test")
+                                if isTesting {
+                                    ProgressView()
+                                        .controlSize(.small)
+                                }
                             }
                         }
-                    }
-                    .disabled(isTesting || serverURL.isEmpty)
+                        .disabled(isTesting || serverURL.isEmpty)
 
-                    Spacer()
+                        Spacer()
 
-                    if let feedback = connectionFeedback {
-                        ConnectionFeedbackLabel(feedback: feedback)
+                        if let feedback = connectionFeedback {
+                            Text(feedback.message)
+                                .font(CortexFont.caption)
+                                .foregroundStyle(feedback.color)
+                        }
                     }
                 }
+            } header: {
+                Text("Connection")
             }
 
             // MARK: - Identity
             Section {
-                TextField("System Name", text: $systemName)
-                TextField("Mode", text: $mode)
+                TextField("Name", text: $systemName)
             } header: {
                 Text("Identity")
-            } footer: {
-                Text("Personalize how CortexOS identifies itself")
-                    .foregroundStyle(.tertiary)
             }
 
-            // MARK: - About CortexOS
-            Section("About CortexOS") {
-                LabeledContent("App", value: "CortexOS")
+            // MARK: - About
+            Section("About") {
                 LabeledContent("Version", value: "1.1.0")
                 LabeledContent("Built by", value: "Pierre-Henry Soria")
 
@@ -109,7 +105,7 @@ struct SettingsView: View {
         }
         .navigationTitle("Settings")
         .task {
-            await engine.fetchStatus()
+            await engine.checkConnection()
         }
     }
 
@@ -119,24 +115,18 @@ struct SettingsView: View {
         defer { isTesting = false }
 
         await engine.checkConnection()
-        if engine.isConnected {
-            await engine.fetchStatus()
-            connectionFeedback = .success
-        } else {
-            connectionFeedback = .failure
-        }
+        connectionFeedback = engine.isConnected ? .success : .failure
     }
 }
 
 // MARK: - Supporting Types
 
 private enum ConnectionFeedback {
-    case success
-    case failure
+    case success, failure
 
     var message: String {
         switch self {
-        case .success: "Connected successfully"
+        case .success: "Connected"
         case .failure: "Unable to connect"
         }
     }
@@ -148,40 +138,6 @@ private enum ConnectionFeedback {
         }
     }
 }
-
-// MARK: - Reusable Components
-
-private struct SystemStatusRow: View {
-    let isConnected: Bool
-    
-    var body: some View {
-        HStack(spacing: 12) {
-            Circle()
-                .fill(isConnected ? Color.green : Color.red.opacity(0.6))
-                .frame(width: 10, height: 10)
-                .shadow(color: isConnected ? .green.opacity(0.5) : .clear, radius: 4)
-
-            Text(isConnected ? "Connected" : "Not connected")
-                .font(.body)
-
-            Spacer()
-        }
-        .padding(.vertical, 4)
-    }
-}
-
-private struct ConnectionFeedbackLabel: View {
-    let feedback: ConnectionFeedback
-
-    var body: some View {
-        Text(feedback.message)
-            .font(.caption)
-            .foregroundStyle(feedback.color)
-            .transition(.opacity)
-    }
-}
-
-// MARK: - Preview
 
 #Preview {
     NavigationStack {

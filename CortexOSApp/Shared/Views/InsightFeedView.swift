@@ -26,8 +26,8 @@ struct InsightFeedView: View {
                 EmptyStateView(
                     icon: "lightbulb",
                     title: "No insights yet",
-                    message: "Insights are generated when you process digests or notes.",
-                    actionTitle: "Refresh",
+                    message: "Insights appear as you add notes and sync.",
+                    actionTitle: "Sync",
                     action: { Task { await engine.sync() } }
                 )
             }

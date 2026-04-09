@@ -58,7 +58,7 @@ struct SummaryIngestView: View {
                         ProgressView()
                             .controlSize(.small)
                     } else {
-                        Label("Ingest", systemImage: "square.and.arrow.down.fill")
+                        Label("Process", systemImage: "square.and.arrow.down.fill")
                             .font(CortexFont.bodyMedium)
                     }
                     Spacer()
@@ -85,7 +85,7 @@ struct SummaryIngestView: View {
         }
         .padding(CortexSpacing.xl)
         .background(CortexColor.bgPrimary)
-        .navigationTitle("Ingest Summary")
+        .navigationTitle("Process")
     }
 
     private func submit() async {

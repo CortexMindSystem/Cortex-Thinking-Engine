@@ -18,15 +18,25 @@ struct MemoryExplorerView: View {
                 memoryContent(snapshot)
             } else {
                 EmptyStateView(
-                    icon: "brain",
+                    icon: "brain.head.profile",
                     title: "Memory not loaded",
-                    message: "Sync to load your context memory layers.",
+                    message: "Sync to load your context memory.",
                     actionTitle: "Sync",
                     action: { Task { await engine.sync() } }
                 )
             }
         }
         .navigationTitle("Memory")
+        .toolbar {
+            ToolbarItem(placement: .primaryAction) {
+                NavigationLink {
+                    ProfileView()
+                } label: {
+                    Image(systemName: "pencil")
+                }
+                .help("Edit profile")
+            }
+        }
         .refreshable { await engine.sync() }
     }
 

@@ -3,13 +3,15 @@
 //  CortexOS
 //
 //  Past decisions with reasoning, assumptions, and outcomes.
-//  Depth view — designed for macOS research sessions.
+//  Depth view for macOS research sessions. Record new decisions inline.
 //
 
 import SwiftUI
 
 struct DecisionHistoryView: View {
     @EnvironmentObject private var engine: CortexEngine
+
+    @State private var showNewDecision = false
 
     var body: some View {
         Group {
@@ -23,15 +25,98 @@ struct DecisionHistoryView: View {
             } else {
                 EmptyStateView(
                     icon: "checkmark.seal",
-                    title: "No decisions recorded",
-                    message: "Decisions are logged when you record them through the API or pipeline.",
-                    actionTitle: "Refresh",
+                    title: "No decisions yet",
+                    message: "Decisions appear here as you record them.",
+                    actionTitle: "Sync",
                     action: { Task { await engine.sync() } }
                 )
             }
         }
         .navigationTitle("Decisions")
+        .toolbar {
+            ToolbarItem(placement: .primaryAction) {
+                Button { showNewDecision = true } label: {
+                    Image(systemName: "plus")
+                }
+            }
+        }
+        .sheet(isPresented: $showNewDecision) {
+            RecordDecisionSheet()
+                .environmentObject(engine)
+        }
         .refreshable { await engine.sync() }
+    }
+}
+
+// MARK: - Record Decision Sheet
+
+private struct RecordDecisionSheet: View {
+    @EnvironmentObject private var engine: CortexEngine
+    @Environment(\.dismiss) private var dismiss
+
+    @State private var decision = ""
+    @State private var reason = ""
+    @State private var project = ""
+
+    private var canSave: Bool {
+        !decision.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section("Decision") {
+                    TextField("What did you decide?", text: $decision, axis: .vertical)
+                        .lineLimit(1...4)
+                }
+                Section("Why") {
+                    TextField("The reasoning", text: $reason, axis: .vertical)
+                        .lineLimit(1...3)
+                }
+                Section("Project") {
+                    if let active = engine.snapshot?.activeProject {
+                        Button {
+                            project = active.projectName
+                        } label: {
+                            HStack(spacing: CortexSpacing.xs) {
+                                Image(systemName: project == active.projectName ? "checkmark.circle.fill" : "circle")
+                                    .foregroundStyle(CortexColor.accent)
+                                Text(active.projectName)
+                                    .foregroundStyle(CortexColor.textPrimary)
+                            }
+                        }
+                        .buttonStyle(.plain)
+                    }
+                    TextField("Project name", text: $project)
+                }
+            }
+            .navigationTitle("Record Decision")
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { dismiss() }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Save") {
+                        Task { await save() }
+                    }
+                    .disabled(!canSave)
+                }
+            }
+        }
+        #if os(macOS)
+        .frame(minWidth: 400, minHeight: 300)
+        #endif
+    }
+
+    private func save() async {
+        let request = DecisionCreateRequest(
+            decision: decision.trimmingCharacters(in: .whitespacesAndNewlines),
+            reason: reason.trimmingCharacters(in: .whitespacesAndNewlines),
+            project: project.trimmingCharacters(in: .whitespacesAndNewlines)
+        )
+        if await engine.recordDecision(request) {
+            dismiss()
+        }
     }
 }
 
@@ -67,12 +152,6 @@ private struct DecisionRow: View {
                     Label(decision.createdAt.prefix(10).description, systemImage: "calendar")
                         .font(CortexFont.caption)
                         .foregroundStyle(CortexColor.textTertiary)
-                }
-
-                if decision.impactScore > 0 {
-                    Label(String(format: "%.1f", decision.impactScore), systemImage: "gauge")
-                        .font(CortexFont.caption)
-                        .foregroundStyle(CortexColor.confidence(decision.impactScore))
                 }
             }
 
