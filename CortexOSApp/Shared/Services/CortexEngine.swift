@@ -7,6 +7,9 @@
 //
 
 import Foundation
+#if canImport(WidgetKit)
+import WidgetKit
+#endif
 
 @MainActor
 final class CortexEngine: ObservableObject {
@@ -14,12 +17,7 @@ final class CortexEngine: ObservableObject {
     // MARK: - Published State
 
     @Published var notes: [KnowledgeNote] = []
-    @Published var posts: [SocialPost] = []
-    @Published var pipelineResult: PipelineResult?
-    @Published var serverStatus: ServerStatus?
-    @Published var dailyBrief: DailyBrief?
     @Published var profile: UserProfile = .empty
-    @Published var digestScore: DigestScore?
     @Published var snapshot: SyncSnapshot?
     @Published var isConnected = false
     @Published var isLoading = false
@@ -31,6 +29,13 @@ final class CortexEngine: ObservableObject {
 
     init(api: APIService = .shared) {
         self.api = api
+
+        // Load cached snapshot for instant launch — no network wait
+        Task { [weak self] in
+            if let cached = await SnapshotCache.shared.load() {
+                self?.snapshot = cached
+            }
+        }
     }
 
     // MARK: - Connection
@@ -40,16 +45,6 @@ final class CortexEngine: ObservableObject {
             _ = try await api.health()
             isConnected = true
             errorMessage = nil
-        } catch {
-            isConnected = false
-            errorMessage = error.localizedDescription
-        }
-    }
-
-    func fetchStatus() async {
-        do {
-            serverStatus = try await api.status()
-            isConnected = true
         } catch {
             isConnected = false
             errorMessage = error.localizedDescription
@@ -76,8 +71,13 @@ final class CortexEngine: ObservableObject {
             errorMessage = nil
             return true
         } catch {
-            errorMessage = error.localizedDescription
-            return false
+            // Queue for offline sync — capture always works
+            await CaptureQueue.shared.enqueueNote(
+                title: request.title,
+                sourceURL: request.sourceURL
+            )
+            errorMessage = nil
+            return true
         }
     }
 
@@ -108,60 +108,6 @@ final class CortexEngine: ObservableObject {
         }
     }
 
-    // MARK: - Posts
-
-    func generatePosts(limit: Int = 3, platform: String = "general", useLLM: Bool = false) async {
-        isLoading = true
-        defer { isLoading = false }
-        do {
-            let request = PostGenerateRequest(limit: limit, platform: platform, useLLM: useLLM)
-            posts = try await api.generatePosts(request)
-            errorMessage = nil
-        } catch {
-            errorMessage = error.localizedDescription
-        }
-    }
-
-    // MARK: - Pipeline
-
-    func runPipeline(useLLM: Bool = false) async {
-        isLoading = true
-        defer { isLoading = false }
-        do {
-            let request = PipelineRequest(useLLM: useLLM)
-            pipelineResult = try await api.runPipeline(request)
-            errorMessage = nil
-            // Refresh notes after pipeline
-            await fetchNotes()
-        } catch {
-            errorMessage = error.localizedDescription
-        }
-    }
-
-    // MARK: - Focus (primary feature)
-
-    func fetchTodayBrief() async {
-        do {
-            dailyBrief = try await api.getTodayBrief()
-            errorMessage = nil
-        } catch {
-            // 404 is expected when no brief exists yet
-            dailyBrief = nil
-        }
-    }
-
-    func generateFocusBrief(useLLM: Bool = false) async {
-        isLoading = true
-        defer { isLoading = false }
-        do {
-            let request = FocusRequest(useLLM: useLLM)
-            dailyBrief = try await api.generateBrief(request)
-            errorMessage = nil
-        } catch {
-            errorMessage = error.localizedDescription
-        }
-    }
-
     // MARK: - Profile
 
     func fetchProfile() async {
@@ -184,30 +130,65 @@ final class CortexEngine: ObservableObject {
         }
     }
 
-    // MARK: - Digest Evaluation
-
-    func evaluateDigest() async {
-        isLoading = true
-        defer { isLoading = false }
-        do {
-            digestScore = try await api.evaluateDigest()
-            errorMessage = nil
-        } catch {
-            errorMessage = error.localizedDescription
-        }
-    }
-
-    // MARK: - Sync (single-call pull)
+    // MARK: - Sync (single-call pull + offline-first)
 
     func sync() async {
         do {
             snapshot = try await api.fetchSnapshot()
             isConnected = true
             errorMessage = nil
+
+            // Cache for instant launch next time
+            if let snapshot { await SnapshotCache.shared.save(snapshot) }
+
+            // Update Lock Screen / Home Screen widget
+            updateWidgetData()
+
+            // Flush any queued offline captures
+            let flushedNotes = await CaptureQueue.shared.flushNotes(using: api)
+            let flushedDecisions = await CaptureQueue.shared.flushDecisions(using: api)
+            if flushedNotes + flushedDecisions > 0 {
+                // Re-sync to pick up server-side changes
+                snapshot = try? await api.fetchSnapshot()
+                updateWidgetData()
+            }
         } catch {
             isConnected = false
+            // Fall back to cached snapshot — app still works offline
+            if snapshot == nil {
+                snapshot = await SnapshotCache.shared.load()
+            }
             errorMessage = error.localizedDescription
         }
+    }
+
+    // MARK: - Widget Data
+
+    private func updateWidgetData() {
+        guard let brief = snapshot?.priorities else { return }
+
+        let widgetPriorities = brief.priorities.prefix(3).map { p in
+            WidgetPriority(
+                rank: p.rank,
+                title: p.title,
+                whyItMatters: p.whyItMatters,
+                nextStep: p.nextStep
+            )
+        }
+
+        let data = CortexWidgetData(
+            topPriority: widgetPriorities.first,
+            priorities: Array(widgetPriorities),
+            date: brief.date,
+            updatedAt: Date()
+        )
+
+        WidgetDataBridge.write(data)
+
+        // Tell WidgetKit to refresh
+        #if canImport(WidgetKit)
+        WidgetCenter.shared.reloadTimelines(ofKind: "CortexFocusWidget")
+        #endif
     }
 
     // MARK: - Decisions
@@ -222,8 +203,15 @@ final class CortexEngine: ObservableObject {
             errorMessage = nil
             return true
         } catch {
-            errorMessage = error.localizedDescription
-            return false
+            // Queue for offline sync — decisions always save
+            await CaptureQueue.shared.enqueueDecision(
+                decision: request.decision,
+                reason: request.reason,
+                project: request.project,
+                assumptions: request.assumptions
+            )
+            errorMessage = nil
+            return true
         }
     }
 
