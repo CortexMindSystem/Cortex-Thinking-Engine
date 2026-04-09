@@ -19,6 +19,8 @@ struct ProfileView: View {
             Section("Identity") {
                 TextField("Name", text: $editingProfile.name)
                     .onChange(of: editingProfile.name) { hasChanges = true }
+                TextField("Role", text: $editingProfile.role)
+                    .onChange(of: editingProfile.role) { hasChanges = true }
             }
 
             editableListSection(
@@ -114,6 +116,7 @@ struct ProfileView: View {
         let p = engine.profile
         editingProfile = EditableProfile(
             name: p.name,
+            role: p.role,
             goals: p.goals.isEmpty ? [""] : p.goals,
             interests: p.interests.isEmpty ? [""] : p.interests,
             projects: p.currentProjects.isEmpty ? [""] : p.currentProjects,
@@ -129,6 +132,7 @@ struct ProfileView: View {
 
         let update = ProfileUpdate(
             name: editingProfile.name,
+            role: editingProfile.role.isEmpty ? nil : editingProfile.role,
             goals: editingProfile.goals.filter { !$0.isEmpty },
             interests: editingProfile.interests.filter { !$0.isEmpty },
             currentProjects: editingProfile.projects.filter { !$0.isEmpty },
@@ -146,6 +150,7 @@ struct ProfileView: View {
 
 private struct EditableProfile {
     var name: String = ""
+    var role: String = ""
     var goals: [String] = [""]
     var interests: [String] = [""]
     var projects: [String] = [""]
