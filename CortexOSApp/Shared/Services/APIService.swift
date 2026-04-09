@@ -125,10 +125,6 @@ final class APIService: ObservableObject {
         try await request("GET", path: "/health")
     }
 
-    func status() async throws -> ServerStatus {
-        try await request("GET", path: "/status")
-    }
-
     // MARK: - Knowledge Notes
 
     func listNotes(includeArchived: Bool = false) async throws -> [KnowledgeNote] {
@@ -156,32 +152,6 @@ final class APIService: ObservableObject {
         return try await request("GET", path: "/notes/search?q=\(encoded)")
     }
 
-    // MARK: - Posts
-
-    func generatePosts(_ body: PostGenerateRequest) async throws -> [SocialPost] {
-        try await request("POST", path: "/posts/generate", body: body)
-    }
-
-    // MARK: - Pipeline
-
-    func runPipeline(_ body: PipelineRequest) async throws -> PipelineResult {
-        try await request("POST", path: "/pipeline/run", body: body)
-    }
-
-    func pipelineSteps() async throws -> PipelineStepsResponse {
-        try await request("GET", path: "/pipeline/steps")
-    }
-
-    // MARK: - Focus
-
-    func getTodayBrief() async throws -> DailyBrief {
-        try await request("GET", path: "/focus/today")
-    }
-
-    func generateBrief(_ body: FocusRequest = FocusRequest()) async throws -> DailyBrief {
-        try await request("POST", path: "/focus/generate", body: body)
-    }
-
     // MARK: - Profile
 
     func getProfile() async throws -> UserProfile {
@@ -190,18 +160,6 @@ final class APIService: ObservableObject {
 
     func updateProfile(_ body: ProfileUpdate) async throws -> UserProfile {
         try await request("PATCH", path: "/profile/", body: body)
-    }
-
-    // MARK: - Digest Evaluation
-
-    func evaluateDigest(_ body: DigestEvalRequest = DigestEvalRequest()) async throws -> DigestScore {
-        try await request("POST", path: "/digest/evaluate", body: body)
-    }
-
-    // MARK: - Why Engine
-
-    func evaluateWhy(_ body: WhyEvaluateRequest) async throws -> DecisionResult {
-        try await request("POST", path: "/why/evaluate", body: body)
     }
 
     // MARK: - Sync
@@ -238,10 +196,6 @@ final class APIService: ObservableObject {
 }
 
 // MARK: - Helpers
-
-struct PipelineStepsResponse: Codable {
-    let steps: [String]
-}
 
 /// Type-erased Encodable wrapper.
 private struct AnyEncodable: Encodable {
