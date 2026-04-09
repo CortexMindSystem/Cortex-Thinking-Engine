@@ -41,13 +41,14 @@ enum CortexColor {
         }
     }
 
-    // Confidence → color
+    /// Confidence-based color — subtle gradient from neutral to accent.
     static func confidence(_ value: Double) -> Color {
-        switch value {
-        case 0.7...: return success
-        case 0.4...: return warning
-        default:     return neutral
-        }
+        let clamped = min(max(value, 0), 1)
+        return Color(
+            red:   0.38 + (1 - clamped) * 0.17,
+            green: 0.42 + (1 - clamped) * 0.13,
+            blue:  1.0  - (1 - clamped) * 0.22
+        ).opacity(0.7 + clamped * 0.3)
     }
 }
 

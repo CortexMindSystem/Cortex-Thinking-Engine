@@ -18,6 +18,10 @@ struct CortexOSApp: App {
         .defaultSize(width: 1000, height: 700)
         #endif
 
+        // macOS Settings uses the standard SwiftUI Settings scene.
+        // Note: shares its own engine instance — settings changes
+        // (like server URL) persist via UserDefaults/AppStorage,
+        // so the main window picks them up on next sync.
         #if os(macOS)
         Settings {
             SettingsView()

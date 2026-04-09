@@ -3,6 +3,7 @@
 //  CortexOS
 //
 //  Browse, search, and manage knowledge notes.
+//  The macOS "Notes" hub. Create, search, import.
 //
 
 import SwiftUI
@@ -11,21 +12,21 @@ struct KnowledgeListView: View {
     @EnvironmentObject private var engine: CortexEngine
     @State private var searchText = ""
     @State private var showingCreateSheet = false
-    @State private var selectedNote: KnowledgeNote?
+    @State private var showingImportSheet = false
 
     var body: some View {
         List {
             if engine.isLoading {
                 HStack {
                     Spacer()
-                    ProgressView("Loading notes…")
+                    ProgressView()
                     Spacer()
                 }
             } else if engine.notes.isEmpty {
                 ContentUnavailableView(
                     "No Notes",
                     systemImage: "doc.text",
-                    description: Text("Add a note or run the pipeline to populate your knowledge base.")
+                    description: Text("Capture a thought or import a summary to get started.")
                 )
             } else {
                 ForEach(engine.notes) { note in
@@ -36,7 +37,7 @@ struct KnowledgeListView: View {
                 .onDelete(perform: deleteNotes)
             }
         }
-        .navigationTitle("Knowledge Notes")
+        .navigationTitle("Notes")
         .navigationDestination(for: KnowledgeNote.self) { note in
             NoteDetailView(note: note)
         }
@@ -45,16 +46,34 @@ struct KnowledgeListView: View {
             Task { await engine.searchNotes(query: newValue) }
         }
         .toolbar {
-            ToolbarItem(placement: .primaryAction) {
-                Button {
-                    showingCreateSheet = true
-                } label: {
+            ToolbarItemGroup(placement: .primaryAction) {
+                Button { showingImportSheet = true } label: {
+                    Image(systemName: "square.and.arrow.down")
+                }
+                .help("Import summary")
+
+                Button { showingCreateSheet = true } label: {
                     Image(systemName: "plus")
                 }
+                .help("New note")
             }
         }
         .sheet(isPresented: $showingCreateSheet) {
             CreateNoteView()
+        }
+        .sheet(isPresented: $showingImportSheet) {
+            NavigationStack {
+                SummaryIngestView()
+                    .environmentObject(engine)
+                    .toolbar {
+                        ToolbarItem(placement: .cancellationAction) {
+                            Button("Done") { showingImportSheet = false }
+                        }
+                    }
+            }
+            #if os(macOS)
+            .frame(minWidth: 500, minHeight: 400)
+            #endif
         }
         .task {
             if engine.notes.isEmpty {
@@ -74,6 +93,34 @@ struct KnowledgeListView: View {
     }
 }
 
+// MARK: - Note Row
+
+struct NoteRowView: View {
+    let note: KnowledgeNote
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: CortexSpacing.xxs) {
+            Text(note.title)
+                .font(CortexFont.bodyMedium)
+                .foregroundStyle(CortexColor.textPrimary)
+                .lineLimit(2)
+
+            HStack(spacing: CortexSpacing.sm) {
+                if !note.tags.isEmpty {
+                    Text(note.tags.prefix(2).map { "#\($0)" }.joined(separator: " "))
+                        .font(CortexFont.mono)
+                        .foregroundStyle(CortexColor.accent)
+                }
+
+                Text(note.createdAt.prefix(10))
+                    .font(CortexFont.mono)
+                    .foregroundStyle(CortexColor.textTertiary)
+            }
+        }
+        .padding(.vertical, CortexSpacing.xxs)
+    }
+}
+
 // MARK: - Note Detail
 
 struct NoteDetailView: View {
@@ -81,22 +128,18 @@ struct NoteDetailView: View {
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 16) {
+            VStack(alignment: .leading, spacing: CortexSpacing.lg) {
                 // Title
                 Text(note.title)
-                    .font(.title2.bold())
+                    .font(CortexFont.title)
+                    .foregroundStyle(CortexColor.textPrimary)
 
                 // Tags
                 if !note.tags.isEmpty {
                     ScrollView(.horizontal, showsIndicators: false) {
-                        HStack {
+                        HStack(spacing: CortexSpacing.xs) {
                             ForEach(note.tags, id: \.self) { tag in
-                                Text("#\(tag)")
-                                    .font(.caption)
-                                    .padding(.horizontal, 8)
-                                    .padding(.vertical, 4)
-                                    .background(.blue.opacity(0.1), in: Capsule())
-                                    .foregroundStyle(.blue)
+                                ContextTag(text: tag)
                             }
                         }
                     }
@@ -105,12 +148,12 @@ struct NoteDetailView: View {
                 Divider()
 
                 // Sections
-                DetailSection(title: "Insight", icon: "lightbulb.fill", text: note.insight)
-                DetailSection(title: "Implication", icon: "arrow.right.circle.fill", text: note.implication)
-                DetailSection(title: "Action", icon: "checkmark.circle.fill", text: note.action)
+                NoteSection(title: "Insight", icon: "lightbulb.fill", text: note.insight)
+                NoteSection(title: "Implication", icon: "arrow.right.circle.fill", text: note.implication)
+                NoteSection(title: "Action", icon: "checkmark.circle.fill", text: note.action)
 
                 if !note.sourceURL.isEmpty {
-                    DetailSection(title: "Source", icon: "link", text: note.sourceURL)
+                    NoteSection(title: "Source", icon: "link", text: note.sourceURL)
                 }
 
                 // Metadata
@@ -120,11 +163,12 @@ struct NoteDetailView: View {
                     Spacer()
                     Text("ID: \(note.id)")
                 }
-                .font(.caption)
-                .foregroundStyle(.secondary)
+                .font(CortexFont.mono)
+                .foregroundStyle(CortexColor.textTertiary)
             }
-            .padding()
+            .padding(CortexSpacing.xl)
         }
+        .background(CortexColor.bgPrimary)
         .navigationTitle("Note")
         #if os(iOS)
         .navigationBarTitleDisplayMode(.inline)
@@ -132,18 +176,21 @@ struct NoteDetailView: View {
     }
 }
 
-struct DetailSection: View {
+private struct NoteSection: View {
     let title: String
     let icon: String
     let text: String
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Label(title, systemImage: icon)
-                .font(.headline)
-            Text(text)
-                .font(.body)
-                .foregroundStyle(.secondary)
+        if !text.isEmpty {
+            VStack(alignment: .leading, spacing: CortexSpacing.xs) {
+                Label(title, systemImage: icon)
+                    .font(CortexFont.captionMedium)
+                    .foregroundStyle(CortexColor.textTertiary)
+                Text(text)
+                    .font(CortexFont.body)
+                    .foregroundStyle(CortexColor.textSecondary)
+            }
         }
     }
 }

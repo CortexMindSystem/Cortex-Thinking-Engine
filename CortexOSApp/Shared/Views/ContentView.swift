@@ -2,9 +2,9 @@
 //  ContentView.swift
 //  CortexOS
 //
-//  Root navigation — radically simple.
-//  iOS: Focus is the hero. Decide + Capture secondary.
-//  macOS: 5 sidebar items. That's it.
+//  Root navigation — calm, focused, minimal.
+//  iOS: Focus / Capture / History. Open → Understand → Capture → Close.
+//  macOS: Focus / Notes / Insights / Decisions / Memory. Quiet workbench.
 //
 
 import SwiftUI
@@ -20,7 +20,7 @@ struct ContentView: View {
         #endif
     }
 
-    // MARK: - iOS (3 tabs — Focus / Decide / Capture)
+    // MARK: - iOS (Focus / Capture / History)
 
     #if os(iOS)
     @State private var showSettings = false
@@ -38,13 +38,13 @@ struct ContentView: View {
                         }
                     }
             }
-            .tabItem { Label("Focus", systemImage: "sparkles") }
-
-            NavigationStack { QuickDecisionView() }
-                .tabItem { Label("Decide", systemImage: "checkmark.seal") }
+            .tabItem { Label("Focus", systemImage: "target") }
 
             NavigationStack { QuickCaptureView() }
-                .tabItem { Label("Capture", systemImage: "plus.circle") }
+                .tabItem { Label("Capture", systemImage: "square.and.pencil") }
+
+            NavigationStack { HistoryView() }
+                .tabItem { Label("History", systemImage: "clock") }
         }
         .tint(CortexColor.accent)
         .environmentObject(engine)
@@ -63,7 +63,7 @@ struct ContentView: View {
     }
     #endif
 
-    // MARK: - macOS (4 sidebar items — clarity, not chrome)
+    // MARK: - macOS (Focus / Notes / Insights / Decisions / Memory)
 
     #if os(macOS)
     @State private var selection: MacSection? = .focus
@@ -71,27 +71,29 @@ struct ContentView: View {
     private var macOSRoot: some View {
         NavigationSplitView {
             List(selection: $selection) {
-                Label("Focus", systemImage: "sparkles")
+                Label("Focus", systemImage: "target")
                     .tag(MacSection.focus)
+                Label("Notes", systemImage: "doc.text")
+                    .tag(MacSection.notes)
                 Label("Insights", systemImage: "lightbulb")
                     .tag(MacSection.insights)
-                Label("Ingest", systemImage: "square.and.arrow.down")
-                    .tag(MacSection.ingest)
-                Label("Memory", systemImage: "brain")
-                    .tag(MacSection.memory)
                 Label("Decisions", systemImage: "checkmark.seal")
                     .tag(MacSection.decisions)
+                Label("Memory", systemImage: "brain.head.profile")
+                    .tag(MacSection.memory)
             }
             .navigationTitle("CortexOS")
             .listStyle(.sidebar)
         } detail: {
-            switch selection {
-            case .focus:       DailyFocusView()
-            case .insights:    InsightFeedView()
-            case .ingest:      SummaryIngestView()
-            case .memory:      MemoryExplorerView()
-            case .decisions:   DecisionHistoryView()
-            case nil:          DailyFocusView()
+            NavigationStack {
+                switch selection {
+                case .focus:       DailyFocusView()
+                case .notes:       KnowledgeListView()
+                case .insights:    InsightFeedView()
+                case .decisions:   DecisionHistoryView()
+                case .memory:      MemoryExplorerView()
+                case nil:          DailyFocusView()
+                }
             }
         }
         .environmentObject(engine)
@@ -100,7 +102,7 @@ struct ContentView: View {
     }
 
     enum MacSection: Hashable {
-        case focus, insights, ingest, memory, decisions
+        case focus, notes, insights, decisions, memory
     }
     #endif
 }
