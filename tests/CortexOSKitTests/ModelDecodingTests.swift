@@ -9,116 +9,6 @@
 import XCTest
 @testable import CortexOSKit
 
-final class FocusItemTests: XCTestCase {
-
-    func testDecodeFocusItem() throws {
-        let json = """
-        {
-            "rank": 1,
-            "title": "Build context engine",
-            "why_it_matters": "Core product",
-            "next_action": "Write scoring module",
-            "source_url": "https://example.com",
-            "relevance_score": 0.92,
-            "tags": ["ai", "product"]
-        }
-        """.data(using: .utf8)!
-
-        let item = try JSONDecoder().decode(FocusItem.self, from: json)
-        XCTAssertEqual(item.rank, 1)
-        XCTAssertEqual(item.title, "Build context engine")
-        XCTAssertEqual(item.whyItMatters, "Core product")
-        XCTAssertEqual(item.nextAction, "Write scoring module")
-        XCTAssertEqual(item.sourceURL, "https://example.com")
-        XCTAssertEqual(item.relevanceScore, 0.92, accuracy: 0.001)
-        XCTAssertEqual(item.tags, ["ai", "product"])
-    }
-
-    func testFocusItemIdentifiable() throws {
-        let json = """
-        {
-            "rank": 2,
-            "title": "Test item",
-            "why_it_matters": "Testing",
-            "next_action": "Verify",
-            "source_url": "",
-            "relevance_score": 0.5,
-            "tags": []
-        }
-        """.data(using: .utf8)!
-
-        let item = try JSONDecoder().decode(FocusItem.self, from: json)
-        XCTAssertEqual(item.id, "2-Test item")
-    }
-}
-
-final class DailyBriefTests: XCTestCase {
-
-    func testDecodeFullBrief() throws {
-        let json = """
-        {
-            "date": "2026-03-15",
-            "focus_items": [
-                {
-                    "rank": 1,
-                    "title": "Focus item",
-                    "why_it_matters": "Important",
-                    "next_action": "Do it",
-                    "source_url": "",
-                    "relevance_score": 0.8,
-                    "tags": ["ai"]
-                }
-            ],
-            "digest_quality": {"ai_article_ratio": 0.75, "high_signal_ratio": 0.5},
-            "profile_summary": {"name": "Builder", "goals_count": "3"}
-        }
-        """.data(using: .utf8)!
-
-        let brief = try JSONDecoder().decode(DailyBrief.self, from: json)
-        XCTAssertEqual(brief.date, "2026-03-15")
-        XCTAssertEqual(brief.focusItems.count, 1)
-        XCTAssertEqual(brief.focusItems[0].title, "Focus item")
-        XCTAssertEqual(brief.digestQuality["ai_article_ratio"], 0.75)
-        XCTAssertEqual(brief.profileSummary["name"], "Builder")
-    }
-
-    func testDecodeNullOptionals() throws {
-        let json = """
-        {
-            "date": "2026-03-15",
-            "focus_items": [],
-            "digest_quality": null,
-            "profile_summary": null
-        }
-        """.data(using: .utf8)!
-
-        let brief = try JSONDecoder().decode(DailyBrief.self, from: json)
-        XCTAssertEqual(brief.date, "2026-03-15")
-        XCTAssertTrue(brief.focusItems.isEmpty)
-        XCTAssertTrue(brief.digestQuality.isEmpty)
-        XCTAssertTrue(brief.profileSummary.isEmpty)
-    }
-
-    func testDecodeMissingOptionals() throws {
-        let json = """
-        {
-            "date": "2026-03-15",
-            "focus_items": []
-        }
-        """.data(using: .utf8)!
-
-        let brief = try JSONDecoder().decode(DailyBrief.self, from: json)
-        XCTAssertTrue(brief.digestQuality.isEmpty)
-        XCTAssertTrue(brief.profileSummary.isEmpty)
-    }
-
-    func testMemberwiseInit() {
-        let brief = DailyBrief(date: "2026-01-01")
-        XCTAssertEqual(brief.date, "2026-01-01")
-        XCTAssertTrue(brief.focusItems.isEmpty)
-    }
-}
-
 final class UserProfileTests: XCTestCase {
 
     func testDecodeProfile() throws {
@@ -174,44 +64,6 @@ final class ProfileUpdateTests: XCTestCase {
         let dict = try JSONSerialization.jsonObject(with: data) as? [String: Any]
         XCTAssertNotNil(dict?["name"])
         XCTAssertNotNil(dict?["goals"])
-    }
-}
-
-final class DigestScoreTests: XCTestCase {
-
-    func testDecodeDigestScore() throws {
-        let json = """
-        {
-            "total_articles": 10,
-            "ai_article_ratio": 0.6,
-            "high_signal_ratio": 0.4,
-            "signal_to_noise_ratio": 1.5,
-            "context_keyword_coverage": 0.3,
-            "project_fit_score": 0.7,
-            "top_articles": [
-                {"title": "LLM breakthroughs", "score": 0.95}
-            ]
-        }
-        """.data(using: .utf8)!
-
-        let score = try JSONDecoder().decode(DigestScore.self, from: json)
-        XCTAssertEqual(score.totalArticles, 10)
-        XCTAssertEqual(score.aiArticleRatio, 0.6, accuracy: 0.001)
-        XCTAssertEqual(score.highSignalRatio, 0.4, accuracy: 0.001)
-        XCTAssertEqual(score.signalToNoiseRatio, 1.5, accuracy: 0.001)
-        XCTAssertEqual(score.projectFitScore, 0.7, accuracy: 0.001)
-        XCTAssertEqual(score.topArticles.count, 1)
-        XCTAssertEqual(score.topArticles[0].title, "LLM breakthroughs")
-        XCTAssertEqual(score.topArticles[0].score, 0.95, accuracy: 0.001)
-    }
-
-    func testArticleScoreItemIdentifiable() throws {
-        let json = """
-        {"title": "Test article", "score": 0.5}
-        """.data(using: .utf8)!
-
-        let item = try JSONDecoder().decode(ArticleScoreItem.self, from: json)
-        XCTAssertEqual(item.id, "Test article")
     }
 }
 
@@ -291,5 +143,20 @@ final class NoteRequestTests: XCTestCase {
         let dict = try JSONSerialization.jsonObject(with: data) as? [String: Any]
         XCTAssertEqual(dict?["title"] as? String, "Updated")
         XCTAssertEqual(dict?["archived"] as? Bool, true)
+    }
+}
+
+// MARK: - ServerHealth
+
+final class ServerHealthTests: XCTestCase {
+
+    func testDecodeServerHealth() throws {
+        let json = """
+        {"status": "ok", "timestamp": "2026-03-15T10:00:00Z"}
+        """.data(using: .utf8)!
+
+        let health = try JSONDecoder().decode(ServerHealth.self, from: json)
+        XCTAssertEqual(health.status, "ok")
+        XCTAssertFalse(health.timestamp.isEmpty)
     }
 }
