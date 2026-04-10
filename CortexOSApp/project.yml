@@ -31,8 +31,23 @@ targets:
       - target: CortexOS-Widget
     info:
       path: iOS/Info.plist
+      properties:
+        UILaunchScreen: {}
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationPortraitUpsideDown
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
+        UISupportedInterfaceOrientations~ipad:
+          - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationPortraitUpsideDown
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
     entitlements:
       path: iOS/CortexOS-iOS.entitlements
+      properties:
+        com.apple.security.application-groups:
+          - group.me.ph7.cortexos
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: me.ph7.cortexos.ios
@@ -62,8 +77,13 @@ targets:
           - "**/.DS_Store"
     info:
       path: macOS/Info.plist
+      properties:
+        LSApplicationCategoryType: public.app-category.productivity
     entitlements:
       path: macOS/CortexOS.entitlements
+      properties:
+        com.apple.security.app-sandbox: true
+        com.apple.security.network.client: true
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: me.ph7.cortexos.macos
@@ -100,8 +120,15 @@ targets:
         SKIP_INSTALL: YES
     entitlements:
       path: Widget/CortexOS-Widget.entitlements
+      properties:
+        com.apple.security.application-groups:
+          - group.me.ph7.cortexos
     info:
       path: Widget/Info.plist
+      properties:
+        CFBundleDisplayName: CortexOS Focus
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.widgetkit-extension
 
   CortexOS-iOS-UITests:
     type: bundle.ui-testing

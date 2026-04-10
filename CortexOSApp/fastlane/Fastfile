@@ -1,0 +1,122 @@
+# CortexOS Fastlane Configuration
+# ---------------------------------
+# Automated build + TestFlight deployment for iOS and macOS.
+# Uses App Store Connect API Key for authentication (no password/2FA needed).
+#
+# Usage:
+#   cd CortexOSApp
+#   fastlane ios_testflight    — build iOS + upload to TestFlight
+#   fastlane mac_testflight    — build macOS + upload to TestFlight
+#   fastlane all_testflight    — both platforms
+
+default_platform(:ios)
+
+TEAM_ID      = "2V8LZ2444Y"
+IOS_BUNDLE   = "me.ph7.cortexos.ios"
+MAC_BUNDLE   = "me.ph7.cortexos.macos"
+PROJECT      = "CortexOS.xcodeproj"
+
+# App Store Connect API Key
+ASC_KEY_ID   = "X45B3VFD8C"
+ASC_ISSUER   = "0937aa2d-d63f-411e-928e-0ec39732c589"
+ASC_KEY_PATH = File.expand_path("AuthKey_3282WM9W4R.p8", __dir__)
+
+# Xcargs for automatic provisioning with API key
+SIGN_ARGS = [
+  "DEVELOPMENT_TEAM=#{TEAM_ID}",
+  "CODE_SIGN_STYLE=Automatic",
+  "-allowProvisioningUpdates",
+  "-authenticationKeyPath '#{ASC_KEY_PATH}'",
+  "-authenticationKeyID #{ASC_KEY_ID}",
+  "-authenticationKeyIssuerID #{ASC_ISSUER}",
+].join(" ")
+
+# ── Xcode project regen ────────────────────────────────────
+
+before_all do
+  if system("which xcodegen > /dev/null 2>&1")
+    sh("cd .. && xcodegen generate 2>&1")
+    UI.message("Regenerated Xcode project from project.yml")
+  end
+
+  # Authenticate with App Store Connect API
+  app_store_connect_api_key(
+    key_id: ASC_KEY_ID,
+    issuer_id: ASC_ISSUER,
+    key_filepath: ASC_KEY_PATH,
+    duration: 1200,
+    in_house: false,
+  )
+end
+
+# ── iOS TestFlight ──────────────────────────────────────────
+
+platform :ios do
+  desc "Build iOS and upload to TestFlight"
+  lane :testflight_release do
+    increment_build_number(
+      xcodeproj: PROJECT,
+      build_number: Time.now.strftime("%Y%m%d%H%M"),
+    )
+
+    build_app(
+      project: PROJECT,
+      scheme: "CortexOS-iOS",
+      clean: true,
+      export_method: "app-store",
+      xcargs: SIGN_ARGS,
+    )
+
+    upload_to_testflight(
+      skip_waiting_for_build_processing: true,
+    )
+
+    UI.success("iOS build uploaded to TestFlight!")
+  end
+end
+
+# ── macOS TestFlight ────────────────────────────────────────
+
+platform :mac do
+  desc "Build macOS and upload to TestFlight"
+  lane :testflight_release do
+    increment_build_number(
+      xcodeproj: PROJECT,
+      build_number: Time.now.strftime("%Y%m%d%H%M"),
+    )
+
+    build_app(
+      project: PROJECT,
+      scheme: "CortexOS-macOS",
+      clean: true,
+      export_method: "app-store",
+      xcargs: SIGN_ARGS,
+    )
+
+    upload_to_testflight(
+      skip_waiting_for_build_processing: true,
+      app_platform: "osx",
+      pkg: lane_context[SharedValues::PKG_OUTPUT_PATH],
+    )
+
+    UI.success("macOS build uploaded to TestFlight!")
+  end
+end
+
+# ── Convenience aliases ─────────────────────────────────────
+
+desc "iOS TestFlight (alias)"
+lane :ios_testflight do
+  Fastlane::LaneManager.cruise_lane("ios", "testflight_release")
+end
+
+desc "macOS TestFlight (alias)"
+lane :mac_testflight do
+  Fastlane::LaneManager.cruise_lane("mac", "testflight_release")
+end
+
+desc "Build and upload BOTH platforms to TestFlight"
+lane :all_testflight do
+  Fastlane::LaneManager.cruise_lane("ios", "testflight_release")
+  Fastlane::LaneManager.cruise_lane("mac", "testflight_release")
+end
