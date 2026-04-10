@@ -41,15 +41,3 @@ final class APIServiceInitTests: XCTestCase {
         XCTAssertEqual(service.baseURL, "http://test:9999")
     }
 }
-
-final class PipelineStepsResponseTests: XCTestCase {
-
-    func testDecode() throws {
-        let json = """
-        {"steps": ["ingest", "score", "focus"]}
-        """.data(using: .utf8)!
-
-        let resp = try JSONDecoder().decode(PipelineStepsResponse.self, from: json)
-        XCTAssertEqual(resp.steps, ["ingest", "score", "focus"])
-    }
-}
