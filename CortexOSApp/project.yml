@@ -32,6 +32,7 @@ targets:
     info:
       path: iOS/Info.plist
       properties:
+        ITSAppUsesNonExemptEncryption: false
         UILaunchScreen: {}
         UISupportedInterfaceOrientations:
           - UIInterfaceOrientationPortrait
@@ -78,6 +79,7 @@ targets:
     info:
       path: macOS/Info.plist
       properties:
+        ITSAppUsesNonExemptEncryption: false
         LSApplicationCategoryType: public.app-category.productivity
     entitlements:
       path: macOS/CortexOS.entitlements
