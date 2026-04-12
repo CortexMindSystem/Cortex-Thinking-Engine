@@ -30,7 +30,7 @@ final class CortexEngine: ObservableObject {
     init(api: APIService = .shared) {
         self.api = api
 
-        // Load cached snapshot for instant launch — no network wait
+        // Always load cached snapshot for instant launch
         Task { [weak self] in
             if let cached = await SnapshotCache.shared.load() {
                 self?.snapshot = cached
@@ -133,6 +133,15 @@ final class CortexEngine: ObservableObject {
     // MARK: - Sync (single-call pull + offline-first)
 
     func sync() async {
+        if api.isOffline {
+            isConnected = false
+            // Always load from cache in offline mode
+            if snapshot == nil {
+                snapshot = await SnapshotCache.shared.load()
+            }
+            errorMessage = "Offline mode: no server URL configured."
+            return
+        }
         do {
             snapshot = try await api.fetchSnapshot()
             isConnected = true
