@@ -38,6 +38,10 @@ final class APIService: ObservableObject {
         didSet { UserDefaults.standard.set(baseURL, forKey: "cortex_api_url") }
     }
 
+    var isOffline: Bool {
+        baseURL.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
     static let shared = APIService()
 
     private let session: URLSession
@@ -63,30 +67,28 @@ final class APIService: ObservableObject {
         path: String,
         body: (any Encodable)? = nil
     ) async throws -> T {
+        if isOffline {
+            throw APIError.networkError(NSError(domain: NSURLErrorDomain, code: -1009, userInfo: [NSLocalizedDescriptionKey: "Offline mode: no server URL configured"]))
+        }
         guard let url = URL(string: "\(baseURL)\(path)") else {
             throw APIError.invalidURL
         }
-
         var req = URLRequest(url: url)
         req.httpMethod = method
         req.setValue("application/json", forHTTPHeaderField: "Content-Type")
-
         if let body {
             req.httpBody = try encoder.encode(AnyEncodable(body))
         }
-
         let (data, response): (Data, URLResponse)
         do {
             (data, response) = try await session.data(for: req)
         } catch {
             throw APIError.networkError(error)
         }
-
         if let http = response as? HTTPURLResponse, !(200..<300).contains(http.statusCode) {
             let body = String(data: data, encoding: .utf8) ?? ""
             throw APIError.httpError(statusCode: http.statusCode, body: body)
         }
-
         do {
             return try decoder.decode(T.self, from: data)
         } catch {
@@ -99,20 +101,19 @@ final class APIService: ObservableObject {
         path: String,
         body: (any Encodable)? = nil
     ) async throws {
+        if isOffline {
+            throw APIError.networkError(NSError(domain: NSURLErrorDomain, code: -1009, userInfo: [NSLocalizedDescriptionKey: "Offline mode: no server URL configured"]))
+        }
         guard let url = URL(string: "\(baseURL)\(path)") else {
             throw APIError.invalidURL
         }
-
         var req = URLRequest(url: url)
         req.httpMethod = method
         req.setValue("application/json", forHTTPHeaderField: "Content-Type")
-
         if let body {
             req.httpBody = try encoder.encode(AnyEncodable(body))
         }
-
         let (data, response) = try await session.data(for: req)
-
         if let http = response as? HTTPURLResponse, !(200..<300).contains(http.statusCode) {
             let body = String(data: data, encoding: .utf8) ?? ""
             throw APIError.httpError(statusCode: http.statusCode, body: body)
