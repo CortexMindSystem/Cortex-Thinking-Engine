@@ -1,11 +1,9 @@
-# Railway deployment config for CortexOS API
 [build]
-# No build step needed for Python
+builder = "DOCKERFILE"
+dockerfilePath = "Dockerfile"
 
 [deploy]
-start = "python -m cortex_core.api.server"
-healthcheck_path = "/health"
-healthcheck_timeout = 10
-
-[env]
-PORT = "8420"
+healthcheckPath = "/health"
+healthcheckTimeout = 120
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 10
