@@ -210,10 +210,16 @@ final class APIService: ObservableObject {
     }
 
     func recordOutcome(_ body: OutcomeCreateRequest) async throws -> SyncDecision {
+        if isOffline, let decision = await OfflineStore.shared.recordOutcome(body) {
+            return decision
+        }
         try await request("POST", path: "/context/outcome", body: body)
     }
 
     func storeInsight(_ body: InsightCreateRequest) async throws -> SyncInsight {
+        if isOffline {
+            return await OfflineStore.shared.storeInsight(body)
+        }
         try await request("POST", path: "/context/insight", body: body)
     }
 
