@@ -65,9 +65,7 @@ final class CortexEngine: ObservableObject {
             notes = try await api.listNotes()
             errorMessage = nil
         } catch {
-            // Keep app usable when server is unreachable.
-            notes = await OfflineStore.shared.listNotes()
-            errorMessage = nil
+            errorMessage = error.localizedDescription
         }
     }
 
@@ -78,16 +76,8 @@ final class CortexEngine: ObservableObject {
             errorMessage = nil
             return true
         } catch {
-            // Mirror locally so capture is immediately visible.
-            let localNote = await OfflineStore.shared.createNote(request)
-            notes.insert(localNote, at: 0)
-            // Queue for offline sync — capture always works
-            await CaptureQueue.shared.enqueueNote(
-                title: request.title,
-                sourceURL: request.sourceURL
-            )
-            errorMessage = nil
-            return true
+            errorMessage = error.localizedDescription
+            return false
         }
     }
 
@@ -98,10 +88,8 @@ final class CortexEngine: ObservableObject {
             errorMessage = nil
             return true
         } catch {
-            await OfflineStore.shared.deleteNote(id: id)
-            notes.removeAll { $0.id == id }
-            errorMessage = nil
-            return true
+            errorMessage = error.localizedDescription
+            return false
         }
     }
 
@@ -116,8 +104,7 @@ final class CortexEngine: ObservableObject {
             notes = try await api.searchNotes(query: query)
             errorMessage = nil
         } catch {
-            notes = await OfflineStore.shared.searchNotes(query: query)
-            errorMessage = nil
+            errorMessage = error.localizedDescription
         }
     }
 
@@ -128,8 +115,7 @@ final class CortexEngine: ObservableObject {
             profile = try await api.getProfile()
             errorMessage = nil
         } catch {
-            profile = await OfflineStore.shared.getProfile()
-            errorMessage = nil
+            errorMessage = error.localizedDescription
         }
     }
 
@@ -139,9 +125,8 @@ final class CortexEngine: ObservableObject {
             errorMessage = nil
             return true
         } catch {
-            profile = await OfflineStore.shared.updateProfile(update)
-            errorMessage = nil
-            return true
+            errorMessage = error.localizedDescription
+            return false
         }
     }
 

@@ -115,7 +115,7 @@ actor CaptureQueue {
             )
 
             do {
-                _ = try await api.createNote(request)
+                _ = try await api.createNoteRemote(request)
                 await OfflineStore.shared.removeMirroredNote(
                     title: item.title,
                     sourceURL: item.sourceURL
@@ -147,7 +147,7 @@ actor CaptureQueue {
             )
 
             do {
-                _ = try await api.recordDecision(request)
+                _ = try await api.recordDecisionRemote(request)
                 await OfflineStore.shared.removeMirroredDecision(
                     decision: item.decision,
                     reason: item.reason,
