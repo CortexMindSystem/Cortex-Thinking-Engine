@@ -47,8 +47,16 @@ pip install -r requirements.txt
 brew install xcodegen
 ./generate_xcode_project.sh
 open CortexOSApp/CortexOS.xcodeproj
-# Requires the API server to be running
+# Leave server URL empty in Settings to run fully offline.
 ```
+
+### Optional: Railway deployment (API)
+```bash
+railway login
+railway init
+railway up
+```
+Deployment uses the included `Dockerfile` + `railway.toml`.
 
 ---
 
@@ -139,4 +147,3 @@ Designed & coded with passion by **[Pierre-Henry Soria](https://ph7.me)** — a 
 [![LinkedIn](https://img.shields.io/badge/LinkedIn-000000?style=for-the-badge&logo=linkedin&logoColor=white)](https://www.linkedin.com/in/ph7enry/ "Pierre-Henry Soria on LinkedIn")
 
 Open to exciting opportunities — **[let's chat](https://www.linkedin.com/in/ph7enry/)**.
-
