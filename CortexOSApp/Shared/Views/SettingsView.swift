@@ -22,9 +22,9 @@ struct SettingsView: View {
             Section {
                 HStack(spacing: CortexSpacing.sm) {
                     Circle()
-                        .fill(engine.isConnected ? Color.green : Color.red.opacity(0.6))
+                        .fill(statusColor)
                         .frame(width: 8, height: 8)
-                    Text(engine.isConnected ? "Connected" : "Offline")
+                    Text(statusLabel)
                         .font(CortexFont.body)
                         .foregroundStyle(CortexColor.textPrimary)
                     Spacer()
@@ -42,6 +42,10 @@ struct SettingsView: View {
                         .onAppear {
                             serverURL = engine.api.baseURL
                         }
+
+                    Text("Leave empty to run fully offline on this device.")
+                        .font(CortexFont.caption)
+                        .foregroundStyle(CortexColor.textTertiary)
 
                     HStack {
                         Button {
@@ -116,6 +120,16 @@ struct SettingsView: View {
 
         await engine.checkConnection()
         connectionFeedback = engine.isConnected ? .success : .failure
+    }
+
+    private var statusLabel: String {
+        if engine.api.isOffline { return "Local Offline Mode" }
+        return engine.isConnected ? "Connected" : "Offline"
+    }
+
+    private var statusColor: Color {
+        if engine.api.isOffline { return .blue }
+        return engine.isConnected ? .green : .red.opacity(0.6)
     }
 }
 
