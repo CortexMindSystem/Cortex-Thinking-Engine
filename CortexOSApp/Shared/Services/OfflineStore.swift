@@ -150,6 +150,47 @@ actor OfflineStore {
         return decision
     }
 
+    func recordOutcome(_ request: OutcomeCreateRequest) -> SyncDecision? {
+        guard let idx = decisions.firstIndex(where: { $0.id == request.decisionId }) else {
+            return nil
+        }
+
+        let existing = decisions[idx]
+        let updated = SyncDecision(
+            id: existing.id,
+            decision: existing.decision,
+            reason: existing.reason,
+            project: existing.project,
+            assumptions: existing.assumptions,
+            contextTags: existing.contextTags,
+            createdAt: existing.createdAt,
+            outcome: request.outcome,
+            impactScore: request.impactScore
+        )
+
+        decisions[idx] = updated
+        persistDecisions()
+        return updated
+    }
+
+    func storeInsight(_ request: InsightCreateRequest) -> SyncInsight {
+        let insight = SyncInsight(
+            id: UUID().uuidString,
+            title: request.title,
+            summary: request.summary,
+            whyItMatters: request.whyItMatters,
+            architecturalImplication: request.architecturalImplication,
+            nextAction: request.nextAction,
+            confidence: request.confidence,
+            tags: request.tags,
+            relatedProject: request.relatedProject,
+            createdAt: iso.string(from: Date())
+        )
+        insights.insert(insight, at: 0)
+        persistInsights()
+        return insight
+    }
+
     func ingestSummary(_ request: SummaryIngestRequest) -> IngestResult {
         let trimmed = request.content.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else {
