@@ -154,7 +154,7 @@ final class CortexEngine: ObservableObject {
             }
         } catch {
             isConnected = false
-            // Fall back to cached snapshot — app still works offline
+            // Fall back to locally generated snapshot — app still works offline
             snapshot = await OfflineStore.shared.snapshot()
             if let snapshot { await SnapshotCache.shared.save(snapshot) }
             errorMessage = nil
@@ -202,19 +202,8 @@ final class CortexEngine: ObservableObject {
             errorMessage = nil
             return true
         } catch {
-            _ = await OfflineStore.shared.recordDecision(request)
-            // Queue for offline sync — decisions always save
-            await CaptureQueue.shared.enqueueDecision(
-                decision: request.decision,
-                reason: request.reason,
-                project: request.project,
-                assumptions: request.assumptions
-            )
-            if snapshot != nil {
-                await sync()
-            }
-            errorMessage = nil
-            return true
+            errorMessage = error.localizedDescription
+            return false
         }
     }
 
@@ -241,13 +230,8 @@ final class CortexEngine: ObservableObject {
             errorMessage = nil
             return true
         } catch {
-            let request = SummaryIngestRequest(content: content, source: source, tags: tags)
-            lastIngestResult = await OfflineStore.shared.ingestSummary(request)
-            if snapshot != nil {
-                await sync()
-            }
-            errorMessage = nil
-            return true
+            errorMessage = error.localizedDescription
+            return false
         }
     }
 }

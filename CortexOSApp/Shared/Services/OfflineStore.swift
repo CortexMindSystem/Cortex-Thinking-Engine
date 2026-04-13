@@ -168,7 +168,20 @@ actor OfflineStore {
 
     func recordOutcome(_ request: OutcomeCreateRequest) -> SyncDecision? {
         guard let idx = decisions.firstIndex(where: { $0.id == request.decisionId }) else {
-            return nil
+            let synthesized = SyncDecision(
+                id: request.decisionId,
+                decision: "Decision",
+                reason: "",
+                project: "",
+                assumptions: [],
+                contextTags: [],
+                createdAt: iso.string(from: Date()),
+                outcome: request.outcome,
+                impactScore: request.impactScore
+            )
+            decisions.insert(synthesized, at: 0)
+            persistDecisions()
+            return synthesized
         }
 
         let existing = decisions[idx]
