@@ -1,0 +1,11 @@
+# Railway deployment config for CortexOS API
+[build]
+# No build step needed for Python
+
+[deploy]
+start = "python -m cortex_core.api.server"
+healthcheck_path = "/health"
+healthcheck_timeout = 10
+
+[env]
+PORT = "8420"
