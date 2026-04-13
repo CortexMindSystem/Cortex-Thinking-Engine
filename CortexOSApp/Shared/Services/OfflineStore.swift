@@ -104,6 +104,13 @@ actor OfflineStore {
         persistNotes()
     }
 
+    func removeMirroredNote(title: String, sourceURL: String) {
+        if let idx = notes.firstIndex(where: { $0.title == title && $0.sourceURL == sourceURL }) {
+            notes.remove(at: idx)
+            persistNotes()
+        }
+    }
+
     func searchNotes(query: String) -> [KnowledgeNote] {
         let q = query.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         guard !q.isEmpty else { return listNotes() }
@@ -148,6 +155,15 @@ actor OfflineStore {
         decisions.insert(decision, at: 0)
         persistDecisions()
         return decision
+    }
+
+    func removeMirroredDecision(decision: String, reason: String, project: String) {
+        if let idx = decisions.firstIndex(where: {
+            $0.decision == decision && $0.reason == reason && $0.project == project
+        }) {
+            decisions.remove(at: idx)
+            persistDecisions()
+        }
     }
 
     func recordOutcome(_ request: OutcomeCreateRequest) -> SyncDecision? {

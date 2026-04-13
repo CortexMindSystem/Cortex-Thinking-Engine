@@ -65,7 +65,9 @@ final class CortexEngine: ObservableObject {
             notes = try await api.listNotes()
             errorMessage = nil
         } catch {
-            errorMessage = error.localizedDescription
+            // Keep app usable when server is unreachable.
+            notes = await OfflineStore.shared.listNotes()
+            errorMessage = nil
         }
     }
 
@@ -76,6 +78,9 @@ final class CortexEngine: ObservableObject {
             errorMessage = nil
             return true
         } catch {
+            // Mirror locally so capture is immediately visible.
+            let localNote = await OfflineStore.shared.createNote(request)
+            notes.insert(localNote, at: 0)
             // Queue for offline sync — capture always works
             await CaptureQueue.shared.enqueueNote(
                 title: request.title,
@@ -93,8 +98,10 @@ final class CortexEngine: ObservableObject {
             errorMessage = nil
             return true
         } catch {
-            errorMessage = error.localizedDescription
-            return false
+            await OfflineStore.shared.deleteNote(id: id)
+            notes.removeAll { $0.id == id }
+            errorMessage = nil
+            return true
         }
     }
 
@@ -109,7 +116,8 @@ final class CortexEngine: ObservableObject {
             notes = try await api.searchNotes(query: query)
             errorMessage = nil
         } catch {
-            errorMessage = error.localizedDescription
+            notes = await OfflineStore.shared.searchNotes(query: query)
+            errorMessage = nil
         }
     }
 
@@ -120,7 +128,8 @@ final class CortexEngine: ObservableObject {
             profile = try await api.getProfile()
             errorMessage = nil
         } catch {
-            errorMessage = error.localizedDescription
+            profile = await OfflineStore.shared.getProfile()
+            errorMessage = nil
         }
     }
 
@@ -130,8 +139,9 @@ final class CortexEngine: ObservableObject {
             errorMessage = nil
             return true
         } catch {
-            errorMessage = error.localizedDescription
-            return false
+            profile = await OfflineStore.shared.updateProfile(update)
+            errorMessage = nil
+            return true
         }
     }
 
@@ -160,10 +170,9 @@ final class CortexEngine: ObservableObject {
         } catch {
             isConnected = false
             // Fall back to cached snapshot — app still works offline
-            if snapshot == nil {
-                snapshot = await SnapshotCache.shared.load()
-            }
-            errorMessage = error.localizedDescription
+            snapshot = await OfflineStore.shared.snapshot()
+            if let snapshot { await SnapshotCache.shared.save(snapshot) }
+            errorMessage = nil
         }
     }
 
@@ -208,6 +217,7 @@ final class CortexEngine: ObservableObject {
             errorMessage = nil
             return true
         } catch {
+            _ = await OfflineStore.shared.recordDecision(request)
             // Queue for offline sync — decisions always save
             await CaptureQueue.shared.enqueueDecision(
                 decision: request.decision,
@@ -215,6 +225,9 @@ final class CortexEngine: ObservableObject {
                 project: request.project,
                 assumptions: request.assumptions
             )
+            if snapshot != nil {
+                await sync()
+            }
             errorMessage = nil
             return true
         }
@@ -243,8 +256,13 @@ final class CortexEngine: ObservableObject {
             errorMessage = nil
             return true
         } catch {
-            errorMessage = error.localizedDescription
-            return false
+            let request = SummaryIngestRequest(content: content, source: source, tags: tags)
+            lastIngestResult = await OfflineStore.shared.ingestSummary(request)
+            if snapshot != nil {
+                await sync()
+            }
+            errorMessage = nil
+            return true
         }
     }
 }

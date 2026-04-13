@@ -59,7 +59,7 @@ struct SettingsView: View {
                                 }
                             }
                         }
-                        .disabled(isTesting || serverURL.isEmpty)
+                        .disabled(isTesting)
 
                         Spacer()
 
@@ -119,7 +119,11 @@ struct SettingsView: View {
         defer { isTesting = false }
 
         await engine.checkConnection()
-        connectionFeedback = engine.isConnected ? .success : .failure
+        if engine.api.isOffline {
+            connectionFeedback = .local
+        } else {
+            connectionFeedback = engine.isConnected ? .success : .failure
+        }
     }
 
     private var statusLabel: String {
@@ -136,12 +140,13 @@ struct SettingsView: View {
 // MARK: - Supporting Types
 
 private enum ConnectionFeedback {
-    case success, failure
+    case success, failure, local
 
     var message: String {
         switch self {
         case .success: "Connected"
         case .failure: "Unable to connect"
+        case .local: "Local mode active"
         }
     }
 
@@ -149,6 +154,7 @@ private enum ConnectionFeedback {
         switch self {
         case .success: .green
         case .failure: .red
+        case .local: .blue
         }
     }
 }

@@ -116,6 +116,10 @@ actor CaptureQueue {
 
             do {
                 _ = try await api.createNote(request)
+                await OfflineStore.shared.removeMirroredNote(
+                    title: item.title,
+                    sourceURL: item.sourceURL
+                )
                 flushed += 1
             } catch {
                 remaining.append(item)
@@ -144,6 +148,11 @@ actor CaptureQueue {
 
             do {
                 _ = try await api.recordDecision(request)
+                await OfflineStore.shared.removeMirroredDecision(
+                    decision: item.decision,
+                    reason: item.reason,
+                    project: item.project
+                )
                 flushed += 1
             } catch {
                 remaining.append(item)
