@@ -41,6 +41,11 @@ final class CortexEngine: ObservableObject {
     // MARK: - Connection
 
     func checkConnection() async {
+        if api.isOffline {
+            isConnected = true
+            errorMessage = nil
+            return
+        }
         do {
             _ = try await api.health()
             isConnected = true
@@ -133,15 +138,6 @@ final class CortexEngine: ObservableObject {
     // MARK: - Sync (single-call pull + offline-first)
 
     func sync() async {
-        if api.isOffline {
-            isConnected = false
-            // Always load from cache in offline mode
-            if snapshot == nil {
-                snapshot = await SnapshotCache.shared.load()
-            }
-            errorMessage = "Offline mode: no server URL configured."
-            return
-        }
         do {
             snapshot = try await api.fetchSnapshot()
             isConnected = true
