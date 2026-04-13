@@ -131,32 +131,63 @@ final class APIService: ObservableObject {
 
     // MARK: - Knowledge Notes
 
+    func createNoteRemote(_ body: NoteCreateRequest) async throws -> KnowledgeNote {
+        try await request("POST", path: "/notes/", body: body)
+    }
+
     func listNotes(includeArchived: Bool = false) async throws -> [KnowledgeNote] {
         if isOffline {
             return await OfflineStore.shared.listNotes(includeArchived: includeArchived)
         }
-        try await request("GET", path: "/notes/?include_archived=\(includeArchived)")
+        do {
+            return try await request("GET", path: "/notes/?include_archived=\(includeArchived)")
+        } catch {
+            return await OfflineStore.shared.listNotes(includeArchived: includeArchived)
+        }
     }
 
     func getNote(id: String) async throws -> KnowledgeNote {
         if isOffline, let note = await OfflineStore.shared.getNote(id: id) {
             return note
         }
-        try await request("GET", path: "/notes/\(id)")
+        do {
+            return try await request("GET", path: "/notes/\(id)")
+        } catch {
+            if let note = await OfflineStore.shared.getNote(id: id) {
+                return note
+            }
+            throw error
+        }
     }
 
     func createNote(_ body: NoteCreateRequest) async throws -> KnowledgeNote {
         if isOffline {
             return await OfflineStore.shared.createNote(body)
         }
-        try await request("POST", path: "/notes/", body: body)
+        do {
+            return try await createNoteRemote(body)
+        } catch {
+            let local = await OfflineStore.shared.createNote(body)
+            await CaptureQueue.shared.enqueueNote(
+                title: body.title,
+                sourceURL: body.sourceURL
+            )
+            return local
+        }
     }
 
     func updateNote(id: String, _ body: NoteUpdateRequest) async throws -> KnowledgeNote {
         if isOffline, let note = await OfflineStore.shared.updateNote(id: id, with: body) {
             return note
         }
-        try await request("PATCH", path: "/notes/\(id)", body: body)
+        do {
+            return try await request("PATCH", path: "/notes/\(id)", body: body)
+        } catch {
+            if let note = await OfflineStore.shared.updateNote(id: id, with: body) {
+                return note
+            }
+            throw error
+        }
     }
 
     func deleteNote(id: String) async throws {
@@ -164,7 +195,11 @@ final class APIService: ObservableObject {
             await OfflineStore.shared.deleteNote(id: id)
             return
         }
-        try await requestNoContent("DELETE", path: "/notes/\(id)")
+        do {
+            try await requestNoContent("DELETE", path: "/notes/\(id)")
+        } catch {
+            await OfflineStore.shared.deleteNote(id: id)
+        }
     }
 
     func searchNotes(query: String) async throws -> [KnowledgeNote] {
@@ -172,7 +207,11 @@ final class APIService: ObservableObject {
             return await OfflineStore.shared.searchNotes(query: query)
         }
         let encoded = query.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? query
-        return try await request("GET", path: "/notes/search?q=\(encoded)")
+        do {
+            return try await request("GET", path: "/notes/search?q=\(encoded)")
+        } catch {
+            return await OfflineStore.shared.searchNotes(query: query)
+        }
     }
 
     // MARK: - Profile
@@ -181,14 +220,22 @@ final class APIService: ObservableObject {
         if isOffline {
             return await OfflineStore.shared.getProfile()
         }
-        try await request("GET", path: "/profile/")
+        do {
+            return try await request("GET", path: "/profile/")
+        } catch {
+            return await OfflineStore.shared.getProfile()
+        }
     }
 
     func updateProfile(_ body: ProfileUpdate) async throws -> UserProfile {
         if isOffline {
             return await OfflineStore.shared.updateProfile(body)
         }
-        try await request("PATCH", path: "/profile/", body: body)
+        do {
+            return try await request("PATCH", path: "/profile/", body: body)
+        } catch {
+            return await OfflineStore.shared.updateProfile(body)
+        }
     }
 
     // MARK: - Sync
@@ -197,30 +244,56 @@ final class APIService: ObservableObject {
         if isOffline {
             return await OfflineStore.shared.snapshot()
         }
-        try await request("GET", path: "/sync/snapshot")
+        return try await request("GET", path: "/sync/snapshot")
     }
 
     // MARK: - Context (mutations)
+
+    func recordDecisionRemote(_ body: DecisionCreateRequest) async throws -> SyncDecision {
+        try await request("POST", path: "/context/decision", body: body)
+    }
 
     func recordDecision(_ body: DecisionCreateRequest) async throws -> SyncDecision {
         if isOffline {
             return await OfflineStore.shared.recordDecision(body)
         }
-        try await request("POST", path: "/context/decision", body: body)
+        do {
+            return try await recordDecisionRemote(body)
+        } catch {
+            let local = await OfflineStore.shared.recordDecision(body)
+            await CaptureQueue.shared.enqueueDecision(
+                decision: body.decision,
+                reason: body.reason,
+                project: body.project,
+                assumptions: body.assumptions
+            )
+            return local
+        }
     }
 
     func recordOutcome(_ body: OutcomeCreateRequest) async throws -> SyncDecision {
         if isOffline, let decision = await OfflineStore.shared.recordOutcome(body) {
             return decision
         }
-        try await request("POST", path: "/context/outcome", body: body)
+        do {
+            return try await request("POST", path: "/context/outcome", body: body)
+        } catch {
+            if let decision = await OfflineStore.shared.recordOutcome(body) {
+                return decision
+            }
+            throw error
+        }
     }
 
     func storeInsight(_ body: InsightCreateRequest) async throws -> SyncInsight {
         if isOffline {
             return await OfflineStore.shared.storeInsight(body)
         }
-        try await request("POST", path: "/context/insight", body: body)
+        do {
+            return try await request("POST", path: "/context/insight", body: body)
+        } catch {
+            return await OfflineStore.shared.storeInsight(body)
+        }
     }
 
     // MARK: - Feedback
@@ -238,7 +311,11 @@ final class APIService: ObservableObject {
         if isOffline {
             return await OfflineStore.shared.ingestSummary(body)
         }
-        try await request("POST", path: "/ingest/summary", body: body)
+        do {
+            return try await request("POST", path: "/ingest/summary", body: body)
+        } catch {
+            return await OfflineStore.shared.ingestSummary(body)
+        }
     }
 }
 
