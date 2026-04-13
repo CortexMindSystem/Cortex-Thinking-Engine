@@ -50,7 +50,7 @@ final class APIService: ObservableObject {
 
     init(baseURL: String? = nil) {
         let saved = UserDefaults.standard.string(forKey: "cortex_api_url")
-        self.baseURL = baseURL ?? saved ?? "http://localhost:8420"
+        self.baseURL = baseURL ?? saved ?? ""
 
         let config = URLSessionConfiguration.default
         config.timeoutIntervalForRequest = 30
@@ -123,32 +123,54 @@ final class APIService: ObservableObject {
     // MARK: - Health
 
     func health() async throws -> ServerHealth {
+        if isOffline {
+            return await OfflineStore.shared.serverHealth()
+        }
         try await request("GET", path: "/health")
     }
 
     // MARK: - Knowledge Notes
 
     func listNotes(includeArchived: Bool = false) async throws -> [KnowledgeNote] {
+        if isOffline {
+            return await OfflineStore.shared.listNotes(includeArchived: includeArchived)
+        }
         try await request("GET", path: "/notes/?include_archived=\(includeArchived)")
     }
 
     func getNote(id: String) async throws -> KnowledgeNote {
+        if isOffline, let note = await OfflineStore.shared.getNote(id: id) {
+            return note
+        }
         try await request("GET", path: "/notes/\(id)")
     }
 
     func createNote(_ body: NoteCreateRequest) async throws -> KnowledgeNote {
+        if isOffline {
+            return await OfflineStore.shared.createNote(body)
+        }
         try await request("POST", path: "/notes/", body: body)
     }
 
     func updateNote(id: String, _ body: NoteUpdateRequest) async throws -> KnowledgeNote {
+        if isOffline, let note = await OfflineStore.shared.updateNote(id: id, with: body) {
+            return note
+        }
         try await request("PATCH", path: "/notes/\(id)", body: body)
     }
 
     func deleteNote(id: String) async throws {
+        if isOffline {
+            await OfflineStore.shared.deleteNote(id: id)
+            return
+        }
         try await requestNoContent("DELETE", path: "/notes/\(id)")
     }
 
     func searchNotes(query: String) async throws -> [KnowledgeNote] {
+        if isOffline {
+            return await OfflineStore.shared.searchNotes(query: query)
+        }
         let encoded = query.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? query
         return try await request("GET", path: "/notes/search?q=\(encoded)")
     }
@@ -156,22 +178,34 @@ final class APIService: ObservableObject {
     // MARK: - Profile
 
     func getProfile() async throws -> UserProfile {
+        if isOffline {
+            return await OfflineStore.shared.getProfile()
+        }
         try await request("GET", path: "/profile/")
     }
 
     func updateProfile(_ body: ProfileUpdate) async throws -> UserProfile {
+        if isOffline {
+            return await OfflineStore.shared.updateProfile(body)
+        }
         try await request("PATCH", path: "/profile/", body: body)
     }
 
     // MARK: - Sync
 
     func fetchSnapshot() async throws -> SyncSnapshot {
+        if isOffline {
+            return await OfflineStore.shared.snapshot()
+        }
         try await request("GET", path: "/sync/snapshot")
     }
 
     // MARK: - Context (mutations)
 
     func recordDecision(_ body: DecisionCreateRequest) async throws -> SyncDecision {
+        if isOffline {
+            return await OfflineStore.shared.recordDecision(body)
+        }
         try await request("POST", path: "/context/decision", body: body)
     }
 
@@ -186,12 +220,18 @@ final class APIService: ObservableObject {
     // MARK: - Feedback
 
     func sendFeedback(_ body: FeedbackRequest) async throws {
+        if isOffline {
+            return
+        }
         try await requestNoContent("POST", path: "/context/feedback", body: body)
     }
 
     // MARK: - Summary Ingestion
 
     func ingestSummary(_ body: SummaryIngestRequest) async throws -> IngestResult {
+        if isOffline {
+            return await OfflineStore.shared.ingestSummary(body)
+        }
         try await request("POST", path: "/ingest/summary", body: body)
     }
 }
