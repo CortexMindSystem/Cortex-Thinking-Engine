@@ -3,7 +3,7 @@
 //  CortexOS
 //
 //  Root navigation — calm, focused, minimal.
-//  iOS: Focus / Capture / History. Open → Understand → Capture → Close.
+//  iOS: Focus / Capture. Open → Understand → Capture → Close.
 //  macOS: Focus / Notes / Insights / Decisions / Memory. Quiet workbench.
 //
 
@@ -20,16 +20,23 @@ struct ContentView: View {
         #endif
     }
 
-    // MARK: - iOS (Focus / Capture / History)
+    // MARK: - iOS (Focus / Capture)
 
     #if os(iOS)
     @State private var showSettings = false
+    @State private var showReview = false
 
     private var iOSRoot: some View {
         TabView {
             NavigationStack {
                 DailyFocusView()
                     .toolbar {
+                        ToolbarItem(placement: .topBarLeading) {
+                            Button { showReview = true } label: {
+                                Image(systemName: "clock")
+                                    .foregroundStyle(CortexColor.textTertiary)
+                            }
+                        }
                         ToolbarItem(placement: .topBarTrailing) {
                             Button { showSettings = true } label: {
                                 Image(systemName: "gearshape")
@@ -42,13 +49,12 @@ struct ContentView: View {
 
             NavigationStack { QuickCaptureView() }
                 .tabItem { Label("Capture", systemImage: "square.and.pencil") }
-
-            NavigationStack { HistoryView() }
-                .tabItem { Label("History", systemImage: "clock") }
         }
         .tint(CortexColor.accent)
         .environmentObject(engine)
-        .task { await engine.sync() }
+        .task {
+            await engine.sync()
+        }
         .sheet(isPresented: $showSettings) {
             NavigationStack {
                 SettingsView()
@@ -56,6 +62,17 @@ struct ContentView: View {
                     .toolbar {
                         ToolbarItem(placement: .topBarTrailing) {
                             Button("Done") { showSettings = false }
+                        }
+                }
+            }
+        }
+        .sheet(isPresented: $showReview) {
+            NavigationStack {
+                HistoryView()
+                    .environmentObject(engine)
+                    .toolbar {
+                        ToolbarItem(placement: .topBarTrailing) {
+                            Button("Done") { showReview = false }
                         }
                     }
             }
@@ -98,7 +115,9 @@ struct ContentView: View {
         }
         .environmentObject(engine)
         .frame(minWidth: 800, minHeight: 500)
-        .task { await engine.sync() }
+        .task {
+            await engine.sync()
+        }
     }
 
     enum MacSection: Hashable {

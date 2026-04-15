@@ -2,8 +2,8 @@
 //  HistoryView.swift
 //  CortexOS
 //
-//  Lightweight history — decisions, notes, insights.
-//  Simple segmented view. Tap for detail. No overload.
+//  Lightweight review — decisions and notes only.
+//  Secondary surface from Focus, kept intentionally minimal.
 //
 
 import SwiftUI
@@ -18,7 +18,6 @@ struct HistoryView: View {
             Picker("", selection: $segment) {
                 Text("Decisions").tag(HistorySegment.decisions)
                 Text("Notes").tag(HistorySegment.notes)
-                Text("Insights").tag(HistorySegment.insights)
             }
             .pickerStyle(.segmented)
             .padding(.horizontal, CortexSpacing.xl)
@@ -29,12 +28,10 @@ struct HistoryView: View {
                 decisionsSection
             case .notes:
                 notesSection
-            case .insights:
-                insightsSection
             }
         }
         .background(CortexColor.bgPrimary)
-        .navigationTitle("History")
+        .navigationTitle("Review")
         .refreshable { await engine.sync() }
         .task {
             if engine.notes.isEmpty {
@@ -95,40 +92,12 @@ struct HistoryView: View {
         }
     }
 
-    // MARK: - Insights
-
-    @ViewBuilder
-    private var insightsSection: some View {
-        if let insights = engine.snapshot?.insights, !insights.isEmpty {
-            ScrollView {
-                LazyVStack(spacing: CortexSpacing.md) {
-                    ForEach(insights) { insight in
-                        NavigationLink {
-                            InsightDetailView(insight: insight)
-                        } label: {
-                            HistoryInsightRow(insight: insight)
-                        }
-                        .buttonStyle(.plain)
-                    }
-                }
-                .padding(CortexSpacing.xl)
-            }
-        } else {
-            EmptyStateView(
-                icon: "lightbulb",
-                title: "No insights yet",
-                message: "Insights appear as you add notes and sync.",
-                actionTitle: nil,
-                action: nil
-            )
-        }
-    }
 }
 
 // MARK: - Segments
 
 private enum HistorySegment: String, CaseIterable {
-    case decisions, notes, insights
+    case decisions, notes
 }
 
 // MARK: - Row views
@@ -182,37 +151,6 @@ private struct HistoryNoteRow: View {
             }
         }
         .padding(.vertical, CortexSpacing.xxs)
-    }
-}
-
-private struct HistoryInsightRow: View {
-    let insight: SyncInsight
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: CortexSpacing.xs) {
-            Text(insight.title)
-                .font(CortexFont.bodyMedium)
-                .foregroundStyle(CortexColor.textPrimary)
-                .lineLimit(2)
-
-            if !insight.summary.isEmpty {
-                Text(insight.summary)
-                    .font(CortexFont.caption)
-                    .foregroundStyle(CortexColor.textSecondary)
-                    .lineLimit(2)
-            }
-
-            if !insight.createdAt.isEmpty {
-                Text(insight.createdAt.prefix(10))
-                    .font(CortexFont.mono)
-                    .foregroundStyle(CortexColor.textTertiary)
-            }
-        }
-        .padding(CortexSpacing.md)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(CortexColor.bgSurface)
-        .clipShape(RoundedRectangle(cornerRadius: CortexRadius.card, style: .continuous))
-        .cortexShadow()
     }
 }
 
