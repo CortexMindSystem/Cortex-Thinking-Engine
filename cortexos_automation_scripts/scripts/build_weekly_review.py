@@ -70,11 +70,16 @@ def find_daily_payloads() -> list[dict[str, Any]]:
         for path in directory.glob("*.json"):
             try:
                 payload = load_json(path)
-            except Exception:
-                continue
+            except json.JSONDecodeError as exc:
+                raise ValueError(f"Invalid JSON in daily artifact {path}: {exc.msg}") from exc
             payload_date = str(payload.get("date", "")).strip()
-            if payload_date:
-                payloads_by_date[payload_date] = payload
+            if not payload_date:
+                raise ValueError(f"Missing 'date' in daily artifact {path}")
+            try:
+                parse_iso_date(payload_date)
+            except ValueError as exc:
+                raise ValueError(f"Invalid ISO date '{payload_date}' in daily artifact {path}") from exc
+            payloads_by_date[payload_date] = payload
 
     payloads = list(payloads_by_date.values())
     payloads.sort(key=lambda item: item["date"])
