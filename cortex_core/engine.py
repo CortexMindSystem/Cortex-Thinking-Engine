@@ -20,6 +20,7 @@ from cortex_core.decisions import DecisionEngine
 from cortex_core.digest import DigestProcessor
 from cortex_core.focus import FocusEngine
 from cortex_core.insights import InsightStore, generate_insight_from_note
+from cortex_core.integrations import IntegrationService, export_decisions_markdown
 from cortex_core.items import ItemStore, extract_items_from_digest, extract_items_from_summary
 from cortex_core.knowledge import KnowledgeNote, KnowledgeStore
 from cortex_core.llm import LLMProvider
@@ -56,6 +57,7 @@ class CortexEngine:
         self.decision_engine = DecisionEngine(self.config.data_dir)
         self.retriever = HybridRetriever()
         self.why_engine = WhyEngine()
+        self.integration_service = IntegrationService(self.config.data_dir)
 
     # ------------------------------------------------------ knowledge CRUD
 
@@ -417,6 +419,7 @@ class CortexEngine:
             signals=signals_data,
             profile=self.memory.profile.to_dict(),
             previous_brief=prev,
+            feedback_notes=self.memory.working.temporary_notes,
         )
 
         # Update working memory with today's priorities
@@ -450,14 +453,26 @@ class CortexEngine:
         dec = self.decision_engine.record_outcome(decision_id, outcome, impact_score)
         return dec.to_dict() if dec else None
 
-    def record_feedback(self, *, item: str, useful: bool) -> None:
+    def record_feedback(self, *, item: str, useful: bool, acted: bool | None = None) -> None:
         """Record user feedback on a focus item (was this useful?).
 
         Stores in working memory so the next priority brief can
         incorporate what the user found valuable or not.
         """
-        tag = "useful" if useful else "not_useful"
-        self.memory.working.temporary_notes.append(f"[{tag}] {item}")
+        cleaned = item.strip()
+        if not cleaned:
+            return
+
+        notes = self.memory.working.temporary_notes
+        notes.append(f"[{'useful' if useful else 'not_useful'}] {cleaned}")
+        if acted is not None:
+            notes.append(f"[{'acted' if acted else 'not_acted'}] {cleaned}")
+
+        # Keep only recent notes so working memory stays fast and relevant.
+        if len(notes) > 200:
+            self.memory.working.temporary_notes = notes[-200:]
+
+        self.memory.save()
 
     def get_decisions(self, *, project: str | None = None, limit: int = 10) -> list[dict]:
         """Get recent decisions, optionally filtered by project."""
@@ -575,7 +590,137 @@ class CortexEngine:
             "insights": self.get_insights(limit=10),
             "signals": self.get_signals(),
             "working_memory": self.memory.working.to_dict(),
+            "today": self.build_today_output(),
             "synced_at": datetime.now(UTC).isoformat(),
+        }
+
+    def build_today_output(self) -> dict:
+        """Canonical, shareable daily output from backend source-of-truth."""
+        from datetime import UTC, datetime
+
+        brief = self.decision_engine.get_previous_brief()
+        if brief is None:
+            # Generate lazily so first sync still has usable output.
+            brief = self.generate_decision_brief()
+
+        priorities = brief.get("priorities", [])[:3]
+        compact = [
+            {
+                "rank": int(item.get("rank", idx + 1)),
+                "title": str(item.get("title", "")).strip(),
+                "why": str(item.get("why_it_matters", "")).strip(),
+                "action": str(item.get("next_step", "")).strip(),
+            }
+            for idx, item in enumerate(priorities)
+            if str(item.get("title", "")).strip()
+        ]
+
+        ignored = [str(item).strip() for item in brief.get("ignored", []) if str(item).strip()][:5]
+        lines = [f"CortexOS Today — {brief.get('date', datetime.now(UTC).strftime('%Y-%m-%d'))}", ""]
+        for item in compact:
+            lines.extend(
+                [
+                    f"{item['rank']}. {item['title']}",
+                    f"Why: {item['why'] or 'High decision impact.'}",
+                    f"Do: {item['action'] or 'Take the next concrete step.'}",
+                    "",
+                ]
+            )
+        if ignored:
+            lines.append("Ignored signals:")
+            lines.extend(f"- {item}" for item in ignored)
+
+        return {
+            "date": brief.get("date", datetime.now(UTC).strftime("%Y-%m-%d")),
+            "priorities": compact,
+            "ignored_signals": ignored,
+            "changes_since_yesterday": brief.get("changes_since_yesterday", []),
+            "share_text": "\n".join(lines).strip(),
+            "generated_at": datetime.now(UTC).isoformat(),
+        }
+
+    # ── Integrations ────────────────────────────────────────────
+
+    def pull_integration_context(
+        self,
+        *,
+        rss_feeds: list[str] | None = None,
+        github_repositories: list[str] | None = None,
+        github_topic: str = "",
+        notion_database_id: str = "",
+        notion_query: str = "",
+        max_items: int = 8,
+    ) -> dict:
+        """Pull high-signal external context and ingest as notes."""
+        integrations = self.integration_service.pull(
+            rss_feeds=rss_feeds,
+            github_repositories=github_repositories,
+            notion_database_id=notion_database_id,
+            notion_query=notion_query,
+            max_items=max_items,
+            active_projects=self.memory.profile.current_projects,
+        )
+
+        existing_titles = {n.title.lower().strip() for n in self.store.notes if n.title.strip()}
+        ingested = 0
+        for signal in integrations.get("signals", []):
+            title = str(signal.get("title", "")).strip()
+            if not title:
+                continue
+            key = title.lower()
+            if key in existing_titles:
+                continue
+            self.add_note(
+                title=title,
+                insight=str(signal.get("why_it_matters", "")).strip() or "Captured from integration signal.",
+                implication=f"Source: {str(signal.get('source', '')).strip() or 'integration'}.",
+                action=str(signal.get("next_action", "")).strip()
+                or "Review and decide whether this changes today's priorities.",
+                source_url=str(signal.get("url", "")).strip(),
+                tags=[tag for tag in signal.get("tags", []) if str(tag).strip()] or ["integration", "signal"],
+            )
+            existing_titles.add(key)
+            ingested += 1
+
+        for context_item in integrations.get("context_items", []):
+            title = str(context_item.get("title", "")).strip()
+            if not title:
+                continue
+            key = title.lower()
+            if key in existing_titles:
+                continue
+            self.add_note(
+                title=title,
+                insight=str(context_item.get("content", "")).strip() or "Imported context note.",
+                implication="Trusted personal context from Notion.",
+                action="Use this context when deciding what matters next.",
+                source_url=str(context_item.get("url", "")).strip(),
+                tags=[tag for tag in context_item.get("tags", []) if str(tag).strip()] or ["integration", "context"],
+            )
+            existing_titles.add(key)
+            ingested += 1
+
+        return {
+            "fetched": int(integrations.get("fetched", 0)),
+            "ingested": ingested,
+            "rss_feeds": len(rss_feeds or []),
+            "github_topic": github_topic,
+            "notion_enabled": bool(notion_database_id or notion_query),
+            "github_repositories": len(github_repositories or []),
+            "raw_saved": int(integrations.get("raw_saved", 0)),
+            "deduplicated": int(integrations.get("deduplicated", 0)),
+            "mapped_signals": len(integrations.get("signals", [])),
+            "mapped_context_items": len(integrations.get("context_items", [])),
+            "sources": integrations.get("sources", {}),
+        }
+
+    def export_decisions_for_notion(self, *, limit: int = 20) -> dict:
+        """Return markdown payload ready to paste into Notion."""
+        decisions = self.get_decisions(limit=limit)
+        markdown = export_decisions_markdown(decisions)
+        return {
+            "count": len(decisions),
+            "markdown": markdown,
         }
 
     # ── Why Engine ──────────────────────────────────────────────
