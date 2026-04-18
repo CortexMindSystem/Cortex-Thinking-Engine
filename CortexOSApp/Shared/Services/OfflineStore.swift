@@ -311,6 +311,7 @@ actor OfflineStore {
             activeProject: activeProject,
             priorities: brief,
             today: today,
+            weeklyReview: nil,
             recentDecisions: Array(decisions.prefix(50)),
             insights: Array(insights.prefix(50)),
             signals: signals,

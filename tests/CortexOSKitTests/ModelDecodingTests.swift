@@ -160,3 +160,147 @@ final class ServerHealthTests: XCTestCase {
         XCTAssertFalse(health.timestamp.isEmpty)
     }
 }
+
+// MARK: - Sync Snapshot Decoding
+
+final class SyncSnapshotDecodingTests: XCTestCase {
+
+    func testDecodeSnapshotWithWeeklyReview() throws {
+        let json = """
+        {
+          "profile": {
+            "name": "Pierre",
+            "role": "Builder",
+            "goals": ["Ship weekly"],
+            "interests": ["decision systems"],
+            "current_projects": ["CortexOS"],
+            "ignored_topics": ["noise"]
+          },
+          "active_project": null,
+          "priorities": null,
+          "today": {
+            "date": "2026-04-19",
+            "priorities": [],
+            "ignored_signals": [],
+            "changes_since_yesterday": [],
+            "share_text": "CortexOS Today",
+            "generated_at": "2026-04-19T00:00:00Z"
+          },
+          "weekly_review": {
+            "week_start": "2026-04-13",
+            "week_end": "2026-04-19",
+            "days_covered": 7,
+            "quality": "sufficient_history",
+            "confidence": 1.0,
+            "top_priorities": [
+              {"title": "Build sync layer", "count": 3}
+            ],
+            "top_signals": [
+              {"title": "Edge AI", "count": 2}
+            ],
+            "total_ignored_signals": 12,
+            "summary": "Reviewed 7 days.",
+            "recommendations": ["Promote recurring priority to roadmap decision."],
+            "generated_at": "2026-04-19T00:00:00Z"
+          },
+          "recent_decisions": [],
+          "insights": [],
+          "signals": [],
+          "working_memory": {
+            "date": "2026-04-19",
+            "todays_priorities": [],
+            "currently_exploring": [],
+            "temporary_notes": []
+          },
+          "synced_at": "2026-04-19T00:00:00Z"
+        }
+        """.data(using: .utf8)!
+
+        let snapshot = try JSONDecoder().decode(SyncSnapshot.self, from: json)
+        XCTAssertNotNil(snapshot.weeklyReview)
+        XCTAssertEqual(snapshot.weeklyReview?.weekStart, "2026-04-13")
+        XCTAssertEqual(snapshot.weeklyReview?.weekEnd, "2026-04-19")
+        XCTAssertEqual(snapshot.weeklyReview?.daysCovered, 7)
+        XCTAssertEqual(snapshot.weeklyReview?.quality, "sufficient_history")
+        XCTAssertEqual(snapshot.weeklyReview?.confidence, 1.0)
+        XCTAssertEqual(snapshot.weeklyReview?.totalIgnoredSignals, 12)
+        XCTAssertEqual(snapshot.weeklyReview?.topPriorities.first?.title, "Build sync layer")
+    }
+
+    func testDecodeSnapshotWithNullWeeklyReview() throws {
+        let json = """
+        {
+          "profile": {
+            "name": "Pierre",
+            "role": "Builder",
+            "goals": [],
+            "interests": [],
+            "current_projects": [],
+            "ignored_topics": []
+          },
+          "active_project": null,
+          "priorities": null,
+          "today": {
+            "date": "2026-04-19",
+            "priorities": [],
+            "ignored_signals": [],
+            "changes_since_yesterday": [],
+            "share_text": "CortexOS Today",
+            "generated_at": "2026-04-19T00:00:00Z"
+          },
+          "weekly_review": null,
+          "recent_decisions": [],
+          "insights": [],
+          "signals": [],
+          "working_memory": {
+            "date": "2026-04-19",
+            "todays_priorities": [],
+            "currently_exploring": [],
+            "temporary_notes": []
+          },
+          "synced_at": "2026-04-19T00:00:00Z"
+        }
+        """.data(using: .utf8)!
+
+        let snapshot = try JSONDecoder().decode(SyncSnapshot.self, from: json)
+        XCTAssertNil(snapshot.weeklyReview)
+    }
+
+    func testDecodeSnapshotWithoutWeeklyReviewKey() throws {
+        let json = """
+        {
+          "profile": {
+            "name": "Pierre",
+            "role": "Builder",
+            "goals": [],
+            "interests": [],
+            "current_projects": [],
+            "ignored_topics": []
+          },
+          "active_project": null,
+          "priorities": null,
+          "today": {
+            "date": "2026-04-19",
+            "priorities": [],
+            "ignored_signals": [],
+            "changes_since_yesterday": [],
+            "share_text": "CortexOS Today",
+            "generated_at": "2026-04-19T00:00:00Z"
+          },
+          "recent_decisions": [],
+          "insights": [],
+          "signals": [],
+          "working_memory": {
+            "date": "2026-04-19",
+            "todays_priorities": [],
+            "currently_exploring": [],
+            "temporary_notes": []
+          },
+          "synced_at": "2026-04-19T00:00:00Z"
+        }
+        """.data(using: .utf8)!
+
+        let snapshot = try JSONDecoder().decode(SyncSnapshot.self, from: json)
+        XCTAssertNil(snapshot.weeklyReview)
+    }
+}
