@@ -45,9 +45,10 @@ SIZES = {
     # Mac
     "Mac":         (2880, 1800),  # Retina MacBook Pro
     # Apple Watch
-    "Watch_41mm":  (352, 430),
-    "Watch_45mm":  (396, 484),
-    "Watch_Ultra": (410, 502),
+    "Watch_Series_45mm": (396, 484),  # Series 7/8/9
+    "Watch_Series_46mm": (416, 496),  # Series 10/11
+    "Watch_Ultra":       (410, 502),  # Ultra/Ultra 2
+    "Watch_Ultra_3":     (422, 514),  # Ultra 3
 }
 
 # ── Screen data ────────────────────────────────────────────────────────
