@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Generate App Store marketing screenshots for CortexOS (iOS + macOS).
+Generate App Store marketing screenshots for CortexOS (iOS + macOS + watchOS).
 
 Produces polished dark-theme promotional images with mock UI elements
 matching the app's design system. Output: CortexOSApp/store_assets/
@@ -44,6 +44,10 @@ SIZES = {
     "iPad_12.9":   (2048, 2732),  # iPad Pro 12.9" (2nd gen)
     # Mac
     "Mac":         (2880, 1800),  # Retina MacBook Pro
+    # Apple Watch
+    "Watch_41mm":  (352, 430),
+    "Watch_45mm":  (396, 484),
+    "Watch_Ultra": (410, 502),
 }
 
 # ── Screen data ────────────────────────────────────────────────────────
@@ -102,6 +106,42 @@ SCREENS = [
             {"name": "Research", "icon": "◈", "detail": "Notes · Insights · Signals"},
             {"name": "Working", "icon": "◎", "detail": "Today's priorities · Actions"},
         ],
+    },
+]
+
+WATCH_SCREENS = [
+    {
+        "id": "01_watch_focus",
+        "headline": "What Matters",
+        "subhead": "Top 3 priorities\non your wrist",
+        "type": "watch_focus",
+        "items": [
+            "Ship App Review fixes",
+            "Reply to blocker issue",
+            "Confirm today's release",
+        ],
+    },
+    {
+        "id": "02_watch_capture",
+        "headline": "Voice Capture",
+        "subhead": "Mic-first capture\nin under 3 seconds",
+        "type": "watch_capture",
+        "transcript": "Follow up with API retry queue after standup.",
+    },
+    {
+        "id": "03_watch_action",
+        "headline": "Decide Fast",
+        "subhead": "Done or Later\nwithout friction",
+        "type": "watch_action",
+        "why": "This priority unblocks today's release readiness.",
+        "action": "Validate profile entitlements and resubmit.",
+    },
+    {
+        "id": "04_watch_offline",
+        "headline": "Always Available",
+        "subhead": "Offline mode +\nauto sync queue",
+        "type": "watch_offline",
+        "queue": 4,
     },
 ]
 
@@ -506,12 +546,114 @@ def render_memory(img: Image.Image, screen: dict, is_landscape: bool = False):
         draw.text(((w - tw) // 2, tag_y), tagline, fill=TEXT_TERTIARY, font=tag_font)
 
 
+def _watch_shell(draw: ImageDraw.Draw, w: int, h: int):
+    bezel = int(min(w, h) * 0.06)
+    draw.rounded_rectangle(
+        [bezel, bezel, w - bezel, h - bezel],
+        radius=int(min(w, h) * 0.23),
+        fill=(20, 20, 20),
+        outline=(64, 64, 64),
+        width=max(1, bezel // 5),
+    )
+    inset = bezel + max(4, bezel // 3)
+    draw.rounded_rectangle(
+        [inset, inset, w - inset, h - inset],
+        radius=int(min(w, h) * 0.2),
+        fill=(8, 10, 18),
+    )
+    return inset
+
+
+def render_watch_focus(img: Image.Image, screen: dict, is_landscape: bool = False):
+    draw = ImageDraw.Draw(img)
+    w, h = img.size
+    draw_gradient(img, (18, 18, 26), (8, 8, 12))
+    inset = _watch_shell(draw, w, h)
+    title_font = load_bold_font(max(18, w // 15))
+    body_font = load_font(max(13, w // 22))
+
+    draw.text((inset + 10, inset + 10), "CortexOS", fill=ACCENT, font=body_font)
+    draw.text((inset + 10, inset + 34), "Top 3 priorities", fill=TEXT_SECOND, font=body_font)
+
+    y = inset + 58
+    for idx, item in enumerate(screen["items"], start=1):
+        draw.rounded_rectangle([inset + 8, y, w - inset - 8, y + 38], radius=12, fill=(28, 30, 42))
+        draw.text((inset + 14, y + 9), f"{idx}. {item}", fill=WHITE, font=body_font)
+        y += 44
+
+    draw.text((inset + 10, h - inset - 26), "Tap to decide", fill=TEXT_TERTIARY, font=body_font)
+
+
+def render_watch_capture(img: Image.Image, screen: dict, is_landscape: bool = False):
+    draw = ImageDraw.Draw(img)
+    w, h = img.size
+    draw_gradient(img, (24, 20, 36), (10, 10, 16))
+    inset = _watch_shell(draw, w, h)
+    title_font = load_bold_font(max(18, w // 15))
+    body_font = load_font(max(13, w // 22))
+
+    draw.text((inset + 10, inset + 10), "Voice Capture", fill=WHITE, font=title_font)
+    draw.ellipse([w // 2 - 26, inset + 44, w // 2 + 26, inset + 96], fill=ACCENT)
+    draw.text((w // 2 - 12, inset + 60), "MIC", fill=WHITE, font=load_bold_font(max(11, w // 28)))
+    draw.rounded_rectangle([inset + 8, inset + 108, w - inset - 8, h - inset - 16], radius=12, fill=(24, 26, 36))
+    draw.text((inset + 14, inset + 118), "“Follow up with API", fill=TEXT_SECOND, font=body_font)
+    draw.text((inset + 14, inset + 136), "retry queue...”", fill=TEXT_SECOND, font=body_font)
+    draw.text((inset + 14, h - inset - 30), "Saved offline if needed", fill=TEXT_TERTIARY, font=body_font)
+
+
+def render_watch_action(img: Image.Image, screen: dict, is_landscape: bool = False):
+    draw = ImageDraw.Draw(img)
+    w, h = img.size
+    draw_gradient(img, (20, 28, 44), (8, 10, 14))
+    inset = _watch_shell(draw, w, h)
+    title_font = load_bold_font(max(16, w // 16))
+    body_font = load_font(max(13, w // 22))
+
+    draw.text((inset + 10, inset + 10), "Priority 1", fill=ACCENT, font=body_font)
+    draw.text((inset + 10, inset + 30), "Ship App Review fixes", fill=WHITE, font=title_font)
+    draw.text((inset + 10, inset + 58), "Why:", fill=TEXT_SECOND, font=body_font)
+    draw.text((inset + 10, inset + 76), "Unblocks release", fill=TEXT_SECOND, font=body_font)
+    draw.text((inset + 10, inset + 98), "Do:", fill=TEXT_SECOND, font=body_font)
+    draw.text((inset + 10, inset + 116), "Validate profiles", fill=TEXT_SECOND, font=body_font)
+
+    draw.rounded_rectangle([inset + 10, h - inset - 56, w // 2 - 6, h - inset - 20], radius=10, fill=SUCCESS)
+    draw.rounded_rectangle([w // 2 + 6, h - inset - 56, w - inset - 10, h - inset - 20], radius=10, fill=(52, 52, 64))
+    draw.text((inset + 30, h - inset - 47), "Done", fill=WHITE, font=body_font)
+    draw.text((w // 2 + 24, h - inset - 47), "Later", fill=WHITE, font=body_font)
+
+
+def render_watch_offline(img: Image.Image, screen: dict, is_landscape: bool = False):
+    draw = ImageDraw.Draw(img)
+    w, h = img.size
+    draw_gradient(img, (20, 22, 32), (8, 10, 14))
+    inset = _watch_shell(draw, w, h)
+    title_font = load_bold_font(max(16, w // 16))
+    body_font = load_font(max(13, w // 22))
+
+    draw.text((inset + 10, inset + 10), "Offline Mode", fill=WHITE, font=title_font)
+    draw.text((inset + 10, inset + 36), "Queue: 4 actions", fill=WARNING, font=body_font)
+
+    y = inset + 62
+    rows = ["Note captured", "Decision queued", "Feedback queued", "Auto sync pending"]
+    for row in rows:
+        draw.rounded_rectangle([inset + 8, y, w - inset - 8, y + 28], radius=10, fill=(26, 28, 40))
+        draw.text((inset + 14, y + 8), row, fill=TEXT_SECOND, font=body_font)
+        y += 34
+
+    draw.rounded_rectangle([inset + 10, h - inset - 44, w - inset - 10, h - inset - 14], radius=10, fill=ACCENT)
+    draw.text((inset + 24, h - inset - 35), "Sync when online", fill=WHITE, font=body_font)
+
+
 RENDERERS = {
     "hero": render_hero,
     "focus": render_focus,
     "insights": render_insights,
     "signals": render_signals,
     "memory": render_memory,
+    "watch_focus": render_watch_focus,
+    "watch_capture": render_watch_capture,
+    "watch_action": render_watch_action,
+    "watch_offline": render_watch_offline,
 }
 
 
@@ -525,7 +667,9 @@ def generate_all():
 
         is_landscape = w > h  # Mac
 
-        for screen in SCREENS:
+        screen_set = WATCH_SCREENS if size_name.startswith("Watch_") else SCREENS
+
+        for screen in screen_set:
             img = Image.new("RGBA", (w, h), BG_PRIMARY)
             renderer = RENDERERS[screen["type"]]
             renderer(img, screen, is_landscape)
@@ -542,7 +686,8 @@ def generate_all():
     print(f"📁  Output: {ROOT.resolve()}")
     print()
     for size_name, (w, h) in SIZES.items():
-        print(f"   {size_name:>14}  {w}×{h}  →  {len(SCREENS)} screenshots")
+        count = len(WATCH_SCREENS) if size_name.startswith("Watch_") else len(SCREENS)
+        print(f"   {size_name:>14}  {w}×{h}  →  {count} screenshots")
 
 
 if __name__ == "__main__":
