@@ -73,6 +73,12 @@ CortexOSApp/*.pkg
 CortexOSApp/CortexOS.app/
 CortexOSApp/fastlane/report.xml
 CortexOSApp/generate_icons.py
+CortexOSApp/*.mobileprovision
+
+# Local runtime artifacts
+.cortexos_local/
+growth_output/
+cortexos_automation_scripts/output/
 
 # Screenshot generation artifacts
 CortexOSApp/screenshot_results/
