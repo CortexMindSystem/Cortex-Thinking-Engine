@@ -34,8 +34,11 @@ enum APIError: LocalizedError {
 
 @MainActor
 final class APIService: ObservableObject {
+    static let serverURLDefaultsKey = "cortex_api_url"
+    static let defaultServerURL = "https://cortex-thinking-engine-production.up.railway.app"
+
     @Published var baseURL: String {
-        didSet { UserDefaults.standard.set(baseURL, forKey: "cortex_api_url") }
+        didSet { UserDefaults.standard.set(baseURL, forKey: APIService.serverURLDefaultsKey) }
     }
 
     var isOffline: Bool {
@@ -49,8 +52,8 @@ final class APIService: ObservableObject {
     private let encoder: JSONEncoder
 
     init(baseURL: String? = nil) {
-        let saved = UserDefaults.standard.string(forKey: "cortex_api_url")
-        self.baseURL = baseURL ?? saved ?? ""
+        let saved = UserDefaults.standard.string(forKey: APIService.serverURLDefaultsKey)
+        self.baseURL = baseURL ?? saved ?? APIService.defaultServerURL
 
         let config = URLSessionConfiguration.default
         config.timeoutIntervalForRequest = 30
@@ -126,7 +129,7 @@ final class APIService: ObservableObject {
         if isOffline {
             return await OfflineStore.shared.serverHealth()
         }
-        try await request("GET", path: "/health")
+        return try await request("GET", path: "/health")
     }
 
     // MARK: - Knowledge Notes
@@ -298,11 +301,21 @@ final class APIService: ObservableObject {
 
     // MARK: - Feedback
 
+    func sendFeedbackRemote(_ body: FeedbackRequest) async throws {
+        try await requestNoContent("POST", path: "/context/feedback", body: body)
+    }
+
     func sendFeedback(_ body: FeedbackRequest) async throws {
         if isOffline {
+            await CaptureQueue.shared.enqueueFeedback(item: body.item, useful: body.useful, acted: body.acted)
             return
         }
-        try await requestNoContent("POST", path: "/context/feedback", body: body)
+        do {
+            try await sendFeedbackRemote(body)
+        } catch {
+            await CaptureQueue.shared.enqueueFeedback(item: body.item, useful: body.useful, acted: body.acted)
+            throw error
+        }
     }
 
     // MARK: - Summary Ingestion
