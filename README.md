@@ -50,7 +50,12 @@ open CortexOSApp/CortexOS.xcodeproj
 # Leave server URL empty in Settings to run fully offline.
 ```
 
+
 ### Optional: Railway deployment (API)
+> **Note:** If you haven't already, install the Railway CLI first:
+> ```bash
+> npm install -g @railway/cli
+> ```
 ```bash
 railway login
 railway init
@@ -85,10 +90,13 @@ Server runs on **port 8420**. Key endpoints:
 |--------|----------|-------------|
 | `GET` | `/focus/today` | Today's focus brief |
 | `POST` | `/focus/generate` | Generate a new focus brief |
+| `GET` | `/sync/today` | Canonical **CortexOS Today** output (3 priorities + why + action + ignored) |
 | `GET/PATCH` | `/profile/` | View or update user profile |
 | `POST` | `/digest/evaluate` | Score a digest against your context |
 | `GET` | `/notes/` | List / search knowledge notes |
 | `POST` | `/pipeline/run` | Run the full pipeline |
+| `POST` | `/integrations/pull` | Pull context from RSS / GitHub / Notion |
+| `POST` | `/integrations/notion/export-decisions` | Export decisions as markdown for Notion |
 | `GET` | `/context/goals` | Active goals (agent context API) |
 | `GET` | `/context/signals` | Detected signals |
 | `POST` | `/context/retrieve` | Hybrid search across notes + insights |
@@ -120,6 +128,35 @@ cd CortexOSApp
 fastlane ios testflight_release   # iOS
 fastlane mac testflight_release   # macOS
 fastlane all_testflight           # both
+```
+
+---
+
+## Growth Automation
+
+Run a minimal daily growth loop that:
+- ingests external context (RSS / GitHub / optional Notion)
+- generates canonical `CortexOS Today`
+- outputs reusable drafts for X, LinkedIn, and blog
+
+```bash
+.venv/bin/python scripts/cortex_growth_loop.py
+```
+
+Artifacts are written to:
+```text
+growth_output/YYYY-MM-DD/
+```
+
+Optional approval mode:
+```bash
+.venv/bin/python scripts/cortex_growth_loop.py --approve
+```
+
+Monorepo automation bundle (marketing + weekly review):
+```bash
+cd cortexos_automation_scripts
+python3 scripts/run_weekly_pipeline.py --strict-quality
 ```
 
 ---
