@@ -137,3 +137,67 @@ class TestEnginePipeline:
         result = engine.run_pipeline()
         assert "success" in result
         assert "steps" in result
+
+
+class TestEngineWeeklyReview:
+    def test_build_weekly_review_output_returns_none_without_artifacts(self, tmp_data_dir):
+        engine = _make_engine(tmp_data_dir)
+        assert engine.build_weekly_review_output() is None
+
+    def test_build_weekly_review_output_aggregates_recent_artifacts(self, tmp_data_dir):
+        import json
+
+        payloads = {
+            "2026-04-12": {
+                "date": "2026-04-12",
+                "priorities": [{"title": "Build sync layer"}, {"title": "Improve offline queue"}],
+                "ignored": ["low signal one"],
+                "emerging_signals": ["Edge AI"],
+                "changes_since_yesterday": [],
+            },
+            "2026-04-13": {
+                "date": "2026-04-13",
+                "priorities": [{"title": "Build sync layer"}, {"title": "Ship TestFlight"}],
+                "ignored": ["low signal two", "low signal three"],
+                "emerging_signals": ["Edge AI", "On-device models"],
+                "changes_since_yesterday": [],
+            },
+            "2026-04-18": {
+                "date": "2026-04-18",
+                "priorities": [{"title": "Ship TestFlight"}, {"title": "Weekly review loop"}],
+                "ignored": ["low signal four"],
+                "emerging_signals": ["On-device models"],
+                "changes_since_yesterday": [],
+            },
+            "2026-04-01": {
+                "date": "2026-04-01",
+                "priorities": [{"title": "Out of range"}],
+                "ignored": ["too old"],
+                "emerging_signals": ["Old signal"],
+                "changes_since_yesterday": [],
+            },
+        }
+
+        for day, payload in payloads.items():
+            (tmp_data_dir / f"decision_{day}.json").write_text(json.dumps(payload), encoding="utf-8")
+
+        engine = _make_engine(tmp_data_dir)
+        review = engine.build_weekly_review_output()
+
+        assert review is not None
+        assert review["week_start"] == "2026-04-12"
+        assert review["week_end"] == "2026-04-18"
+        assert review["days_covered"] == 3
+        assert review["quality"] == "insufficient_history"
+        assert review["confidence"] == 0.43
+        assert review["total_ignored_signals"] == 4
+
+        priorities = {item["title"]: item["count"] for item in review["top_priorities"]}
+        assert priorities["Build sync layer"] == 2
+        assert priorities["Ship TestFlight"] == 2
+        assert "Out of range" not in priorities
+
+        signals = {item["title"]: item["count"] for item in review["top_signals"]}
+        assert signals["Edge AI"] == 2
+        assert signals["On-device models"] == 2
+        assert "Old signal" not in signals
