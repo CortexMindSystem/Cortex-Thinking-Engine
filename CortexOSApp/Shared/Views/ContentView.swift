@@ -4,7 +4,8 @@
 //
 //  Root navigation — calm, focused, minimal.
 //  iOS: Focus / Capture. Open → Understand → Capture → Close.
-//  macOS: Focus / Notes / Insights / Decisions / Memory. Quiet workbench.
+//  macOS: Focus / Notes / Insights / Decisions / Memory / Weekly Review.
+//  Quiet workbench.
 //
 
 import SwiftUI
@@ -80,7 +81,7 @@ struct ContentView: View {
     }
     #endif
 
-    // MARK: - macOS (Focus / Notes / Insights / Decisions / Memory)
+    // MARK: - macOS (Focus / Notes / Insights / Decisions / Memory / Weekly Review)
 
     #if os(macOS)
     @State private var selection: MacSection? = .focus
@@ -98,6 +99,8 @@ struct ContentView: View {
                     .tag(MacSection.decisions)
                 Label("Memory", systemImage: "brain.head.profile")
                     .tag(MacSection.memory)
+                Label("Weekly Review", systemImage: "calendar.badge.clock")
+                    .tag(MacSection.weeklyReview)
             }
             .navigationTitle("CortexOS")
             .listStyle(.sidebar)
@@ -109,6 +112,7 @@ struct ContentView: View {
                 case .insights:    InsightFeedView()
                 case .decisions:   DecisionHistoryView()
                 case .memory:      MemoryExplorerView()
+                case .weeklyReview: WeeklyReviewView()
                 case nil:          DailyFocusView()
                 }
             }
@@ -121,7 +125,7 @@ struct ContentView: View {
     }
 
     enum MacSection: Hashable {
-        case focus, notes, insights, decisions, memory
+        case focus, notes, insights, decisions, memory, weeklyReview
     }
     #endif
 }

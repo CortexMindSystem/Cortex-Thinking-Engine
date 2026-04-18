@@ -15,6 +15,7 @@ struct SyncSnapshot: Codable {
     let activeProject: ProjectContext?
     let priorities: PriorityBrief?
     let today: SyncTodayOutput?
+    let weeklyReview: SyncWeeklyReview?
     let recentDecisions: [SyncDecision]
     let insights: [SyncInsight]
     let signals: [SyncSignal]
@@ -23,6 +24,7 @@ struct SyncSnapshot: Codable {
 
     enum CodingKeys: String, CodingKey {
         case profile, priorities, today, insights, signals
+        case weeklyReview = "weekly_review"
         case activeProject = "active_project"
         case recentDecisions = "recent_decisions"
         case workingMemory = "working_memory"
@@ -53,6 +55,39 @@ struct SyncTodayOutput: Codable {
         case ignoredSignals = "ignored_signals"
         case changesSinceYesterday = "changes_since_yesterday"
         case shareText = "share_text"
+        case generatedAt = "generated_at"
+    }
+}
+
+// MARK: - Weekly Review (backend-computed)
+
+struct SyncWeeklyReviewCountItem: Codable, Identifiable {
+    var id: String { title }
+    let title: String
+    let count: Int
+}
+
+struct SyncWeeklyReview: Codable {
+    let weekStart: String
+    let weekEnd: String
+    let daysCovered: Int
+    let quality: String?
+    let confidence: Double?
+    let topPriorities: [SyncWeeklyReviewCountItem]
+    let topSignals: [SyncWeeklyReviewCountItem]
+    let totalIgnoredSignals: Int
+    let summary: String
+    let recommendations: [String]
+    let generatedAt: String
+
+    enum CodingKeys: String, CodingKey {
+        case summary, recommendations, quality, confidence
+        case weekStart = "week_start"
+        case weekEnd = "week_end"
+        case daysCovered = "days_covered"
+        case topPriorities = "top_priorities"
+        case topSignals = "top_signals"
+        case totalIgnoredSignals = "total_ignored_signals"
         case generatedAt = "generated_at"
     }
 }
