@@ -166,7 +166,7 @@ class TestSyncEndpoints:
 
     def test_snapshot_has_required_keys(self, client):
         data = client.get("/sync/snapshot").json()
-        for key in ("profile", "active_project", "priorities",
+        for key in ("profile", "active_project", "priorities", "today",
                      "recent_decisions", "insights", "signals",
                      "working_memory", "synced_at"):
             assert key in data, f"missing key: {key}"
@@ -219,3 +219,41 @@ class TestSyncEndpoints:
         client.post("/context/feedback", json={"item": "Ship MVP", "useful": True})
         wm = client.get("/sync/snapshot").json()["working_memory"]
         assert any("Ship MVP" in n for n in wm["temporary_notes"])
+
+
+# ── Integrations + Today Output ────────────────────────────────
+
+
+class TestIntegrationsEndpoints:
+    def test_pull_context_without_network_dependencies(self, client):
+        resp = client.post("/integrations/pull", json={
+            "rss_feeds": [],
+            "github_repositories": [],
+            "github_topic": "",
+            "notion_database_id": "",
+            "notion_query": "",
+            "max_items": 3,
+        })
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["fetched"] == 0
+        assert data["ingested"] == 0
+        assert data["rss_feeds"] == 0
+        assert data["github_topic"] == ""
+        assert data["notion_enabled"] is False
+        assert data["raw_saved"] == 0
+        assert data["deduplicated"] == 0
+        assert data["mapped_signals"] == 0
+        assert data["mapped_context_items"] == 0
+        assert "sources" in data
+
+    def test_today_endpoint_returns_shareable_payload(self, client):
+        resp = client.get("/sync/today")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert "date" in data
+        assert "priorities" in data
+        assert "ignored_signals" in data
+        assert "changes_since_yesterday" in data
+        assert "share_text" in data
+        assert "generated_at" in data
