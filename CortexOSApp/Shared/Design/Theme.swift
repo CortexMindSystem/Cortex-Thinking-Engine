@@ -67,6 +67,8 @@ extension Color {
             appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
                 ? NSColor(dark) : NSColor(light)
         })
+        #else
+        self = dark
         #endif
     }
 }

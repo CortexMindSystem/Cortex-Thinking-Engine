@@ -4,6 +4,7 @@ options:
   deploymentTarget:
     iOS: "17.0"
     macOS: "14.0"
+    watchOS: "10.0"
   xcodeVersion: "16.0"
   createIntermediateGroups: true
 
@@ -132,6 +133,47 @@ targets:
         NSExtension:
           NSExtensionPointIdentifier: com.apple.widgetkit-extension
 
+  CortexOS-watchOS:
+    type: application
+    platform: watchOS
+    deploymentTarget: "10.0"
+    sources:
+      - path: Shared/Models
+        excludes:
+          - "**/.DS_Store"
+          - "WidgetData.swift"
+      - path: Shared/Services
+        excludes:
+          - "**/.DS_Store"
+          - "CortexEngine.swift"
+      - path: Shared/Design
+        excludes:
+          - "**/.DS_Store"
+      - path: watchOS
+        excludes:
+          - "**/.DS_Store"
+    info:
+      path: watchOS/Info.plist
+      properties:
+        ITSAppUsesNonExemptEncryption: false
+    entitlements:
+      path: watchOS/CortexOS-watchOS.entitlements
+      properties:
+        com.apple.security.application-groups:
+          - group.me.ph7.cortexos
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: me.ph7.cortexos.watchos
+        PRODUCT_NAME: CortexOS Watch
+        GENERATE_INFOPLIST_FILE: NO
+        TARGETED_DEVICE_FAMILY: "4"
+      configs:
+        Debug:
+          DEBUG_INFORMATION_FORMAT: dwarf
+        Release:
+          DEBUG_INFORMATION_FORMAT: dwarf-with-dsym
+          SWIFT_COMPILATION_MODE: wholemodule
+
   CortexOS-iOS-UITests:
     type: bundle.ui-testing
     platform: iOS
@@ -189,5 +231,14 @@ schemes:
       config: Debug
       targets:
         - CortexOS-macOS-UITests
+    archive:
+      config: Release
+
+  CortexOS-watchOS:
+    build:
+      targets:
+        CortexOS-watchOS: all
+    run:
+      config: Debug
     archive:
       config: Release
