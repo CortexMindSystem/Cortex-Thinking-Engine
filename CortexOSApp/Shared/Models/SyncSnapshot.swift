@@ -14,6 +14,7 @@ struct SyncSnapshot: Codable {
     let profile: SyncProfile
     let activeProject: ProjectContext?
     let priorities: PriorityBrief?
+    let today: SyncTodayOutput?
     let recentDecisions: [SyncDecision]
     let insights: [SyncInsight]
     let signals: [SyncSignal]
@@ -21,11 +22,38 @@ struct SyncSnapshot: Codable {
     let syncedAt: String
 
     enum CodingKeys: String, CodingKey {
-        case profile, priorities, insights, signals
+        case profile, priorities, today, insights, signals
         case activeProject = "active_project"
         case recentDecisions = "recent_decisions"
         case workingMemory = "working_memory"
         case syncedAt = "synced_at"
+    }
+}
+
+// MARK: - Today Output (canonical backend share payload)
+
+struct SyncTodayPriority: Codable, Identifiable {
+    var id: String { "\(rank)-\(title)" }
+    let rank: Int
+    let title: String
+    let why: String
+    let action: String
+}
+
+struct SyncTodayOutput: Codable {
+    let date: String
+    let priorities: [SyncTodayPriority]
+    let ignoredSignals: [String]
+    let changesSinceYesterday: [String]
+    let shareText: String
+    let generatedAt: String
+
+    enum CodingKeys: String, CodingKey {
+        case date, priorities
+        case ignoredSignals = "ignored_signals"
+        case changesSinceYesterday = "changes_since_yesterday"
+        case shareText = "share_text"
+        case generatedAt = "generated_at"
     }
 }
 

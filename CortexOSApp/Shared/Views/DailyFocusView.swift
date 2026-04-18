@@ -14,6 +14,7 @@ struct DailyFocusView: View {
 
     /// Priorities the user has swiped away this session (not persisted — resets on next sync)
     @State private var dismissedTitles: Set<String> = []
+    @State private var selectedPriority: SyncPriority?
 
     var body: some View {
         Group {
@@ -26,7 +27,8 @@ struct DailyFocusView: View {
                         title: "No priorities yet",
                         message: "Your top priorities will appear here after syncing.",
                         actionTitle: "Sync",
-                        action: { Task { await engine.sync() } }
+                        action: { Task { await engine.sync() } },
+                        isActionLoading: engine.isSyncing
                     )
 
                     if let snapshot = engine.snapshot {
@@ -51,7 +53,45 @@ struct DailyFocusView: View {
         }
         .background(CortexColor.bgPrimary)
         .navigationTitle("Focus")
+        .toolbar {
+            ToolbarItem(placement: .secondaryAction) {
+                if let shareText = todayShareText {
+                    ShareLink(item: shareText) {
+                        Image(systemName: "square.and.arrow.up")
+                    }
+                    .help("Share CortexOS Today")
+                } else {
+                    Image(systemName: "square.and.arrow.up")
+                        .foregroundStyle(CortexColor.textTertiary)
+                }
+            }
+
+            ToolbarItem(placement: .primaryAction) {
+                Button {
+                    Task { await engine.sync() }
+                } label: {
+                    if engine.isSyncing {
+                        ProgressView()
+                    } else {
+                        Image(systemName: "arrow.clockwise")
+                    }
+                }
+                .disabled(engine.isSyncing)
+                .help("Sync now")
+            }
+        }
         .refreshable { await engine.sync() }
+        .sheet(item: $selectedPriority) { priority in
+            PriorityDetailSheet(
+                priority: priority,
+                onFeedback: { useful, acted in
+                    Task {
+                        await engine.sendFeedback(item: priority.title, useful: useful, acted: acted)
+                    }
+                },
+                onIgnore: { dismiss(priority) }
+            )
+        }
     }
 
     // MARK: - Quick context when empty
@@ -111,6 +151,12 @@ struct DailyFocusView: View {
         let visible = brief.priorities.filter { !dismissedTitles.contains($0.title) }
 
         VStack(alignment: .leading, spacing: CortexSpacing.lg) {
+            if let status = engine.lastSyncStatus {
+                Text(status)
+                    .font(CortexFont.caption)
+                    .foregroundStyle(CortexColor.textTertiary)
+            }
+
             // Date — subtle
             Text(brief.date)
                 .font(CortexFont.caption)
@@ -121,6 +167,8 @@ struct DailyFocusView: View {
             if let top = visible.first {
                 HeroPriorityCard(priority: top, onFeedback: { useful in
                     Task { await engine.sendFeedback(item: top.title, useful: useful) }
+                }, onOpen: {
+                    selectedPriority = top
                 }, onDismiss: {
                     dismiss(top)
                 })
@@ -130,6 +178,8 @@ struct DailyFocusView: View {
             ForEach(Array(visible.dropFirst().prefix(2).enumerated()), id: \.element.title) { index, priority in
                 FocusPriorityCard(priority: priority, position: index + 2, onFeedback: { useful in
                     Task { await engine.sendFeedback(item: priority.title, useful: useful) }
+                }, onOpen: {
+                    selectedPriority = priority
                 }, onDismiss: {
                     dismiss(priority)
                 })
@@ -171,11 +221,17 @@ struct DailyFocusView: View {
     }
 
     private func dismiss(_ priority: SyncPriority) {
-        withAnimation(.easeOut(duration: 0.25)) {
+        _ = withAnimation(.easeOut(duration: 0.25)) {
             dismissedTitles.insert(priority.title)
         }
         // Send "not useful" feedback — best-effort, never blocks
         Task { await engine.sendFeedback(item: priority.title, useful: false) }
+    }
+
+    private var todayShareText: String? {
+        guard let shareText = engine.snapshot?.today?.shareText else { return nil }
+        let trimmed = shareText.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? nil : trimmed
     }
 }
 
@@ -184,6 +240,7 @@ struct DailyFocusView: View {
 private struct HeroPriorityCard: View {
     let priority: SyncPriority
     let onFeedback: (Bool) -> Void
+    let onOpen: () -> Void
     let onDismiss: () -> Void
 
     var body: some View {
@@ -235,6 +292,7 @@ private struct HeroPriorityCard: View {
                 )
         )
         .cortexShadow()
+        .onTapGesture(perform: onOpen)
         #if os(iOS)
         .contextMenu {
             Button(role: .destructive) { onDismiss() } label: {
@@ -251,6 +309,7 @@ private struct FocusPriorityCard: View {
     let priority: SyncPriority
     let position: Int
     let onFeedback: (Bool) -> Void
+    let onOpen: () -> Void
     let onDismiss: () -> Void
 
     var body: some View {
@@ -299,6 +358,7 @@ private struct FocusPriorityCard: View {
         .background(CortexColor.bgSurface)
         .clipShape(RoundedRectangle(cornerRadius: CortexRadius.card, style: .continuous))
         .cortexShadow()
+        .onTapGesture(perform: onOpen)
         #if os(iOS)
         .contextMenu {
             Button(role: .destructive) { onDismiss() } label: {
@@ -353,6 +413,113 @@ private struct FeedbackRow: View {
             feedbackGiven = useful
         }
         onFeedback(useful)
+    }
+}
+
+// MARK: - Priority detail
+
+private struct PriorityDetailSheet: View {
+    let priority: SyncPriority
+    let onFeedback: (Bool, Bool?) -> Void
+    let onIgnore: () -> Void
+
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(alignment: .leading, spacing: CortexSpacing.lg) {
+                    Text(priority.title)
+                        .font(.system(size: 24, weight: .bold))
+                        .foregroundStyle(CortexColor.textPrimary)
+                        .fixedSize(horizontal: false, vertical: true)
+
+                    if !priority.whyItMatters.isEmpty {
+                        detailBlock(
+                            label: "Why this matters",
+                            value: priority.whyItMatters
+                        )
+                    }
+
+                    if !priority.nextStep.isEmpty {
+                        detailBlock(
+                            label: "Next action",
+                            value: priority.nextStep
+                        )
+                    }
+
+                    if !priority.source.isEmpty {
+                        detailBlock(
+                            label: "Source",
+                            value: priority.source
+                        )
+                    }
+
+                    if !priority.tags.isEmpty {
+                        VStack(alignment: .leading, spacing: CortexSpacing.xs) {
+                            Text("Context")
+                                .font(CortexFont.captionMedium)
+                                .foregroundStyle(CortexColor.textTertiary)
+                            FlowTags(items: priority.tags)
+                        }
+                    }
+
+                    VStack(spacing: CortexSpacing.sm) {
+                        Button {
+                            onFeedback(true, true)
+                            dismiss()
+                        } label: {
+                            Label("Mark as acted", systemImage: "checkmark.circle.fill")
+                                .frame(maxWidth: .infinity)
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .tint(CortexColor.accent)
+
+                        Button {
+                            onFeedback(false, false)
+                            dismiss()
+                        } label: {
+                            Label("Mark not useful", systemImage: "hand.thumbsdown")
+                                .frame(maxWidth: .infinity)
+                        }
+                        .buttonStyle(.bordered)
+
+                        Button(role: .destructive) {
+                            onIgnore()
+                            dismiss()
+                        } label: {
+                            Label("Ignore today", systemImage: "eye.slash")
+                                .frame(maxWidth: .infinity)
+                        }
+                        .buttonStyle(.bordered)
+                    }
+                    .padding(.top, CortexSpacing.sm)
+                }
+                .padding(CortexSpacing.xl)
+            }
+            .background(CortexColor.bgPrimary)
+            .navigationTitle("Priority")
+            #if os(iOS)
+            .navigationBarTitleDisplayMode(.inline)
+            #endif
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Close") { dismiss() }
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func detailBlock(label: String, value: String) -> some View {
+        VStack(alignment: .leading, spacing: CortexSpacing.xs) {
+            Text(label)
+                .font(CortexFont.captionMedium)
+                .foregroundStyle(CortexColor.textTertiary)
+            Text(value)
+                .font(CortexFont.body)
+                .foregroundStyle(CortexColor.textPrimary)
+        }
     }
 }
 

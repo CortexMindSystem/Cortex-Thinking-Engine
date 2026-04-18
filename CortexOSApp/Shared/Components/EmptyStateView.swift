@@ -13,6 +13,7 @@ struct EmptyStateView: View {
     let message: String
     var actionTitle: String? = nil
     var action: (() -> Void)? = nil
+    var isActionLoading: Bool = false
 
     var body: some View {
         VStack(spacing: CortexSpacing.lg) {
@@ -32,13 +33,20 @@ struct EmptyStateView: View {
 
             if let actionTitle, let action {
                 Button(action: action) {
-                    Text(actionTitle)
-                        .font(CortexFont.captionMedium)
-                        .padding(.horizontal, CortexSpacing.lg)
-                        .padding(.vertical, CortexSpacing.sm)
+                    HStack(spacing: CortexSpacing.xs) {
+                        if isActionLoading {
+                            ProgressView()
+                                .controlSize(.small)
+                        }
+                        Text(actionTitle)
+                            .font(CortexFont.captionMedium)
+                    }
+                    .padding(.horizontal, CortexSpacing.lg)
+                    .padding(.vertical, CortexSpacing.sm)
                 }
                 .buttonStyle(.borderedProminent)
                 .tint(CortexColor.accent)
+                .disabled(isActionLoading)
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
