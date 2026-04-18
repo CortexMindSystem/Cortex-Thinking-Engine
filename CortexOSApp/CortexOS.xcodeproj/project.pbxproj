@@ -54,6 +54,7 @@
 		9B5EA3DA87A7EC67A6EF2ED9 /* SnapshotCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8F4BACA0E270BC81467132B4 /* SnapshotCache.swift */; };
 		9F180DFF568E518209A71E79 /* UserProfile.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1040BF0BCDC6B775AB8BFEB /* UserProfile.swift */; };
 		A2DC5746E11F673269F850B8 /* OfflineStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A2BF1090AE67AB15EDFF542 /* OfflineStore.swift */; };
+		A7755865642904B4EE29ABA8 /* WeeklyReviewView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 08589786E44AD390B58F98DD /* WeeklyReviewView.swift */; };
 		B7A4DC0A6632E9194C6DC7EC /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = B245C0F1ACBE90E1E66E446B /* Theme.swift */; };
 		BA172640530928DA8F2B28ED /* DecisionHistoryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 09AE60E8198E1E03FF2C9DC2 /* DecisionHistoryView.swift */; };
 		BBFADD1949CF1D30AF5A1897 /* KnowledgeNote.swift in Sources */ = {isa = PBXBuildFile; fileRef = D7069ADE1D4517A68074A941 /* KnowledgeNote.swift */; };
@@ -67,6 +68,7 @@
 		D65AD24A1E24B562E3D365A7 /* InsightCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = D32E0B3A04E3425EAC7332C6 /* InsightCard.swift */; };
 		D6AC8321F0BD49AABB4362B9 /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = B245C0F1ACBE90E1E66E446B /* Theme.swift */; };
 		DA57948E1DA2B2430F40198D /* ConfidenceIndicator.swift in Sources */ = {isa = PBXBuildFile; fileRef = E3A44FD6A1185BFD939E4A49 /* ConfidenceIndicator.swift */; };
+		E4F2CBE9498398D474D0D6E6 /* WeeklyReviewView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 08589786E44AD390B58F98DD /* WeeklyReviewView.swift */; };
 		E5AA94159D504CF0F1F0C93A /* ContextTag.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA75246885E7EFCE5CCB72D6 /* ContextTag.swift */; };
 		E5AB17A1366B8E9FA89667CC /* ServerHealth.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6B2CD3E21B3B4C11494D5E8A /* ServerHealth.swift */; };
 		E7B7D43C0C232EAF35C66E26 /* CortexOSApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A68B29F8468FF48C1DAFE09 /* CortexOSApp.swift */; };
@@ -127,6 +129,7 @@
 		00ED7AE22F2F95DF3805DE31 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		0186408DFF9E447F42325042 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		06C2841B2C4D29372134655D /* DailyFocusView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DailyFocusView.swift; sourceTree = "<group>"; };
+		08589786E44AD390B58F98DD /* WeeklyReviewView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeeklyReviewView.swift; sourceTree = "<group>"; };
 		09AE60E8198E1E03FF2C9DC2 /* DecisionHistoryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DecisionHistoryView.swift; sourceTree = "<group>"; };
 		18CC18E5DABD72F099F2C8C5 /* CortexOS.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = CortexOS.entitlements; sourceTree = "<group>"; };
 		2E1AEDA2C9B14B9466534033 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
@@ -223,6 +226,7 @@
 				BD13E98FF86C1B2615DFB8AC /* QuickCaptureView.swift */,
 				F40F5AE2A6234C33C5D518E0 /* SettingsView.swift */,
 				EDAF6B17B98DBF6A1DDF49E0 /* SummaryIngestView.swift */,
+				08589786E44AD390B58F98DD /* WeeklyReviewView.swift */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -568,6 +572,7 @@
 				F55CE3FD2BD0007E434AABDB /* SyncSnapshot.swift in Sources */,
 				B7A4DC0A6632E9194C6DC7EC /* Theme.swift in Sources */,
 				9F180DFF568E518209A71E79 /* UserProfile.swift in Sources */,
+				E4F2CBE9498398D474D0D6E6 /* WeeklyReviewView.swift in Sources */,
 				F9BB204E893F5F8AC8C7E7C1 /* WidgetData.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -628,6 +633,7 @@
 				4AC54A00CAB720DE67F1877E /* SyncSnapshot.swift in Sources */,
 				C0CDF557F0DF8483EF306DB8 /* Theme.swift in Sources */,
 				6D4E79118F9730FEAB75B942 /* UserProfile.swift in Sources */,
+				A7755865642904B4EE29ABA8 /* WeeklyReviewView.swift in Sources */,
 				EC89A449EB70DCC5B298AAA7 /* WidgetData.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -688,7 +694,7 @@
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				CODE_SIGN_STYLE = Automatic;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 202604182108;
+				CURRENT_PROJECT_VERSION = 7;
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				DEVELOPMENT_TEAM = 2V8LZ2444Y;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
@@ -872,7 +878,7 @@
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				CODE_SIGN_STYLE = Automatic;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 202604182108;
+				CURRENT_PROJECT_VERSION = 7;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				DEVELOPMENT_TEAM = 2V8LZ2444Y;
 				ENABLE_NS_ASSERTIONS = NO;
