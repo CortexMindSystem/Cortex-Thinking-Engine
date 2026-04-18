@@ -160,7 +160,8 @@ class DecisionEngine:
         signals: list[dict] | None = None,
         profile: dict | None = None,
         previous_brief: dict | None = None,
-        max_priorities: int = 5,
+        feedback_notes: list[str] | None = None,
+        max_priorities: int = 3,
     ) -> DailyDecisionBrief:
         """Generate today's decision brief from all available context."""
         brief = DailyDecisionBrief()
@@ -207,20 +208,56 @@ class DecisionEngine:
 
         # Apply profile-based re-ranking if profile is available
         if profile:
-            goals = " ".join(profile.get("goals", [])).lower()
-            interests = " ".join(profile.get("interests", [])).lower()
+            goals_tokens = self._significant_tokens(profile.get("goals", []))
+            interests_tokens = self._significant_tokens(profile.get("interests", []))
             ignored = set(t.lower() for t in profile.get("ignored_topics", []))
 
             for c in candidates:
                 title_lower = c.title.lower()
                 # Boost if title matches goals or interests
-                goal_boost = 0.15 if any(w in title_lower for w in goals.split()) else 0.0
-                interest_boost = 0.10 if any(w in title_lower for w in interests.split()) else 0.0
+                goal_boost = 0.15 if any(w in title_lower for w in goals_tokens) else 0.0
+                interest_boost = 0.10 if any(w in title_lower for w in interests_tokens) else 0.0
                 c.relevance_score = min(c.relevance_score + goal_boost + interest_boost, 1.0)
 
                 # Demote if matches ignored topics
                 if any(ig in title_lower for ig in ignored):
                     c.relevance_score *= 0.1
+
+        # Apply lightweight learning from recent feedback notes.
+        useful_terms, not_useful_terms, acted_terms, stalled_terms = self._feedback_terms(
+            feedback_notes or []
+        )
+        if useful_terms or not_useful_terms or acted_terms or stalled_terms:
+            for c in candidates:
+                title_lower = c.title.lower()
+                if any(self._matches_feedback_term(title_lower, term) for term in useful_terms):
+                    c.relevance_score = min(c.relevance_score + 0.12, 1.0)
+                if any(self._matches_feedback_term(title_lower, term) for term in acted_terms):
+                    c.relevance_score = min(c.relevance_score + 0.08, 1.0)
+                if any(self._matches_feedback_term(title_lower, term) for term in not_useful_terms):
+                    c.relevance_score *= 0.4
+                if any(self._matches_feedback_term(title_lower, term) for term in stalled_terms):
+                    c.relevance_score *= 0.75
+
+        # Merge duplicate titles from different sources to reduce noise.
+        merged: dict[str, Priority] = {}
+        for c in candidates:
+            key = c.title.strip().lower()
+            if not key:
+                continue
+            existing = merged.get(key)
+            if existing is None:
+                merged[key] = c
+                continue
+
+            if c.relevance_score > existing.relevance_score:
+                existing.relevance_score = c.relevance_score
+            if not existing.why_it_matters and c.why_it_matters:
+                existing.why_it_matters = c.why_it_matters
+            if not existing.next_step and c.next_step:
+                existing.next_step = c.next_step
+            existing.tags = list(dict.fromkeys([*existing.tags, *c.tags]))
+        candidates = list(merged.values())
 
         # Sort by relevance and take top N
         candidates.sort(key=lambda c: c.relevance_score, reverse=True)
@@ -258,6 +295,46 @@ class DecisionEngine:
                     brief.changes_since_yesterday.append(f"DROPPED: {t}")
 
         return brief
+
+    @staticmethod
+    def _significant_tokens(lines: list[str]) -> set[str]:
+        tokens: set[str] = set()
+        for line in lines:
+            for raw in line.lower().split():
+                token = "".join(ch for ch in raw if ch.isalnum())
+                if len(token) >= 4:
+                    tokens.add(token)
+        return tokens
+
+    @staticmethod
+    def _feedback_terms(notes: list[str]) -> tuple[set[str], set[str], set[str], set[str]]:
+        useful: set[str] = set()
+        not_useful: set[str] = set()
+        acted: set[str] = set()
+        not_acted: set[str] = set()
+
+        for note in notes[-200:]:
+            text = note.strip()
+            if text.startswith("[useful]"):
+                useful.add(text.removeprefix("[useful]").strip().lower())
+            elif text.startswith("[not_useful]"):
+                not_useful.add(text.removeprefix("[not_useful]").strip().lower())
+            elif text.startswith("[acted]"):
+                acted.add(text.removeprefix("[acted]").strip().lower())
+            elif text.startswith("[not_acted]"):
+                not_acted.add(text.removeprefix("[not_acted]").strip().lower())
+
+        useful.discard("")
+        not_useful.discard("")
+        acted.discard("")
+        not_acted.discard("")
+        return useful, not_useful, acted, not_acted
+
+    @staticmethod
+    def _matches_feedback_term(title: str, term: str) -> bool:
+        if not term:
+            return False
+        return term in title or title in term
 
     # ── Decision recording ───────────────────────────────────
 
