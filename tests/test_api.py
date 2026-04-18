@@ -167,6 +167,7 @@ class TestSyncEndpoints:
     def test_snapshot_has_required_keys(self, client):
         data = client.get("/sync/snapshot").json()
         for key in ("profile", "active_project", "priorities", "today",
+                     "weekly_review",
                      "recent_decisions", "insights", "signals",
                      "working_memory", "synced_at"):
             assert key in data, f"missing key: {key}"
@@ -219,6 +220,77 @@ class TestSyncEndpoints:
         client.post("/context/feedback", json={"item": "Ship MVP", "useful": True})
         wm = client.get("/sync/snapshot").json()["working_memory"]
         assert any("Ship MVP" in n for n in wm["temporary_notes"])
+
+    def test_snapshot_weekly_review_is_nullable(self, client):
+        data = client.get("/sync/snapshot").json()
+        assert "weekly_review" in data
+        assert data["weekly_review"] is None
+
+    def test_snapshot_weekly_review_aggregates_recent_decision_artifacts(self, client, tmp_data_dir):
+        payloads = {
+            "2026-04-12": {
+                "date": "2026-04-12",
+                "priorities": [
+                    {"title": "Build sync layer"},
+                    {"title": "Improve offline queue"},
+                ],
+                "ignored": ["low signal one"],
+                "emerging_signals": ["Edge AI"],
+                "changes_since_yesterday": [],
+            },
+            "2026-04-13": {
+                "date": "2026-04-13",
+                "priorities": [
+                    {"title": "Build sync layer"},
+                    {"title": "Ship TestFlight"},
+                ],
+                "ignored": ["low signal two", "low signal three"],
+                "emerging_signals": ["Edge AI", "On-device models"],
+                "changes_since_yesterday": [],
+            },
+            "2026-04-18": {
+                "date": "2026-04-18",
+                "priorities": [
+                    {"title": "Ship TestFlight"},
+                    {"title": "Weekly review loop"},
+                ],
+                "ignored": ["low signal four"],
+                "emerging_signals": ["On-device models"],
+                "changes_since_yesterday": [],
+            },
+            "2026-04-01": {
+                "date": "2026-04-01",
+                "priorities": [{"title": "Out of range"}],
+                "ignored": ["too old"],
+                "emerging_signals": ["Old signal"],
+                "changes_since_yesterday": [],
+            },
+        }
+
+        import json
+
+        for day, payload in payloads.items():
+            (tmp_data_dir / f"decision_{day}.json").write_text(json.dumps(payload), encoding="utf-8")
+
+        data = client.get("/sync/snapshot").json()
+        review = data["weekly_review"]
+        assert review is not None
+        assert review["week_start"] == "2026-04-12"
+        assert review["week_end"] == "2026-04-18"
+        assert review["days_covered"] == 3
+        assert review["quality"] == "insufficient_history"
+        assert review["confidence"] == pytest.approx(0.43, abs=0.01)
+        assert review["total_ignored_signals"] == 4
+
+        priorities = {item["title"]: item["count"] for item in review["top_priorities"]}
+        assert priorities["Build sync layer"] == 2
+        assert priorities["Ship TestFlight"] == 2
+        assert "Out of range" not in priorities
+
+        signals = {item["title"]: item["count"] for item in review["top_signals"]}
+        assert signals["Edge AI"] == 2
+        assert signals["On-device models"] == 2
+        assert "Old signal" not in signals
 
 
 # ── Integrations + Today Output ────────────────────────────────

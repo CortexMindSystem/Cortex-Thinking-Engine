@@ -12,6 +12,8 @@ The real answer: "Here's what matters, why, and your next step."
 
 from __future__ import annotations
 
+from collections import Counter
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -562,8 +564,6 @@ class CortexEngine:
         insights, signals, and working memory into one dict.
         Backend is source of truth — clients pull this on launch.
         """
-        from datetime import UTC, datetime
-
         profile = self.memory.profile
 
         # Active project context (first project, if any)
@@ -574,6 +574,8 @@ class CortexEngine:
 
         # Priority brief (may not exist yet)
         priorities = self.decision_engine.get_previous_brief()
+        weekly_review = self.build_weekly_review_output()
+        today_output = self.build_today_output()
 
         return {
             "profile": {
@@ -590,14 +592,13 @@ class CortexEngine:
             "insights": self.get_insights(limit=10),
             "signals": self.get_signals(),
             "working_memory": self.memory.working.to_dict(),
-            "today": self.build_today_output(),
+            "today": today_output,
+            "weekly_review": weekly_review,
             "synced_at": datetime.now(UTC).isoformat(),
         }
 
     def build_today_output(self) -> dict:
         """Canonical, shareable daily output from backend source-of-truth."""
-        from datetime import UTC, datetime
-
         brief = self.decision_engine.get_previous_brief()
         if brief is None:
             # Generate lazily so first sync still has usable output.
@@ -636,6 +637,137 @@ class CortexEngine:
             "ignored_signals": ignored,
             "changes_since_yesterday": brief.get("changes_since_yesterday", []),
             "share_text": "\n".join(lines).strip(),
+            "generated_at": datetime.now(UTC).isoformat(),
+        }
+
+    def build_weekly_review_output(self) -> dict | None:
+        """Return a compact weekly review from recent decision brief artifacts.
+
+        Source of truth: backend decision artifacts (decision_*.json).
+        Returns None when no usable artifacts exist.
+        """
+        briefs_by_date: dict[str, dict] = {}
+        for path in sorted(self.config.data_dir.glob("decision_*.json")):
+            try:
+                import json
+
+                with open(path) as f:
+                    payload = json.load(f)
+            except Exception:
+                continue
+
+            if not isinstance(payload, dict):
+                continue
+
+            date_value = str(payload.get("date", "")).strip()
+            if not date_value:
+                continue
+            try:
+                datetime.strptime(date_value, "%Y-%m-%d")
+            except ValueError:
+                continue
+            briefs_by_date[date_value] = payload
+
+        if not briefs_by_date:
+            return None
+
+        ordered_dates = sorted(briefs_by_date.keys())
+        latest_date = datetime.strptime(ordered_dates[-1], "%Y-%m-%d").date()
+        start_date = latest_date - timedelta(days=6)
+
+        selected: list[dict] = []
+        for day in ordered_dates:
+            day_date = datetime.strptime(day, "%Y-%m-%d").date()
+            if start_date <= day_date <= latest_date:
+                selected.append(briefs_by_date[day])
+
+        if not selected:
+            return None
+
+        priority_counter: Counter[str] = Counter()
+        signal_counter: Counter[str] = Counter()
+        total_ignored_signals = 0
+
+        for brief in selected:
+            priorities = brief.get("priorities", [])
+            if isinstance(priorities, list):
+                for item in priorities:
+                    if not isinstance(item, dict):
+                        continue
+                    title = str(item.get("title", "")).strip()
+                    if title:
+                        priority_counter[title] += 1
+
+            signals = brief.get("emerging_signals", [])
+            if isinstance(signals, list):
+                for signal in signals:
+                    value = str(signal).strip()
+                    if value:
+                        signal_counter[value] += 1
+
+            ignored = brief.get("ignored", [])
+            if isinstance(ignored, list):
+                total_ignored_signals += len([item for item in ignored if str(item).strip()])
+
+        top_priorities = [
+            {"title": title, "count": count}
+            for title, count in priority_counter.most_common(5)
+        ]
+        top_signals = [
+            {"title": title, "count": count}
+            for title, count in signal_counter.most_common(5)
+        ]
+
+        week_start = selected[0].get("date", ordered_dates[-1])
+        week_end = selected[-1].get("date", ordered_dates[-1])
+        days_covered = len(selected)
+        confidence = round(days_covered / 7.0, 2)
+        quality = "insufficient_history" if days_covered < 4 else "sufficient_history"
+
+        summary_parts = [
+            f"Reviewed {days_covered} day(s) of CortexOS decisions.",
+            f"Ignored {total_ignored_signals} low-signal item(s).",
+        ]
+        if top_priorities:
+            top = top_priorities[0]
+            summary_parts.append(
+                f"Top repeated priority: '{top['title']}' ({top['count']}x)."
+            )
+        if top_signals:
+            top = top_signals[0]
+            summary_parts.append(
+                f"Top repeated signal: '{top['title']}' ({top['count']}x)."
+            )
+
+        recommendations: list[str] = []
+        if top_priorities:
+            recommendations.append(
+                f"Decide whether '{top_priorities[0]['title']}' should become a committed initiative."
+            )
+        if top_signals:
+            recommendations.append(
+                f"Investigate recurring signal '{top_signals[0]['title']}' for roadmap impact."
+            )
+        if total_ignored_signals > 0:
+            recommendations.append(
+                "Keep filtering weak signals early to preserve decision clarity."
+            )
+        if not recommendations:
+            recommendations.append(
+                "Collect more daily outputs before changing prioritisation strategy."
+            )
+
+        return {
+            "week_start": week_start,
+            "week_end": week_end,
+            "days_covered": days_covered,
+            "quality": quality,
+            "confidence": confidence,
+            "top_priorities": top_priorities,
+            "top_signals": top_signals,
+            "total_ignored_signals": total_ignored_signals,
+            "summary": " ".join(summary_parts),
+            "recommendations": recommendations,
             "generated_at": datetime.now(UTC).isoformat(),
         }
 
