@@ -22,7 +22,8 @@ struct MemoryExplorerView: View {
                     title: "Memory not loaded",
                     message: "Sync to load your context memory.",
                     actionTitle: "Sync",
-                    action: { Task { await engine.sync() } }
+                    action: { Task { await engine.sync() } },
+                    isActionLoading: engine.isSyncing
                 )
             }
         }

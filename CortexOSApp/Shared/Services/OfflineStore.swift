@@ -17,6 +17,8 @@ actor OfflineStore {
     private let decoder = JSONDecoder()
     private let iso = ISO8601DateFormatter()
 
+    private let demoModeKey = "cortex_demo_mode_enabled"
+
     private init() {
         let support = FileManager.default.urls(
             for: .applicationSupportDirectory,
@@ -59,7 +61,8 @@ actor OfflineStore {
     }
 
     func listNotes(includeArchived: Bool = false) -> [KnowledgeNote] {
-        orderedNotes().filter { includeArchived || !$0.archived }
+        _ = ensureDemoContentIfNeeded()
+        return orderedNotes().filter { includeArchived || !$0.archived }
     }
 
     func getNote(id: String) -> KnowledgeNote? {
@@ -122,7 +125,8 @@ actor OfflineStore {
     }
 
     func getProfile() -> UserProfile {
-        profile
+        _ = ensureDemoContentIfNeeded()
+        return profile
     }
 
     func updateProfile(_ update: ProfileUpdate) -> UserProfile {
@@ -231,7 +235,7 @@ actor OfflineStore {
             .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
             .filter { !$0.isEmpty }
 
-        let title = lines.first.map(String.init) ?? "Captured summary"
+        let title = lines.first.map { String($0) } ?? "Captured summary"
         let summary = lines.dropFirst().joined(separator: " ")
 
         if request.createNotes {
@@ -266,6 +270,8 @@ actor OfflineStore {
     }
 
     func snapshot() -> SyncSnapshot {
+        _ = ensureDemoContentIfNeeded()
+
         let now = Date()
         let nowISO = iso.string(from: now)
         let dateString = Self.dateOnly(now)
@@ -279,6 +285,7 @@ actor OfflineStore {
             emergingSignals: [],
             changesSinceYesterday: []
         )
+        let today = buildTodayOutput(brief: brief, date: dateString, nowISO: nowISO)
 
         let activeProjectName = profile.currentProjects.first ?? ""
         let activeProject: ProjectContext? = activeProjectName.isEmpty ? nil : ProjectContext(
@@ -303,6 +310,7 @@ actor OfflineStore {
             ),
             activeProject: activeProject,
             priorities: brief,
+            today: today,
             recentDecisions: Array(decisions.prefix(50)),
             insights: Array(insights.prefix(50)),
             signals: signals,
@@ -314,6 +322,186 @@ actor OfflineStore {
             ),
             syncedAt: nowISO
         )
+    }
+
+    private func buildTodayOutput(brief: PriorityBrief?, date: String, nowISO: String) -> SyncTodayOutput? {
+        guard let brief else { return nil }
+
+        let compact: [SyncTodayPriority] = brief.priorities.prefix(3).map { item in
+            SyncTodayPriority(
+                rank: item.rank,
+                title: item.title,
+                why: item.whyItMatters,
+                action: item.nextStep
+            )
+        }
+
+        var lines = ["CortexOS Today — \(date)", ""]
+        for item in compact {
+            lines.append("\(item.rank). \(item.title)")
+            lines.append("Why: \(item.why.isEmpty ? "High decision impact." : item.why)")
+            lines.append("Do: \(item.action.isEmpty ? "Take the next concrete step." : item.action)")
+            lines.append("")
+        }
+        if !brief.ignored.isEmpty {
+            lines.append("Ignored signals:")
+            for value in brief.ignored.prefix(5) {
+                lines.append("- \(value)")
+            }
+        }
+
+        return SyncTodayOutput(
+            date: date,
+            priorities: compact,
+            ignoredSignals: brief.ignored,
+            changesSinceYesterday: brief.changesSinceYesterday,
+            shareText: lines.joined(separator: "\n").trimmingCharacters(in: .whitespacesAndNewlines),
+            generatedAt: nowISO
+        )
+    }
+
+    func isDemoModeEnabled() -> Bool {
+        if let existing = UserDefaults.standard.object(forKey: demoModeKey) as? Bool {
+            return existing
+        }
+        UserDefaults.standard.set(true, forKey: demoModeKey)
+        return true
+    }
+
+    func setDemoModeEnabled(_ enabled: Bool) {
+        UserDefaults.standard.set(enabled, forKey: demoModeKey)
+    }
+
+    @discardableResult
+    func ensureDemoContentIfNeeded(force: Bool = false) -> Bool {
+        if !(force || isDemoModeEnabled()) {
+            return false
+        }
+
+        if !force {
+            let hasContent = !notes.isEmpty || !decisions.isEmpty || !insights.isEmpty
+            if hasContent {
+                return false
+            }
+        }
+
+        let now = Date()
+        let nowISO = iso.string(from: now)
+        let previousISO = iso.string(from: now.addingTimeInterval(-3600 * 18))
+        let twoDaysAgoISO = iso.string(from: now.addingTimeInterval(-3600 * 42))
+
+        if profile.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            profile = UserProfile(
+                name: "Demo Operator",
+                role: "Decision Lead",
+                goals: [
+                    "Protect deep work time this week",
+                    "Ship CortexOS reliability fixes",
+                    "Keep product direction clear"
+                ],
+                interests: ["decision quality", "signal extraction", "system design"],
+                currentProjects: ["CortexOS"],
+                constraints: ["clarity over volume", "low friction execution"],
+                ignoredTopics: ["trending gossip", "low-signal updates"]
+            )
+        }
+
+        notes = [
+            KnowledgeNote(
+                id: "demo-note-1",
+                title: "Stability before expansion",
+                insight: "Apple review friction is currently the biggest delivery risk.",
+                implication: "Reliability work has direct impact on shipping confidence and growth.",
+                action: "Harden offline and button interaction paths before adding new features.",
+                sourceURL: "local://demo/review",
+                tags: ["release", "reliability", "focus"],
+                createdAt: twoDaysAgoISO,
+                updatedAt: previousISO,
+                archived: false
+            ),
+            KnowledgeNote(
+                id: "demo-note-2",
+                title: "Offline continuity increases trust",
+                insight: "Users continue capturing when they know nothing is lost without network.",
+                implication: "Queue every mutation and surface sync state clearly in UI.",
+                action: "Keep offline queue visible and replay automatically on reconnect.",
+                sourceURL: "local://demo/offline",
+                tags: ["offline", "trust", "ux"],
+                createdAt: previousISO,
+                updatedAt: previousISO,
+                archived: false
+            ),
+            KnowledgeNote(
+                id: "demo-note-3",
+                title: "Three priorities keeps thinking sharp",
+                insight: "Limiting visible priorities avoids noise and drives decisive action.",
+                implication: "Top-3 presentation should remain the canonical daily surface.",
+                action: "Review each priority in detail and mark acted/not useful to train ranking.",
+                sourceURL: "local://demo/priorities",
+                tags: ["focus", "prioritisation"],
+                createdAt: nowISO,
+                updatedAt: nowISO,
+                archived: false
+            )
+        ]
+
+        decisions = [
+            SyncDecision(
+                id: "demo-decision-1",
+                decision: "Prioritize offline-first reliability for this release",
+                reason: "Without reliable offline behavior, core capture and decision flow breaks.",
+                project: "CortexOS",
+                assumptions: ["Most sessions start without immediate backend connectivity"],
+                contextTags: ["release", "offline"],
+                createdAt: previousISO,
+                outcome: "Adopted as release gate",
+                impactScore: 0.82
+            ),
+            SyncDecision(
+                id: "demo-decision-2",
+                decision: "Keep the daily view at three priorities maximum",
+                reason: "Decision quality drops when too many items compete for attention.",
+                project: "CortexOS",
+                assumptions: ["Clarity matters more than volume"],
+                contextTags: ["product", "focus"],
+                createdAt: nowISO,
+                outcome: "",
+                impactScore: 0.0
+            )
+        ]
+
+        insights = [
+            SyncInsight(
+                id: "demo-insight-1",
+                title: "Reliability is a product feature",
+                summary: "Perceived intelligence falls when basic interactions fail.",
+                whyItMatters: "App trust is built from predictable response to every tap.",
+                architecturalImplication: "All user mutations should be queue-backed.",
+                nextAction: "Instrument button actions and display sync progress feedback.",
+                confidence: 0.88,
+                tags: ["quality", "ux"],
+                relatedProject: "CortexOS",
+                createdAt: previousISO
+            ),
+            SyncInsight(
+                id: "demo-insight-2",
+                title: "Feedback loop sharpens prioritisation",
+                summary: "Acted/not-acted outcomes help ranking converge on useful work.",
+                whyItMatters: "The system should learn what actually moves decisions forward.",
+                architecturalImplication: "Feed feedback tags into priority scoring.",
+                nextAction: "Promote acted items and demote repeatedly ignored signals.",
+                confidence: 0.84,
+                tags: ["learning", "priorities"],
+                relatedProject: "CortexOS",
+                createdAt: nowISO
+            )
+        ]
+
+        persistProfile()
+        persistNotes()
+        persistDecisions()
+        persistInsights()
+        return true
     }
 
     private static func dateOnly(_ date: Date) -> String {

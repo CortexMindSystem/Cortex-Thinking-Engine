@@ -14,6 +14,13 @@ import WidgetKit
 @MainActor
 final class CortexEngine: ObservableObject {
 
+    struct QueuedActionPreview: Identifiable {
+        let id: String
+        let kind: String
+        let title: String
+        let capturedAt: Date
+    }
+
     // MARK: - Published State
 
     @Published var notes: [KnowledgeNote] = []
@@ -21,20 +28,34 @@ final class CortexEngine: ObservableObject {
     @Published var snapshot: SyncSnapshot?
     @Published var isConnected = false
     @Published var isLoading = false
+    @Published var isSyncing = false
     @Published var errorMessage: String?
+    @Published var lastSyncStatus: String?
+    @Published var demoModeEnabled = false
+    @Published var pendingSyncActions = 0
+    @Published var pendingNotes = 0
+    @Published var pendingDecisions = 0
+    @Published var pendingFeedback = 0
+    @Published var queuedActions: [QueuedActionPreview] = []
 
     // MARK: - Dependencies
 
     let api: APIService
 
-    init(api: APIService = .shared) {
-        self.api = api
+    init(api: APIService? = nil) {
+        self.api = api ?? APIService.shared
 
         // Always load cached snapshot for instant launch
         Task { [weak self] in
             if let cached = await SnapshotCache.shared.load() {
                 self?.snapshot = cached
             }
+            self?.demoModeEnabled = await OfflineStore.shared.isDemoModeEnabled()
+            _ = await OfflineStore.shared.ensureDemoContentIfNeeded()
+            if self?.snapshot == nil {
+                self?.snapshot = await OfflineStore.shared.snapshot()
+            }
+            await self?.refreshPendingSyncActions()
         }
     }
 
@@ -74,9 +95,11 @@ final class CortexEngine: ObservableObject {
             let note = try await api.createNote(request)
             notes.insert(note, at: 0)
             errorMessage = nil
+            await refreshPendingSyncActions()
             return true
         } catch {
             errorMessage = error.localizedDescription
+            await refreshPendingSyncActions()
             return false
         }
     }
@@ -133,10 +156,15 @@ final class CortexEngine: ObservableObject {
     // MARK: - Sync (single-call pull + offline-first)
 
     func sync() async {
+        if isSyncing { return }
+        isSyncing = true
+        defer { isSyncing = false }
+
         do {
             snapshot = try await api.fetchSnapshot()
             isConnected = true
             errorMessage = nil
+            lastSyncStatus = api.isOffline ? "Updated locally" : "Synced"
 
             // Cache for instant launch next time
             if let snapshot { await SnapshotCache.shared.save(snapshot) }
@@ -147,17 +175,23 @@ final class CortexEngine: ObservableObject {
             // Flush any queued offline captures
             let flushedNotes = await CaptureQueue.shared.flushNotes(using: api)
             let flushedDecisions = await CaptureQueue.shared.flushDecisions(using: api)
-            if flushedNotes + flushedDecisions > 0 {
+            let flushedFeedback = await CaptureQueue.shared.flushFeedback(using: api)
+            if flushedNotes + flushedDecisions + flushedFeedback > 0 {
                 // Re-sync to pick up server-side changes
                 snapshot = try? await api.fetchSnapshot()
                 updateWidgetData()
+                lastSyncStatus = "Synced queued offline updates"
             }
+            await refreshPendingSyncActions()
         } catch {
             isConnected = false
             // Fall back to locally generated snapshot — app still works offline
+            _ = await OfflineStore.shared.ensureDemoContentIfNeeded()
             snapshot = await OfflineStore.shared.snapshot()
             if let snapshot { await SnapshotCache.shared.save(snapshot) }
             errorMessage = nil
+            lastSyncStatus = "Using local data"
+            await refreshPendingSyncActions()
         }
     }
 
@@ -200,21 +234,24 @@ final class CortexEngine: ObservableObject {
                 await sync()
             }
             errorMessage = nil
+            await refreshPendingSyncActions()
             return true
         } catch {
             errorMessage = error.localizedDescription
+            await refreshPendingSyncActions()
             return false
         }
     }
 
     // MARK: - Feedback (was this useful?)
 
-    func sendFeedback(item: String, useful: Bool) async {
+    func sendFeedback(item: String, useful: Bool, acted: Bool? = nil) async {
         do {
-            try await api.sendFeedback(FeedbackRequest(item: item, useful: useful))
+            try await api.sendFeedback(FeedbackRequest(item: item, useful: useful, acted: acted))
         } catch {
             // Silent — feedback is best-effort, never block UX
         }
+        await refreshPendingSyncActions()
     }
 
     // MARK: - Summary Ingestion
@@ -233,5 +270,80 @@ final class CortexEngine: ObservableObject {
             errorMessage = error.localizedDescription
             return false
         }
+    }
+
+    // MARK: - Demo Mode
+
+    func setDemoMode(enabled: Bool) async {
+        await OfflineStore.shared.setDemoModeEnabled(enabled)
+        demoModeEnabled = enabled
+
+        if enabled {
+            _ = await OfflineStore.shared.ensureDemoContentIfNeeded()
+            await fetchNotes()
+            await sync()
+        }
+    }
+
+    func populateDemoContent() async {
+        _ = await OfflineStore.shared.ensureDemoContentIfNeeded(force: true)
+        await fetchNotes()
+        await sync()
+    }
+
+    // MARK: - Queue visibility
+
+    func refreshPendingSyncActions() async {
+        let counts = await CaptureQueue.shared.pendingCounts()
+        pendingSyncActions = counts.total
+        pendingNotes = counts.notes
+        pendingDecisions = counts.decisions
+        pendingFeedback = counts.feedback
+
+        let actions = await CaptureQueue.shared.pendingActions(limit: 30)
+        queuedActions = actions.map {
+            QueuedActionPreview(
+                id: $0.id,
+                kind: $0.kind,
+                title: $0.title,
+                capturedAt: $0.capturedAt
+            )
+        }
+    }
+
+    func retryPendingSyncActions() async {
+        if isSyncing { return }
+
+        if api.isOffline {
+            lastSyncStatus = "Local Offline Mode — set server URL to sync queued actions"
+            await refreshPendingSyncActions()
+            return
+        }
+
+        isSyncing = true
+        defer { isSyncing = false }
+
+        let flushedNotes = await CaptureQueue.shared.flushNotes(using: api)
+        let flushedDecisions = await CaptureQueue.shared.flushDecisions(using: api)
+        let flushedFeedback = await CaptureQueue.shared.flushFeedback(using: api)
+        let totalFlushed = flushedNotes + flushedDecisions + flushedFeedback
+
+        if totalFlushed > 0 {
+            do {
+                snapshot = try await api.fetchSnapshot()
+                if let snapshot { await SnapshotCache.shared.save(snapshot) }
+                updateWidgetData()
+                isConnected = true
+                errorMessage = nil
+                lastSyncStatus = "Synced queued offline updates"
+            } catch {
+                isConnected = false
+                lastSyncStatus = "Queue synced partially — snapshot refresh failed"
+            }
+        } else {
+            lastSyncStatus = "No queued actions to sync"
+        }
+
+        await refreshPendingSyncActions()
     }
 }

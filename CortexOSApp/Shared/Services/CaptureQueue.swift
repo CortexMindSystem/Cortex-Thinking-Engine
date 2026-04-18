@@ -2,8 +2,8 @@
 //  CaptureQueue.swift
 //  CortexOS
 //
-//  Offline-first capture queue. Notes are saved locally first,
-//  then flushed to the server when connectivity returns.
+//  Offline-first capture queue. Notes, decisions, and feedback
+//  are saved locally first, then flushed when connectivity returns.
 //
 //  "Capture must always work." — offline or not.
 //
@@ -14,6 +14,20 @@ actor CaptureQueue {
     static let shared = CaptureQueue()
 
     // MARK: - Types
+
+    struct PendingQueueCounts {
+        let notes: Int
+        let decisions: Int
+        let feedback: Int
+        let total: Int
+    }
+
+    struct PendingAction: Identifiable {
+        let id: String
+        let kind: String
+        let title: String
+        let capturedAt: Date
+    }
 
     struct QueuedNote: Codable, Identifiable {
         let id: UUID
@@ -31,13 +45,23 @@ actor CaptureQueue {
         let capturedAt: Date
     }
 
+    struct QueuedFeedback: Codable, Identifiable {
+        let id: UUID
+        let item: String
+        let useful: Bool
+        let acted: Bool?
+        let capturedAt: Date
+    }
+
     // MARK: - State
 
     private var notes: [QueuedNote] = []
     private var decisions: [QueuedDecision] = []
+    private var feedback: [QueuedFeedback] = []
 
     private let notesURL: URL
     private let decisionsURL: URL
+    private let feedbackURL: URL
 
     private init() {
         let support = FileManager.default.urls(
@@ -52,6 +76,7 @@ actor CaptureQueue {
 
         notesURL = support.appendingPathComponent("capture_queue_notes.json")
         decisionsURL = support.appendingPathComponent("capture_queue_decisions.json")
+        feedbackURL = support.appendingPathComponent("capture_queue_feedback.json")
 
         // Load persisted queues
         if let data = try? Data(contentsOf: notesURL),
@@ -62,6 +87,11 @@ actor CaptureQueue {
         if let data = try? Data(contentsOf: decisionsURL),
            let saved = try? JSONDecoder().decode([QueuedDecision].self, from: data) {
             decisions = saved
+        }
+
+        if let data = try? Data(contentsOf: feedbackURL),
+           let saved = try? JSONDecoder().decode([QueuedFeedback].self, from: data) {
+            feedback = saved
         }
     }
 
@@ -94,6 +124,21 @@ actor CaptureQueue {
         )
         decisions.append(item)
         persistDecisions()
+    }
+
+    func enqueueFeedback(item: String, useful: Bool, acted: Bool? = nil) {
+        let cleaned = item.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !cleaned.isEmpty else { return }
+
+        let queued = QueuedFeedback(
+            id: UUID(),
+            item: cleaned,
+            useful: useful,
+            acted: acted,
+            capturedAt: Date()
+        )
+        feedback.append(queued)
+        persistFeedback()
     }
 
     // MARK: - Flush (send to server)
@@ -163,16 +208,82 @@ actor CaptureQueue {
         return flushed
     }
 
+    @MainActor
+    func flushFeedback(using api: APIService) async -> Int {
+        let queued = await getQueuedFeedback()
+        guard !queued.isEmpty else { return 0 }
+
+        var remaining: [QueuedFeedback] = []
+        var flushed = 0
+
+        for item in queued {
+            do {
+                try await api.sendFeedbackRemote(
+                    FeedbackRequest(item: item.item, useful: item.useful, acted: item.acted)
+                )
+                flushed += 1
+            } catch {
+                remaining.append(item)
+            }
+        }
+
+        await setQueuedFeedback(remaining)
+        return flushed
+    }
+
     // MARK: - Counts
 
     var pendingNoteCount: Int { notes.count }
     var pendingDecisionCount: Int { decisions.count }
-    var totalPending: Int { notes.count + decisions.count }
+    var pendingFeedbackCount: Int { feedback.count }
+    var totalPending: Int { notes.count + decisions.count + feedback.count }
+
+    func pendingCounts() -> PendingQueueCounts {
+        PendingQueueCounts(
+            notes: notes.count,
+            decisions: decisions.count,
+            feedback: feedback.count,
+            total: notes.count + decisions.count + feedback.count
+        )
+    }
+
+    func pendingActions(limit: Int = 30) -> [PendingAction] {
+        let noteActions = notes.map {
+            PendingAction(
+                id: "note-\($0.id.uuidString)",
+                kind: "Note",
+                title: $0.title,
+                capturedAt: $0.capturedAt
+            )
+        }
+        let decisionActions = decisions.map {
+            PendingAction(
+                id: "decision-\($0.id.uuidString)",
+                kind: "Decision",
+                title: $0.decision,
+                capturedAt: $0.capturedAt
+            )
+        }
+        let feedbackActions = feedback.map {
+            PendingAction(
+                id: "feedback-\($0.id.uuidString)",
+                kind: "Feedback",
+                title: $0.item,
+                capturedAt: $0.capturedAt
+            )
+        }
+
+        return (noteActions + decisionActions + feedbackActions)
+            .sorted { $0.capturedAt > $1.capturedAt }
+            .prefix(max(1, limit))
+            .map { $0 }
+    }
 
     // MARK: - Actor-isolated helpers
 
     private func getQueuedNotes() -> [QueuedNote] { notes }
     private func getQueuedDecisions() -> [QueuedDecision] { decisions }
+    private func getQueuedFeedback() -> [QueuedFeedback] { feedback }
 
     private func setQueuedNotes(_ value: [QueuedNote]) {
         notes = value
@@ -182,6 +293,11 @@ actor CaptureQueue {
     private func setQueuedDecisions(_ value: [QueuedDecision]) {
         decisions = value
         persistDecisions()
+    }
+
+    private func setQueuedFeedback(_ value: [QueuedFeedback]) {
+        feedback = value
+        persistFeedback()
     }
 
     // MARK: - Persistence
@@ -194,5 +310,10 @@ actor CaptureQueue {
     private func persistDecisions() {
         guard let data = try? JSONEncoder().encode(decisions) else { return }
         try? data.write(to: decisionsURL, options: .atomic)
+    }
+
+    private func persistFeedback() {
+        guard let data = try? JSONEncoder().encode(feedback) else { return }
+        try? data.write(to: feedbackURL, options: .atomic)
     }
 }

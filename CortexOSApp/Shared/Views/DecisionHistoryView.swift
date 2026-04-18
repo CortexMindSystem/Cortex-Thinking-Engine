@@ -28,7 +28,8 @@ struct DecisionHistoryView: View {
                     title: "No decisions yet",
                     message: "Decisions appear here as you record them.",
                     actionTitle: "Sync",
-                    action: { Task { await engine.sync() } }
+                    action: { Task { await engine.sync() } },
+                    isActionLoading: engine.isSyncing
                 )
             }
         }

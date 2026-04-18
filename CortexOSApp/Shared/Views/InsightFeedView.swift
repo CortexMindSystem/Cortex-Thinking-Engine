@@ -28,7 +28,8 @@ struct InsightFeedView: View {
                     title: "No insights yet",
                     message: "Insights appear as you add notes and sync.",
                     actionTitle: "Sync",
-                    action: { Task { await engine.sync() } }
+                    action: { Task { await engine.sync() } },
+                    isActionLoading: engine.isSyncing
                 )
             }
         }

@@ -52,6 +52,7 @@ struct InsightCreateRequest: Codable {
 struct FeedbackRequest: Codable {
     let item: String
     let useful: Bool
+    var acted: Bool? = nil
 }
 
 // MARK: - Summary Ingestion
