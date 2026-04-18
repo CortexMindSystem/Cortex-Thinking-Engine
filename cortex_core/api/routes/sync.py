@@ -25,3 +25,10 @@ async def get_snapshot() -> dict:
     """
     engine = get_engine()
     return engine.build_sync_snapshot()
+
+
+@router.get("/today")
+async def get_today_output() -> dict:
+    """Return canonical CortexOS Today output for sharing/automation."""
+    engine = get_engine()
+    return engine.build_today_output()

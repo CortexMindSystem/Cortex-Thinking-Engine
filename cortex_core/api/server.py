@@ -62,6 +62,7 @@ def create_app() -> FastAPI:
         focus,
         health,
         ingest,
+        integrations,
         knowledge,
         pipeline,
         posts,
@@ -74,6 +75,7 @@ def create_app() -> FastAPI:
     app.include_router(focus.router)  # primary feature
     app.include_router(why.router)  # why engine — per-item intelligence
     app.include_router(sync.router)  # single-call sync for Apple clients
+    app.include_router(integrations.router)  # external context/distribution adapters
     app.include_router(ingest.router)  # user summary ingestion
     app.include_router(context.router)  # agent context API
     app.include_router(profile.router)
