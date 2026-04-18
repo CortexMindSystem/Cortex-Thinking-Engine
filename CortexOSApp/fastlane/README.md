@@ -29,6 +29,14 @@ iOS TestFlight (alias)
 
 macOS TestFlight (alias)
 
+### watch_testflight
+
+```sh
+[bundle exec] fastlane watch_testflight
+```
+
+watchOS TestFlight
+
 ### all_testflight
 
 ```sh
@@ -36,6 +44,22 @@ macOS TestFlight (alias)
 ```
 
 Build and upload BOTH platforms to TestFlight
+
+### refresh_profiles
+
+```sh
+[bundle exec] fastlane refresh_profiles
+```
+
+Regenerate App Store provisioning profiles (iOS app + widget)
+
+### generate_store_assets
+
+```sh
+[bundle exec] fastlane generate_store_assets
+```
+
+Generate App Store screenshot assets (iOS/macOS/watchOS)
 
 ----
 

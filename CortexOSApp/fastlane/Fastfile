@@ -14,6 +14,7 @@ default_platform(:ios)
 TEAM_ID      = "2V8LZ2444Y"
 IOS_BUNDLE   = "me.ph7.cortexos.ios"
 MAC_BUNDLE   = "me.ph7.cortexos.macos"
+WATCH_BUNDLE = "me.ph7.cortexos.watchos"
 PROJECT      = "CortexOS.xcodeproj"
 
 # App Store Connect API Key
@@ -26,7 +27,7 @@ SIGN_ARGS = [
   "DEVELOPMENT_TEAM=#{TEAM_ID}",
   "CODE_SIGN_STYLE=Automatic",
   "-allowProvisioningUpdates",
-  "-authenticationKeyPath '#{ASC_KEY_PATH}'",
+  "-authenticationKeyPath #{ASC_KEY_PATH}",
   "-authenticationKeyID #{ASC_KEY_ID}",
   "-authenticationKeyIssuerID #{ASC_ISSUER}",
 ].join(" ")
@@ -115,8 +116,52 @@ lane :mac_testflight do
   Fastlane::LaneManager.cruise_lane("mac", "testflight_release")
 end
 
+desc "watchOS TestFlight"
+lane :watch_testflight do
+  increment_build_number(
+    xcodeproj: PROJECT,
+    build_number: Time.now.strftime("%Y%m%d%H%M"),
+  )
+
+  build_app(
+    project: PROJECT,
+    scheme: "CortexOS-watchOS",
+    clean: true,
+    export_method: "app-store",
+    xcargs: SIGN_ARGS,
+  )
+
+  upload_to_testflight(
+    skip_waiting_for_build_processing: true,
+    app_identifier: WATCH_BUNDLE,
+  )
+
+  UI.success("watchOS build uploaded to TestFlight!")
+end
+
 desc "Build and upload BOTH platforms to TestFlight"
 lane :all_testflight do
   Fastlane::LaneManager.cruise_lane("ios", "testflight_release")
   Fastlane::LaneManager.cruise_lane("mac", "testflight_release")
+  Fastlane::LaneManager.cruise_lane("ios", "watch_testflight")
+end
+
+desc "Regenerate App Store provisioning profiles (iOS app + widget)"
+lane :refresh_profiles do
+  sigh(
+    app_identifier: IOS_BUNDLE,
+    skip_install: false,
+    skip_certificate_verification: true
+  )
+
+  sigh(
+    app_identifier: "me.ph7.cortexos.ios.widget",
+    skip_install: false,
+    skip_certificate_verification: true
+  )
+end
+
+desc "Generate App Store screenshot assets (iOS/macOS/watchOS)"
+lane :generate_store_assets do
+  sh("cd .. && ./.venv/bin/python CortexOSApp/generate_store_assets.py")
 end
