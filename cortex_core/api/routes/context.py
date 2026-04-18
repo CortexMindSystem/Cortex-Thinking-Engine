@@ -163,10 +163,11 @@ async def retrieve(body: RetrieveRequest) -> list[dict]:
 class FeedbackCreate(BaseModel):
     item: str
     useful: bool
+    acted: bool | None = None
 
 
 @router.post("/feedback", status_code=204)
 async def record_feedback(body: FeedbackCreate) -> None:
     """Record user feedback on a focus item (was this useful?)."""
     engine = get_engine()
-    engine.record_feedback(item=body.item, useful=body.useful)
+    engine.record_feedback(item=body.item, useful=body.useful, acted=body.acted)
