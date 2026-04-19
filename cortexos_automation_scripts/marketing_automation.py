@@ -26,7 +26,7 @@ class CortexBrief(BaseModel):
     date: str
     priorities: list[Priority]
     ignored_signals_count: int = 0
-    project: str = "CortexOS"
+    project: str = "SimpliXio"
     themes: list[str] = Field(default_factory=list)
     notes: list[str] = Field(default_factory=list)
 
@@ -47,8 +47,8 @@ class GeneratedPost(BaseModel):
 class Config(BaseModel):
     openai_api_key: str | None = None
     openai_model: str = "gpt-4.1-mini"
-    app_name: str = "CortexOS"
-    app_url: str = "https://github.com/CortexMindSystem/Cortex-Thinking-Engine"
+    app_name: str = "SimpliXio"
+    app_url: str = "https://github.com/pH-7/CortexOSLLM"
     author_name: str = "Pierre-Henry Soria"
     author_url: str = "https://ph7.me"
     site_base_url: str = "https://ph7.me"
@@ -83,11 +83,15 @@ def load_config() -> Config:
     load_dotenv(AUTOMATION_ROOT / ".env")
     rss_feeds = [x.strip() for x in os.getenv("RSS_FEEDS","").split(",") if x.strip()]
     github_topics = [x.strip() for x in os.getenv("GITHUB_TOPICS","ai,agents,developer-tools").split(",") if x.strip()]
+    raw_app_name = os.getenv("APP_NAME", "SimpliXio").strip()
+    app_name = "SimpliXio" if raw_app_name.lower() in {"cortexos", "cortex os"} else raw_app_name
+    raw_app_url = os.getenv("APP_URL", "https://github.com/pH-7/CortexOSLLM").strip()
+    app_url = "https://github.com/pH-7/CortexOSLLM" if "CortexMindSystem/Cortex-Thinking-Engine" in raw_app_url else raw_app_url
     return Config(
         openai_api_key=os.getenv("OPENAI_API_KEY") or None,
         openai_model=os.getenv("OPENAI_MODEL","gpt-4.1-mini"),
-        app_name=os.getenv("APP_NAME","CortexOS"),
-        app_url=os.getenv("APP_URL","https://github.com/CortexMindSystem/Cortex-Thinking-Engine"),
+        app_name=app_name,
+        app_url=app_url,
         author_name=os.getenv("AUTHOR_NAME","Pierre-Henry Soria"),
         author_url=os.getenv("AUTHOR_URL","https://ph7.me"),
         site_base_url=os.getenv("SITE_BASE_URL","https://ph7.me"),
@@ -117,7 +121,14 @@ def load_config() -> Config:
     )
 
 def ensure_dirs(cfg: Config) -> None:
-    for sub in [cfg.output_dir, cfg.output_dir/"cards", cfg.output_dir/"drafts", cfg.output_dir/"logs", cfg.output_dir/"site"]:
+    for sub in [
+        cfg.output_dir,
+        cfg.output_dir / "cards",
+        cfg.output_dir / "drafts",
+        cfg.output_dir / "logs",
+        cfg.output_dir / "site",
+        cfg.output_dir / "campaigns",
+    ]:
         sub.mkdir(parents=True, exist_ok=True)
 
 def slugify(value: str) -> str:
@@ -128,10 +139,13 @@ def slugify(value: str) -> str:
 def file_sha(text: str) -> str:
     return hashlib.sha256(text.encode("utf-8")).hexdigest()[:12]
 
+def app_slug(value: str) -> str:
+    return slugify(value) or "app"
+
 def read_latest_brief(cfg: Config) -> CortexBrief:
     files = sorted(cfg.cortex_outputs_dir.glob("*.json"))
     if not files:
-        raise FileNotFoundError(f"No CortexOS outputs found in {cfg.cortex_outputs_dir}")
+        raise FileNotFoundError(f"No SimpliXio outputs found in {cfg.cortex_outputs_dir}")
     return CortexBrief.model_validate(json.loads(files[-1].read_text(encoding="utf-8")))
 
 def fetch_rss_items(cfg: Config, max_per_feed: int = 5) -> list[TrendItem]:
@@ -165,18 +179,25 @@ def fetch_github_topic_repos(cfg: Config, per_topic: int = 4) -> list[TrendItem]
     return items
 
 def deterministic_posts(cfg: Config, brief: CortexBrief, trends: list[TrendItem]) -> dict[str, GeneratedPost]:
+    run_date = datetime.now(timezone.utc).strftime("%Y-%m-%d")
     active = [p for p in brief.priorities if not p.ignored][:3]
     ignored = brief.ignored_signals_count
     trend_titles = "; ".join(item.title for item in trends[:3])
     x_body = textwrap.dedent(f"""
-    CortexOS today:
+    {cfg.app_name} today ({run_date}):
 
     • {active[0].title if len(active) > 0 else 'Reduce noise'}
     • {active[1].title if len(active) > 1 else 'Protect clarity'}
     • {active[2].title if len(active) > 2 else 'Act on what matters'}
 
-    Ignored {ignored} weak signals.
-    Keeping the product focused on decision quality, not noise.
+    Why:
+    {active[0].why if len(active) > 0 else 'Decision quality compounds when noise is removed.'}
+
+    Next:
+    {active[0].action if len(active) > 0 else 'Take one concrete action in the next 30 minutes.'}
+
+    Ignored {ignored} weak signals today.
+    Decide what matters. Turn noise into action.
 
     {cfg.app_url}
     """).strip()
@@ -201,7 +222,7 @@ def deterministic_posts(cfg: Config, brief: CortexBrief, trends: list[TrendItem]
     blog_body = textwrap.dedent(f"""
     # {cfg.app_name}: today’s decision brief
 
-    {cfg.app_name} is being built as a system that decides what actually matters.
+    {cfg.app_name} is being built as a decision system that turns noise into 3 priorities.
 
     Today’s active priorities were:
 
@@ -229,7 +250,50 @@ def save_drafts(cfg: Config, posts: dict[str, GeneratedPost]) -> dict[str, Path]
         path = cfg.output_dir/"drafts"/f"{channel}-{slugify(post.title)}-{file_sha(post.body)}.md"
         path.write_text(f"# {post.title}\n\n{post.body}\n", encoding="utf-8")
         paths[channel] = path
+        latest_path = cfg.output_dir / "drafts" / f"latest-{channel}.md"
+        latest_path.write_text(f"# {post.title}\n\n{post.body}\n", encoding="utf-8")
     return paths
+
+def save_campaign_brief(cfg: Config, brief: CortexBrief, posts: dict[str, GeneratedPost], trends: list[TrendItem]) -> Path:
+    day_key = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    path = cfg.output_dir / "campaigns" / f"{app_slug(cfg.app_name)}-campaign-{day_key}.md"
+    trend_lines = [f"- {item.title} ({item.url})" for item in trends[:5]]
+    if not trend_lines:
+        trend_lines = ["- No external trends captured in this run."]
+    active = [p for p in brief.priorities if not p.ignored][:3]
+    priority_lines = [f"- {p.title}: {p.action}" for p in active]
+    if not priority_lines:
+        priority_lines = ["- No active priorities detected."]
+    md = "\n".join(
+        [
+            f"# {cfg.app_name} Campaign Brief · {day_key}",
+            "",
+            "## Positioning",
+            "",
+            "Not another AI app. A decision system for clearer action.",
+            "",
+            "## Core message",
+            "",
+            "Decide what matters. Turn noise into action.",
+            "",
+            "## Today's priorities",
+            "",
+            *priority_lines,
+            "",
+            "## Signals reviewed",
+            "",
+            *trend_lines,
+            "",
+            "## Draft artifacts",
+            "",
+            f"- X: {posts['x'].title}",
+            f"- LinkedIn: {posts['linkedin'].title}",
+            f"- Blog: {posts['blog'].title}",
+            "",
+        ]
+    )
+    path.write_text(md, encoding="utf-8")
+    return path
 
 def render_card(cfg: Config, brief: CortexBrief, out_path: Path) -> None:
     width, height = 1280, 640
@@ -245,7 +309,7 @@ def render_card(cfg: Config, brief: CortexBrief, out_path: Path) -> None:
         small_font = ImageFont.load_default()
     draw.rounded_rectangle((36,36,1244,604), radius=34, fill=(20,28,50))
     draw.text((72,64), cfg.app_name, font=title_font, fill=(245,248,255))
-    draw.text((74,142), "Decides what matters", font=h2_font, fill=(175,186,214))
+    draw.text((74,142), "Decide what matters.", font=h2_font, fill=(175,186,214))
     y = 220
     for idx, priority in enumerate([p for p in brief.priorities if not p.ignored][:3], start=1):
         draw.rounded_rectangle((72,y,1208,y+96), radius=24, outline=(105,142,255), width=2)
@@ -258,7 +322,7 @@ def render_card(cfg: Config, brief: CortexBrief, out_path: Path) -> None:
     img.save(out_path)
 
 def publish_site(cfg: Config, posts: dict[str, GeneratedPost], brief: CortexBrief, card_path: Path) -> Path:
-    html_path = cfg.output_dir/"site"/f"cortexos-today-{brief.date}.html"
+    html_path = cfg.output_dir/"site"/f"{app_slug(cfg.app_name)}-today-{brief.date}.html"
     post = posts["blog"]
     body_html = "".join(f"<p>{html.escape(line)}</p>" for line in post.body.splitlines() if line.strip())
     page = f"""<!doctype html><html lang='en'><head><meta charset='utf-8' /><meta name='viewport' content='width=device-width, initial-scale=1' />
@@ -323,11 +387,27 @@ def run() -> None:
     brief = read_latest_brief(cfg)
     trends = fetch_rss_items(cfg) + fetch_github_topic_repos(cfg)
     posts = deterministic_posts(cfg, brief, trends)
-    card_path = cfg.output_dir/"cards"/f"cortexos-today-{brief.date}.png"
+    card_path = cfg.output_dir/"cards"/f"{app_slug(cfg.app_name)}-today-{brief.date}.png"
     render_card(cfg, brief, card_path)
     drafts = save_drafts(cfg, posts)
+    campaign_brief = save_campaign_brief(cfg, brief, posts, trends)
     gate_ok = quality_gate_passed(cfg)
-    results = {"generated_at": datetime.now(timezone.utc).replace(microsecond=0).isoformat(), "brief_date": brief.date, "drafts": {k:str(v) for k,v in drafts.items()}, "card": str(card_path), "site": None, "x":{"status":"not-run"}, "linkedin":{"status":"not-run"}, "quality_gate_passed": gate_ok}
+    results = {
+        "generated_at": datetime.now(timezone.utc).replace(microsecond=0).isoformat(),
+        "brief_date": brief.date,
+        "drafts": {k: str(v) for k, v in drafts.items()},
+        "latest_drafts": {
+            "x": str(cfg.output_dir / "drafts" / "latest-x.md"),
+            "linkedin": str(cfg.output_dir / "drafts" / "latest-linkedin.md"),
+            "blog": str(cfg.output_dir / "drafts" / "latest-blog.md"),
+        },
+        "campaign_brief": str(campaign_brief),
+        "card": str(card_path),
+        "site": None,
+        "x": {"status": "not-run"},
+        "linkedin": {"status": "not-run"},
+        "quality_gate_passed": gate_ok,
+    }
     if cfg.publish_site:
         results["site"] = str(publish_site(cfg, posts, brief, card_path))
     if cfg.auto_approve and cfg.publish_x and gate_ok:
