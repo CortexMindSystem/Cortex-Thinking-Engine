@@ -1,4 +1,4 @@
-# CortexOS Fastlane Configuration
+# SimpliXio Fastlane Configuration
 # ---------------------------------
 # Automated build + TestFlight deployment for iOS and macOS.
 # Uses App Store Connect API Key for authentication (no password/2FA needed).
@@ -10,6 +10,7 @@
 #   fastlane all_testflight    — both platforms
 
 default_platform(:ios)
+require "open3"
 
 TEAM_ID      = "2V8LZ2444Y"
 IOS_BUNDLE   = "me.ph7.cortexos.ios"
@@ -118,6 +119,24 @@ end
 
 desc "watchOS TestFlight"
 lane :watch_testflight do
+  destinations, status = Open3.capture2e(
+    "xcodebuild",
+    "-showdestinations",
+    "-scheme",
+    "CortexOS-watchOS",
+    "-project",
+    PROJECT,
+  )
+
+  has_watch_destination = status.success? && destinations.include?("platform:watchOS")
+  has_missing_platform_error = destinations.include?("is not installed")
+
+  if !has_watch_destination || has_missing_platform_error
+    UI.important("Skipping watchOS upload: watchOS platform is not available in this Xcode install.")
+    UI.important("Install watchOS from Xcode > Settings > Components, then run `fastlane watch_testflight`.")
+    next
+  end
+
   increment_build_number(
     xcodeproj: PROJECT,
     build_number: Time.now.strftime("%Y%m%d%H%M"),
@@ -126,6 +145,7 @@ lane :watch_testflight do
   build_app(
     project: PROJECT,
     scheme: "CortexOS-watchOS",
+    destination: "generic/platform=watchOS",
     clean: true,
     export_method: "app-store",
     xcargs: SIGN_ARGS,
@@ -143,7 +163,7 @@ desc "Build and upload BOTH platforms to TestFlight"
 lane :all_testflight do
   Fastlane::LaneManager.cruise_lane("ios", "testflight_release")
   Fastlane::LaneManager.cruise_lane("mac", "testflight_release")
-  Fastlane::LaneManager.cruise_lane("ios", "watch_testflight")
+  watch_testflight
 end
 
 desc "Regenerate App Store provisioning profiles (iOS app + widget)"
