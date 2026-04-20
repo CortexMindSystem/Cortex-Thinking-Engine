@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build weekly review artifacts from the last 7 days of CortexOS Today outputs."""
+"""Build weekly review artifacts from the last 7 days of SimpliXio Today outputs."""
 
 from __future__ import annotations
 
@@ -138,7 +138,7 @@ def build_summary(
         return "No weekly data available."
 
     parts = [
-        f"CortexOS reviewed {days_covered} day(s) of output.",
+        f"SimpliXio reviewed {days_covered} day(s) of output.",
         f"It ignored {total_ignored} weak signal(s) this week.",
     ]
     if repeated_priorities:
@@ -157,7 +157,7 @@ def build_summary(
 
 def build_review_payload(payloads: list[dict[str, Any]]) -> dict[str, Any]:
     if not payloads:
-        raise FileNotFoundError("No CortexOS daily outputs were found.")
+        raise FileNotFoundError("No SimpliXio daily outputs were found.")
 
     week_payloads = last_7_days(payloads)
     if not week_payloads:
@@ -207,7 +207,7 @@ def build_review_payload(payloads: list[dict[str, Any]]) -> dict[str, Any]:
 
 def render_markdown(payload: dict[str, Any]) -> str:
     lines: list[str] = [
-        f"# CortexOS Weekly Review · {payload['week_start']} → {payload['week_end']}",
+        f"# SimpliXio Weekly Review · {payload['week_start']} → {payload['week_end']}",
         "",
         "## Summary",
         "",
@@ -269,7 +269,7 @@ def render_html(payload: dict[str, Any]) -> str:
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>CortexOS Weekly Review</title>
+  <title>SimpliXio Weekly Review</title>
   <style>
     body {{
       font-family: -apple-system, BlinkMacSystemFont, sans-serif;
@@ -295,7 +295,7 @@ def render_html(payload: dict[str, Any]) -> str:
   </style>
 </head>
 <body>
-  <h1>CortexOS Weekly Review</h1>
+  <h1>SimpliXio Weekly Review</h1>
   <p class="meta">{payload['week_start']} → {payload['week_end']}</p>
 
   <section class="card">

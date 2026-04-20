@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build the daily public CortexOS artifact (json + md + html).
+"""Build the daily public SimpliXio artifact (json + md + html).
 
 Monorepo-aware source order:
 1) latest growth output metadata from ../growth_output/YYYY-MM-DD/*.json
@@ -108,7 +108,7 @@ def load_today_source() -> dict[str, Any]:
 
 def build_markdown(payload: dict[str, Any]) -> str:
     lines: list[str] = []
-    lines.append(f"# CortexOS Today · {payload['date']}")
+    lines.append(f"# SimpliXio Today · {payload['date']}")
     lines.append("")
     lines.append("## Top priorities")
     lines.append("")
@@ -159,7 +159,7 @@ def build_html(payload: dict[str, Any]) -> str:
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>CortexOS Today · {payload['date']}</title>
+  <title>SimpliXio Today · {payload['date']}</title>
   <style>
     body {{
       font-family: -apple-system, BlinkMacSystemFont, sans-serif;
@@ -185,7 +185,7 @@ def build_html(payload: dict[str, Any]) -> str:
   </style>
 </head>
 <body>
-  <h1>CortexOS Today</h1>
+  <h1>SimpliXio Today</h1>
   <p class="meta">{payload['date']}</p>
   {''.join(priority_blocks)}
   <section class="card">
