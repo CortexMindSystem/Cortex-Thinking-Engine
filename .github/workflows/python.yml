@@ -1,5 +1,5 @@
 # ─────────────────────────────────────────────────────────
-# CortexOS — Python CI
+# SimpliXio — Python CI
 # Lint (ruff) + Security (bandit) + Unit tests (pytest)
 # Runs on every push/PR touching Python or test files.
 # ─────────────────────────────────────────────────────────
