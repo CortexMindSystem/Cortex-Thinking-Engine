@@ -1,4 +1,4 @@
-name: CortexOS Weekly Review
+name: SimpliXio Weekly Review
 
 on:
   schedule:
@@ -31,8 +31,8 @@ jobs:
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           OPENAI_MODEL: ${{ secrets.OPENAI_MODEL }}
-          APP_NAME: CortexOS
-          APP_URL: https://github.com/CortexMindSystem/Cortex-Thinking-Engine
+          APP_NAME: SimpliXio
+          APP_URL: https://github.com/pH-7/CortexOSLLM
           AUTHOR_NAME: Pierre-Henry Soria
           AUTHOR_URL: https://ph7.me
           SITE_BASE_URL: https://ph7.me
@@ -40,11 +40,11 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_TOPICS: ai,agents,developer-tools,context-engineering
           CORTEX_OUTPUTS_DIR: output/cortex_today
-          AUTO_APPROVE: "true"
           PUBLISH_X: "false"
           PUBLISH_LINKEDIN: "false"
           PUBLISH_SITE: "true"
           PUBLISH_JSON_LOG: "true"
+          PUBLISH_DRY_RUN: "true"
           OUTPUT_DIR: output
         run: |
           python scripts/run_weekly_pipeline.py --strict-quality
@@ -58,5 +58,5 @@ jobs:
             echo "No generated changes to commit"
             exit 0
           fi
-          git commit -m "chore: weekly CortexOS review"
+          git commit -m "chore: weekly SimpliXio review"
           git push
