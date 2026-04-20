@@ -1,26 +1,39 @@
 #!/usr/bin/env python3
+"""Generate SimpliXio marketing artifacts from real product outputs.
+
+This script is generation-first (safe by default).
+Publishing is handled by scripts/publish_outputs.py after quality checks pass.
+"""
+
 from __future__ import annotations
-import hashlib, html, json, os, re, textwrap
+
+import hashlib
+import html
+import json
+import os
+import re
+import textwrap
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
-import feedparser, requests
+
+import feedparser
+import requests
 from dotenv import load_dotenv
 from PIL import Image, ImageDraw, ImageFont
 from pydantic import BaseModel, Field
-try:
-    from requests_oauthlib import OAuth1
-except Exception:
-    OAuth1 = None
+
 
 AUTOMATION_ROOT = Path(__file__).resolve().parent
 REPO_ROOT = AUTOMATION_ROOT.parent
+
 
 class Priority(BaseModel):
     title: str
     why: str
     action: str
     ignored: bool = False
+
 
 class CortexBrief(BaseModel):
     date: str
@@ -30,12 +43,33 @@ class CortexBrief(BaseModel):
     themes: list[str] = Field(default_factory=list)
     notes: list[str] = Field(default_factory=list)
 
+
 class TrendItem(BaseModel):
     source: str
     title: str
     url: str
     published: str | None = None
     topic: str | None = None
+
+
+class WeeklyReview(BaseModel):
+    week_start: str = ""
+    week_end: str = ""
+    days_covered: int = 0
+    top_priorities: list[dict[str, Any]] = Field(default_factory=list)
+    top_signals: list[dict[str, Any]] = Field(default_factory=list)
+    total_ignored_signals: int = 0
+    summary: str = ""
+    recommendations: list[str] = Field(default_factory=list)
+
+
+class ContentPlan(BaseModel):
+    angle: str
+    score: int
+    reason: str
+    title: str
+    skip_generation: bool = False
+
 
 class GeneratedPost(BaseModel):
     channel: str
@@ -44,31 +78,20 @@ class GeneratedPost(BaseModel):
     url: str | None = None
     tags: list[str] = Field(default_factory=list)
 
+
 class Config(BaseModel):
-    openai_api_key: str | None = None
-    openai_model: str = "gpt-4.1-mini"
     app_name: str = "SimpliXio"
     app_url: str = "https://github.com/pH-7/CortexOSLLM"
     author_name: str = "Pierre-Henry Soria"
     author_url: str = "https://ph7.me"
-    site_base_url: str = "https://ph7.me"
-    timezone_name: str = "Australia/Sydney"
     rss_feeds: list[str] = Field(default_factory=list)
     github_token: str | None = None
-    github_topics: list[str] = Field(default_factory=lambda: ["ai","agents","developer-tools"])
+    github_topics: list[str] = Field(default_factory=lambda: ["ai", "agents", "developer-tools"])
     cortex_outputs_dir: Path = AUTOMATION_ROOT / "output" / "cortex_today"
-    auto_approve: bool = True
-    publish_x: bool = False
-    publish_linkedin: bool = False
+    output_dir: Path = AUTOMATION_ROOT / "output"
     publish_site: bool = True
     publish_json_log: bool = True
-    x_api_key: str | None = None
-    x_api_secret: str | None = None
-    x_access_token: str | None = None
-    x_access_secret: str | None = None
-    linkedin_access_token: str | None = None
-    linkedin_author_urn: str | None = None
-    output_dir: Path = AUTOMATION_ROOT / "output"
+
 
 def _resolve_path(value: str, *, default: Path) -> Path:
     cleaned = value.strip()
@@ -79,46 +102,33 @@ def _resolve_path(value: str, *, default: Path) -> Path:
         return path
     return (AUTOMATION_ROOT / path).resolve()
 
+
 def load_config() -> Config:
     load_dotenv(AUTOMATION_ROOT / ".env")
-    rss_feeds = [x.strip() for x in os.getenv("RSS_FEEDS","").split(",") if x.strip()]
-    github_topics = [x.strip() for x in os.getenv("GITHUB_TOPICS","ai,agents,developer-tools").split(",") if x.strip()]
+
+    rss_feeds = [x.strip() for x in os.getenv("RSS_FEEDS", "").split(",") if x.strip()]
+    github_topics = [x.strip() for x in os.getenv("GITHUB_TOPICS", "ai,agents,developer-tools").split(",") if x.strip()]
+
     raw_app_name = os.getenv("APP_NAME", "SimpliXio").strip()
     app_name = "SimpliXio" if raw_app_name.lower() in {"cortexos", "cortex os"} else raw_app_name
+
     raw_app_url = os.getenv("APP_URL", "https://github.com/pH-7/CortexOSLLM").strip()
     app_url = "https://github.com/pH-7/CortexOSLLM" if "CortexMindSystem/Cortex-Thinking-Engine" in raw_app_url else raw_app_url
+
     return Config(
-        openai_api_key=os.getenv("OPENAI_API_KEY") or None,
-        openai_model=os.getenv("OPENAI_MODEL","gpt-4.1-mini"),
         app_name=app_name,
         app_url=app_url,
-        author_name=os.getenv("AUTHOR_NAME","Pierre-Henry Soria"),
-        author_url=os.getenv("AUTHOR_URL","https://ph7.me"),
-        site_base_url=os.getenv("SITE_BASE_URL","https://ph7.me"),
-        timezone_name=os.getenv("TIMEZONE","Australia/Sydney"),
+        author_name=os.getenv("AUTHOR_NAME", "Pierre-Henry Soria"),
+        author_url=os.getenv("AUTHOR_URL", "https://ph7.me"),
         rss_feeds=rss_feeds,
         github_token=os.getenv("GITHUB_TOKEN") or None,
         github_topics=github_topics,
-        cortex_outputs_dir=_resolve_path(
-            os.getenv("CORTEX_OUTPUTS_DIR", ""),
-            default=AUTOMATION_ROOT / "output" / "cortex_today",
-        ),
-        auto_approve=os.getenv("AUTO_APPROVE","true").lower()=="true",
-        publish_x=os.getenv("PUBLISH_X","false").lower()=="true",
-        publish_linkedin=os.getenv("PUBLISH_LINKEDIN","false").lower()=="true",
-        publish_site=os.getenv("PUBLISH_SITE","true").lower()=="true",
-        publish_json_log=os.getenv("PUBLISH_JSON_LOG","true").lower()=="true",
-        x_api_key=os.getenv("X_API_KEY") or None,
-        x_api_secret=os.getenv("X_API_SECRET") or None,
-        x_access_token=os.getenv("X_ACCESS_TOKEN") or None,
-        x_access_secret=os.getenv("X_ACCESS_SECRET") or None,
-        linkedin_access_token=os.getenv("LINKEDIN_ACCESS_TOKEN") or None,
-        linkedin_author_urn=os.getenv("LINKEDIN_AUTHOR_URN") or None,
-        output_dir=_resolve_path(
-            os.getenv("OUTPUT_DIR", ""),
-            default=AUTOMATION_ROOT / "output",
-        ),
+        cortex_outputs_dir=_resolve_path(os.getenv("CORTEX_OUTPUTS_DIR", ""), default=AUTOMATION_ROOT / "output" / "cortex_today"),
+        output_dir=_resolve_path(os.getenv("OUTPUT_DIR", ""), default=AUTOMATION_ROOT / "output"),
+        publish_site=os.getenv("PUBLISH_SITE", "true").lower() == "true",
+        publish_json_log=os.getenv("PUBLISH_JSON_LOG", "true").lower() == "true",
     )
+
 
 def ensure_dirs(cfg: Config) -> None:
     for sub in [
@@ -128,19 +138,26 @@ def ensure_dirs(cfg: Config) -> None:
         cfg.output_dir / "logs",
         cfg.output_dir / "site",
         cfg.output_dir / "campaigns",
+        cfg.output_dir / "publish",
+        cfg.output_dir / "memory",
+        cfg.output_dir / "summaries",
     ]:
         sub.mkdir(parents=True, exist_ok=True)
 
+
 def slugify(value: str) -> str:
     value = re.sub(r"[^a-zA-Z0-9\s-]", "", value).strip().lower()
-    value = re.sub(r"[\s_-]+","-",value)
+    value = re.sub(r"[\s_-]+", "-", value)
     return value[:80]
+
+
+def app_slug(value: str) -> str:
+    return slugify(value) or "app"
+
 
 def file_sha(text: str) -> str:
     return hashlib.sha256(text.encode("utf-8")).hexdigest()[:12]
 
-def app_slug(value: str) -> str:
-    return slugify(value) or "app"
 
 def read_latest_brief(cfg: Config) -> CortexBrief:
     files = sorted(cfg.cortex_outputs_dir.glob("*.json"))
@@ -148,152 +165,329 @@ def read_latest_brief(cfg: Config) -> CortexBrief:
         raise FileNotFoundError(f"No SimpliXio outputs found in {cfg.cortex_outputs_dir}")
     return CortexBrief.model_validate(json.loads(files[-1].read_text(encoding="utf-8")))
 
+
+def read_weekly_review(cfg: Config) -> WeeklyReview:
+    path = cfg.output_dir / "weekly_review" / "latest.json"
+    if not path.exists():
+        return WeeklyReview()
+    return WeeklyReview.model_validate(json.loads(path.read_text(encoding="utf-8")))
+
+
 def fetch_rss_items(cfg: Config, max_per_feed: int = 5) -> list[TrendItem]:
-    items = []
+    items: list[TrendItem] = []
     for feed_url in cfg.rss_feeds:
         parsed = feedparser.parse(feed_url)
         for entry in parsed.entries[:max_per_feed]:
-            items.append(TrendItem(
-                source=feed_url,
-                title=getattr(entry, "title", "Untitled"),
-                url=getattr(entry, "link", ""),
-                published=getattr(entry, "published", None),
-            ))
+            items.append(
+                TrendItem(
+                    source=feed_url,
+                    title=getattr(entry, "title", "Untitled"),
+                    url=getattr(entry, "link", ""),
+                    published=getattr(entry, "published", None),
+                )
+            )
     return items
 
+
 def fetch_github_topic_repos(cfg: Config, per_topic: int = 4) -> list[TrendItem]:
-    items = []
+    items: list[TrendItem] = []
     headers = {"Accept": "application/vnd.github+json"}
     if cfg.github_token:
         headers["Authorization"] = f"Bearer {cfg.github_token}"
+
     for topic in cfg.github_topics:
-        params = {"q": f"topic:{topic} stars:>30", "sort":"updated", "order":"desc", "per_page": per_topic}
+        params = {
+            "q": f"topic:{topic} stars:>30",
+            "sort": "updated",
+            "order": "desc",
+            "per_page": per_topic,
+        }
         try:
-            resp = requests.get("https://api.github.com/search/repositories", headers=headers, params=params, timeout=20)
+            resp = requests.get(
+                "https://api.github.com/search/repositories",
+                headers=headers,
+                params=params,
+                timeout=20,
+            )
             resp.raise_for_status()
             payload = resp.json()
         except Exception:
             continue
+
         for repo in payload.get("items", []):
-            items.append(TrendItem(source="github", title=repo["full_name"], url=repo["html_url"], published=repo.get("updated_at"), topic=topic))
+            items.append(
+                TrendItem(
+                    source="github",
+                    title=repo["full_name"],
+                    url=repo["html_url"],
+                    published=repo.get("updated_at"),
+                    topic=topic,
+                )
+            )
     return items
 
-def deterministic_posts(cfg: Config, brief: CortexBrief, trends: list[TrendItem]) -> dict[str, GeneratedPost]:
-    run_date = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+
+def load_content_memory(cfg: Config) -> dict[str, Any]:
+    path = cfg.output_dir / "memory" / "content_memory.json"
+    if not path.exists():
+        return {"angles": [], "hashes": []}
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except Exception:
+        return {"angles": [], "hashes": []}
+
+
+def choose_content_plan(brief: CortexBrief, weekly: WeeklyReview, memory: dict[str, Any]) -> ContentPlan:
+    recent_angles = [str(item.get("angle", "")) for item in memory.get("angles", [])][-6:]
+    candidates: list[ContentPlan] = []
+
+    if brief.priorities:
+        top = brief.priorities[0]
+        candidates.append(
+            ContentPlan(
+                angle="today_priority",
+                score=4,
+                reason="Daily top priority exists with why/action context.",
+                title=f"{top.title} becomes today's decision anchor",
+            )
+        )
+
+    if brief.ignored_signals_count > 0:
+        candidates.append(
+            ContentPlan(
+                angle="ignored_signals",
+                score=3,
+                reason="Ignored signal count provides proof of filtering value.",
+                title=f"Ignored {brief.ignored_signals_count} weak signals today",
+            )
+        )
+
+    if weekly.days_covered >= 3 and weekly.top_priorities:
+        repeated = weekly.top_priorities[0]
+        candidates.append(
+            ContentPlan(
+                angle="weekly_repeat",
+                score=5,
+                reason="Weekly review shows repeated priorities across multiple days.",
+                title=f"Weekly repeat: {repeated.get('title', 'Priority')}",
+            )
+        )
+
+    if weekly.days_covered >= 3 and weekly.recommendations:
+        candidates.append(
+            ContentPlan(
+                angle="weekly_lesson",
+                score=4,
+                reason="Weekly review contains concrete recommendation.",
+                title="What SimpliXio learned this week",
+            )
+        )
+
+    if not candidates:
+        return ContentPlan(
+            angle="insufficient_signal",
+            score=0,
+            reason="Not enough artifact data to generate proof-based content.",
+            title="Skip generation",
+            skip_generation=True,
+        )
+
+    # Prefer highest score, avoiding recently used angles.
+    candidates.sort(key=lambda item: item.score, reverse=True)
+    for candidate in candidates:
+        if candidate.angle not in recent_angles:
+            return candidate
+
+    # If all are repeated, keep best but skip when weak.
+    best = candidates[0]
+    if best.score < 3:
+        best.skip_generation = True
+    return best
+
+
+def deterministic_posts(
+    cfg: Config,
+    brief: CortexBrief,
+    weekly: WeeklyReview,
+    trends: list[TrendItem],
+    plan: ContentPlan,
+) -> dict[str, GeneratedPost]:
     active = [p for p in brief.priorities if not p.ignored][:3]
     ignored = brief.ignored_signals_count
     trend_titles = "; ".join(item.title for item in trends[:3])
-    x_body = textwrap.dedent(f"""
-    {cfg.app_name} today ({run_date}):
 
-    • {active[0].title if len(active) > 0 else 'Reduce noise'}
-    • {active[1].title if len(active) > 1 else 'Protect clarity'}
-    • {active[2].title if len(active) > 2 else 'Act on what matters'}
+    if plan.skip_generation:
+        return {}
 
-    Why:
-    {active[0].why if len(active) > 0 else 'Decision quality compounds when noise is removed.'}
+    weekly_line = weekly.summary.strip() if weekly.summary else "Weekly review is building signal history."
+    repeated_priority = ""
+    if weekly.top_priorities:
+        first = weekly.top_priorities[0]
+        repeated_priority = str(first.get("title", "")).strip()
 
-    Next:
-    {active[0].action if len(active) > 0 else 'Take one concrete action in the next 30 minutes.'}
+    x_body = textwrap.dedent(
+        f"""
+        SimpliXio today:
 
-    Ignored {ignored} weak signals today.
-    Decide what matters. Turn noise into action.
+        3 priorities:
+        • {active[0].title if len(active) > 0 else 'Reduce noise'}
+        • {active[1].title if len(active) > 1 else 'Protect clarity'}
+        • {active[2].title if len(active) > 2 else 'Act on what matters'}
 
-    {cfg.app_url}
-    """).strip()
-    linkedin_body = textwrap.dedent(f"""
-    Most tools add information.
-    {cfg.app_name} removes noise.
+        Why it matters:
+        {active[0].why if len(active) > 0 else 'Decision quality compounds when weak signals are removed.'}
 
-    Today the system compressed a noisy input stream into 3 priorities:
-    - {active[0].title if len(active) > 0 else 'Reduce noise'}
-    - {active[1].title if len(active) > 1 else 'Protect clarity'}
-    - {active[2].title if len(active) > 2 else 'Act on what matters'}
+        Next action:
+        {active[0].action if len(active) > 0 else 'Take one concrete action in the next 30 minutes.'}
 
-    Why this matters:
-    decision systems should help people think clearly and act decisively, not consume more feeds.
+        Ignored signals: {ignored}
+        {cfg.app_url}
+        """
+    ).strip()
 
-    Signals reviewed today included:
-    {trend_titles if trend_titles else 'AI, developer tools, and context systems'}
+    linkedin_body = textwrap.dedent(
+        f"""
+        SimpliXio is a decision system.
 
-    Project: {cfg.app_name}
-    {cfg.app_url}
-    """).strip()
-    blog_body = textwrap.dedent(f"""
-    # {cfg.app_name}: today’s decision brief
+        It turns noise into 3 priorities:
+        - {active[0].title if len(active) > 0 else 'Reduce noise'}
+        - {active[1].title if len(active) > 1 else 'Protect clarity'}
+        - {active[2].title if len(active) > 2 else 'Act on what matters'}
 
-    {cfg.app_name} is being built as a decision system that turns noise into 3 priorities.
+        Ignored signals today: {ignored}
+        Weekly review: {weekly_line}
 
-    Today’s active priorities were:
+        Angle: {plan.angle}
+        Context signals reviewed: {trend_titles if trend_titles else 'AI, developer tools, context systems'}
 
-    {chr(10).join([f"## {p.title}{chr(10)}Why it matters: {p.why}{chr(10)}Next action: {p.action}" for p in active])}
+        Decide what matters. Turn noise into action.
+        {cfg.app_url}
+        """
+    ).strip()
 
-    Ignored signals today: {ignored}
+    blog_body = textwrap.dedent(
+        f"""
+        # SimpliXio Today: decision loop update
 
-    Themes:
-    {chr(10).join([f"- {theme}" for theme in brief.themes])}
+        SimpliXio helps decide what matters.
 
-    Notes:
-    {chr(10).join([f"- {note}" for note in brief.notes])}
+        ## 3 priorities
 
-    The goal is simple: compress chaos into clarity, then turn clarity into action.
-    """).strip()
+        {chr(10).join([f"### {p.title}{chr(10)}Why: {p.why}{chr(10)}Action: {p.action}" for p in active])}
+
+        ## Ignored signals
+
+        - {ignored} weak signals filtered out today
+
+        ## Weekly review
+
+        - Days covered: {weekly.days_covered}
+        - Repeated priority: {repeated_priority or 'Not enough history yet'}
+        - Summary: {weekly_line}
+
+        ## Lesson
+
+        - {plan.reason}
+
+        Not another AI app. A decision system for clearer action.
+        """
+    ).strip()
+
     return {
-        "x": GeneratedPost(channel="x", title=f"{cfg.app_name} today", body=x_body, url=cfg.app_url),
-        "linkedin": GeneratedPost(channel="linkedin", title=f"{cfg.app_name}: fewer signals, better decisions", body=linkedin_body, url=cfg.app_url),
-        "blog": GeneratedPost(channel="blog", title=f"{cfg.app_name}: today’s decision brief", body=blog_body, url=cfg.app_url),
+        "x": GeneratedPost(channel="x", title="SimpliXio Today: 3 priorities", body=x_body, url=cfg.app_url),
+        "linkedin": GeneratedPost(
+            channel="linkedin",
+            title="SimpliXio: from noise to action",
+            body=linkedin_body,
+            url=cfg.app_url,
+        ),
+        "blog": GeneratedPost(channel="blog", title="SimpliXio Today: decision loop update", body=blog_body, url=cfg.app_url),
     }
 
+
 def save_drafts(cfg: Config, posts: dict[str, GeneratedPost]) -> dict[str, Path]:
-    paths = {}
+    paths: dict[str, Path] = {}
+    latest_targets = [cfg.output_dir / "drafts" / f"latest-{channel}.md" for channel in ("x", "linkedin", "blog")]
+    if not posts:
+        for target in latest_targets:
+            if target.exists():
+                target.unlink()
+        return paths
+
     for channel, post in posts.items():
-        path = cfg.output_dir/"drafts"/f"{channel}-{slugify(post.title)}-{file_sha(post.body)}.md"
-        path.write_text(f"# {post.title}\n\n{post.body}\n", encoding="utf-8")
+        path = cfg.output_dir / "drafts" / f"{channel}-{slugify(post.title)}-{file_sha(post.body)}.md"
+        markdown = f"# {post.title}\n\n{post.body}\n"
+        path.write_text(markdown, encoding="utf-8")
+        (cfg.output_dir / "drafts" / f"latest-{channel}.md").write_text(markdown, encoding="utf-8")
         paths[channel] = path
-        latest_path = cfg.output_dir / "drafts" / f"latest-{channel}.md"
-        latest_path.write_text(f"# {post.title}\n\n{post.body}\n", encoding="utf-8")
     return paths
 
-def save_campaign_brief(cfg: Config, brief: CortexBrief, posts: dict[str, GeneratedPost], trends: list[TrendItem]) -> Path:
+
+def save_campaign_brief(
+    cfg: Config,
+    brief: CortexBrief,
+    weekly: WeeklyReview,
+    plan: ContentPlan,
+    posts: dict[str, GeneratedPost],
+    trends: list[TrendItem],
+) -> Path:
     day_key = datetime.now(timezone.utc).strftime("%Y-%m-%d")
     path = cfg.output_dir / "campaigns" / f"{app_slug(cfg.app_name)}-campaign-{day_key}.md"
-    trend_lines = [f"- {item.title} ({item.url})" for item in trends[:5]]
-    if not trend_lines:
-        trend_lines = ["- No external trends captured in this run."]
+
+    trend_lines = [f"- {item.title} ({item.url})" for item in trends[:5]] or ["- No external trends captured in this run."]
     active = [p for p in brief.priorities if not p.ignored][:3]
-    priority_lines = [f"- {p.title}: {p.action}" for p in active]
-    if not priority_lines:
-        priority_lines = ["- No active priorities detected."]
-    md = "\n".join(
-        [
-            f"# {cfg.app_name} Campaign Brief · {day_key}",
-            "",
-            "## Positioning",
-            "",
-            "Not another AI app. A decision system for clearer action.",
-            "",
-            "## Core message",
-            "",
-            "Decide what matters. Turn noise into action.",
-            "",
-            "## Today's priorities",
-            "",
-            *priority_lines,
-            "",
-            "## Signals reviewed",
-            "",
-            *trend_lines,
-            "",
-            "## Draft artifacts",
-            "",
-            f"- X: {posts['x'].title}",
-            f"- LinkedIn: {posts['linkedin'].title}",
-            f"- Blog: {posts['blog'].title}",
-            "",
-        ]
-    )
-    path.write_text(md, encoding="utf-8")
+    priority_lines = [f"- {p.title}: {p.action}" for p in active] or ["- No active priorities detected."]
+
+    lines = [
+        f"# {cfg.app_name} Campaign Brief · {day_key}",
+        "",
+        "## Positioning",
+        "",
+        "Not another AI app. A decision system for clearer action.",
+        "",
+        "## Core message",
+        "",
+        "Decide what matters. Turn noise into action.",
+        "",
+        "## Chosen angle",
+        "",
+        f"- Angle: {plan.angle}",
+        f"- Reason: {plan.reason}",
+        f"- Score: {plan.score}",
+        f"- Skip generation: {str(plan.skip_generation).lower()}",
+        "",
+        "## Today's priorities",
+        "",
+        *priority_lines,
+        "",
+        "## Weekly context",
+        "",
+        f"- Days covered: {weekly.days_covered}",
+        f"- Ignored signals this week: {weekly.total_ignored_signals}",
+        "",
+        "## Signals reviewed",
+        "",
+        *trend_lines,
+        "",
+        "## Draft artifacts",
+        "",
+    ]
+
+    if posts:
+        lines.extend(
+            [
+                f"- X: {posts['x'].title}",
+                f"- LinkedIn: {posts['linkedin'].title}",
+                f"- Blog: {posts['blog'].title}",
+            ]
+        )
+    else:
+        lines.append("- Skipped: insufficient signal for high-quality draft generation.")
+
+    lines.append("")
+    path.write_text("\n".join(lines), encoding="utf-8")
     return path
+
 
 def render_card(cfg: Config, brief: CortexBrief, out_path: Path) -> None:
     width, height = 1280, 640
@@ -307,94 +501,99 @@ def render_card(cfg: Config, brief: CortexBrief, out_path: Path) -> None:
         title_font = ImageFont.load_default()
         h2_font = ImageFont.load_default()
         small_font = ImageFont.load_default()
-    draw.rounded_rectangle((36,36,1244,604), radius=34, fill=(20,28,50))
-    draw.text((72,64), cfg.app_name, font=title_font, fill=(245,248,255))
-    draw.text((74,142), "Decide what matters.", font=h2_font, fill=(175,186,214))
+
+    draw.rounded_rectangle((36, 36, 1244, 604), radius=34, fill=(20, 28, 50))
+    draw.text((72, 64), cfg.app_name, font=title_font, fill=(245, 248, 255))
+    draw.text((74, 142), "Decide what matters.", font=h2_font, fill=(175, 186, 214))
+
     y = 220
     for idx, priority in enumerate([p for p in brief.priorities if not p.ignored][:3], start=1):
-        draw.rounded_rectangle((72,y,1208,y+96), radius=24, outline=(105,142,255), width=2)
-        draw.text((96, y+18), f"{idx}. {priority.title}", font=h2_font, fill=(245,248,255))
-        draw.text((96, y+52), textwrap.fill(f"Why: {priority.why}", width=70), font=small_font, fill=(175,186,214))
+        draw.rounded_rectangle((72, y, 1208, y + 96), radius=24, outline=(105, 142, 255), width=2)
+        draw.text((96, y + 18), f"{idx}. {priority.title}", font=h2_font, fill=(245, 248, 255))
+        draw.text((96, y + 52), textwrap.fill(f"Why: {priority.why}", width=70), font=small_font, fill=(175, 186, 214))
         y += 112
-    draw.rounded_rectangle((840,74,1194,170), radius=24, fill=(17,24,42))
-    draw.text((868,96), f"Ignored today: {brief.ignored_signals_count}", font=small_font, fill=(98,209,150))
-    draw.text((868,128), "Noise reduced into action", font=small_font, fill=(175,186,214))
+
+    draw.rounded_rectangle((840, 74, 1194, 170), radius=24, fill=(17, 24, 42))
+    draw.text((868, 96), f"Ignored today: {brief.ignored_signals_count}", font=small_font, fill=(98, 209, 150))
+    draw.text((868, 128), "Noise reduced into action", font=small_font, fill=(175, 186, 214))
     img.save(out_path)
 
-def publish_site(cfg: Config, posts: dict[str, GeneratedPost], brief: CortexBrief, card_path: Path) -> Path:
-    html_path = cfg.output_dir/"site"/f"{app_slug(cfg.app_name)}-today-{brief.date}.html"
+
+def publish_site(cfg: Config, posts: dict[str, GeneratedPost], brief: CortexBrief, card_path: Path) -> Path | None:
+    if not posts:
+        return None
+
+    html_path = cfg.output_dir / "site" / f"{app_slug(cfg.app_name)}-today-{brief.date}.html"
     post = posts["blog"]
     body_html = "".join(f"<p>{html.escape(line)}</p>" for line in post.body.splitlines() if line.strip())
     page = f"""<!doctype html><html lang='en'><head><meta charset='utf-8' /><meta name='viewport' content='width=device-width, initial-scale=1' />
-    <title>{html.escape(post.title)}</title><style>body{{font-family:-apple-system,BlinkMacSystemFont,sans-serif;max-width:840px;margin:40px auto;padding:0 20px;line-height:1.6;background:#0b1120;color:#eef2ff}}a{{color:#7aa2ff}}img{{width:100%;border-radius:20px;margin:24px 0}}.meta{{color:#a5b4d6}}</style></head><body>
-    <h1>{html.escape(post.title)}</h1><p class='meta'>{cfg.app_name} automated brief · {brief.date}</p>
-    <img src='../cards/{card_path.name}' alt='{cfg.app_name} today' />{body_html}
-    <p><a href='{cfg.app_url}'>Project</a> · <a href='{cfg.author_url}'>Builder</a></p></body></html>"""
+<title>{html.escape(post.title)}</title><style>body{{font-family:-apple-system,BlinkMacSystemFont,sans-serif;max-width:840px;margin:40px auto;padding:0 20px;line-height:1.6;background:#0b1120;color:#eef2ff}}a{{color:#7aa2ff}}img{{width:100%;border-radius:20px;margin:24px 0}}.meta{{color:#a5b4d6}}</style></head><body>
+<h1>{html.escape(post.title)}</h1><p class='meta'>{cfg.app_name} automated brief · {brief.date}</p>
+<img src='../cards/{card_path.name}' alt='{cfg.app_name} today' />{body_html}
+<p><a href='{cfg.app_url}'>Project</a> · <a href='{cfg.author_url}'>Builder</a></p></body></html>"""
     html_path.write_text(page, encoding="utf-8")
     return html_path
 
-def publish_x(cfg: Config, post: GeneratedPost) -> dict[str, Any]:
-    if not (cfg.x_api_key and cfg.x_api_secret and cfg.x_access_token and cfg.x_access_secret):
-        return {"status":"skipped","reason":"Missing X credentials"}
-    if OAuth1 is None:
-        return {"status":"skipped","reason":"requests-oauthlib not available"}
-    auth = OAuth1(cfg.x_api_key, cfg.x_api_secret, cfg.x_access_token, cfg.x_access_secret)
-    resp = requests.post("https://api.x.com/2/tweets", json={"text": post.body[:280]}, auth=auth, timeout=30)
-    return {"status_code": resp.status_code, "body": resp.text}
-
-def publish_linkedin(cfg: Config, post: GeneratedPost) -> dict[str, Any]:
-    if not (cfg.linkedin_access_token and cfg.linkedin_author_urn):
-        return {"status":"skipped","reason":"Missing LinkedIn credentials"}
-    payload = {
-        "author": cfg.linkedin_author_urn,
-        "lifecycleState": "PUBLISHED",
-        "specificContent": {"com.linkedin.ugc.ShareContent": {
-            "shareCommentary": {"text": post.body},
-            "shareMediaCategory": "ARTICLE",
-            "media": [{"status": "READY", "originalUrl": cfg.app_url}],
-        }},
-        "visibility": {"com.linkedin.ugc.MemberNetworkVisibility": "PUBLIC"},
-    }
-    headers = {
-        "Authorization": f"Bearer {cfg.linkedin_access_token}",
-        "X-Restli-Protocol-Version": "2.0.0",
-        "Content-Type": "application/json",
-    }
-    resp = requests.post("https://api.linkedin.com/v2/ugcPosts", headers=headers, json=payload, timeout=30)
-    return {"status_code": resp.status_code, "body": resp.text}
 
 def save_log(cfg: Config, payload: dict[str, Any]) -> Path:
-    path = cfg.output_dir/"logs"/f"run-{datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%SZ')}.json"
+    path = cfg.output_dir / "logs" / f"run-{datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%SZ')}.json"
     path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
     return path
 
-def quality_gate_passed(cfg: Config) -> bool:
-    report_path = cfg.output_dir / "quality_gate" / "quality_report.json"
-    if not report_path.exists():
-        return True
-    try:
-        payload = json.loads(report_path.read_text(encoding="utf-8"))
-    except Exception:
-        return False
-    summary = payload.get("summary", {})
-    failed = int(summary.get("failed", 0))
-    drafts = int(summary.get("drafts", 0))
-    return drafts > 0 and failed == 0
+
+def write_publish_manifest(
+    cfg: Config,
+    posts: dict[str, GeneratedPost],
+    plan: ContentPlan,
+    quality_gate_passed: bool,
+) -> Path:
+    manifest = {
+        "generated_at": datetime.now(timezone.utc).replace(microsecond=0).isoformat(),
+        "quality_gate_passed": quality_gate_passed,
+        "plan": plan.model_dump(),
+        "posts": {
+            channel: {
+                "title": post.title,
+                "body": post.body,
+                "hash": file_sha(post.body),
+                "url": post.url,
+            }
+            for channel, post in posts.items()
+        },
+    }
+    path = cfg.output_dir / "publish" / "latest_posts.json"
+    path.write_text(json.dumps(manifest, indent=2), encoding="utf-8")
+    return path
+
 
 def run() -> None:
     cfg = load_config()
     ensure_dirs(cfg)
+
     brief = read_latest_brief(cfg)
+    weekly = read_weekly_review(cfg)
     trends = fetch_rss_items(cfg) + fetch_github_topic_repos(cfg)
-    posts = deterministic_posts(cfg, brief, trends)
-    card_path = cfg.output_dir/"cards"/f"{app_slug(cfg.app_name)}-today-{brief.date}.png"
+    memory = load_content_memory(cfg)
+
+    plan = choose_content_plan(brief, weekly, memory)
+    posts = deterministic_posts(cfg, brief, weekly, trends, plan)
+
+    card_path = cfg.output_dir / "cards" / f"{app_slug(cfg.app_name)}-today-{brief.date}.png"
     render_card(cfg, brief, card_path)
+
     drafts = save_drafts(cfg, posts)
-    campaign_brief = save_campaign_brief(cfg, brief, posts, trends)
-    gate_ok = quality_gate_passed(cfg)
-    results = {
+    campaign_brief = save_campaign_brief(cfg, brief, weekly, plan, posts, trends)
+
+    # Generation step remains dry-run by default. Quality + publish happen later in the pipeline.
+    gate_ok = False
+    manifest_path = write_publish_manifest(cfg, posts, plan, quality_gate_passed=gate_ok)
+
+    site_path = publish_site(cfg, posts, brief, card_path) if cfg.publish_site else None
+
+    results: dict[str, Any] = {
         "generated_at": datetime.now(timezone.utc).replace(microsecond=0).isoformat(),
         "brief_date": brief.date,
+        "plan": plan.model_dump(),
         "drafts": {k: str(v) for k, v in drafts.items()},
         "latest_drafts": {
             "x": str(cfg.output_dir / "drafts" / "latest-x.md"),
@@ -402,21 +601,18 @@ def run() -> None:
             "blog": str(cfg.output_dir / "drafts" / "latest-blog.md"),
         },
         "campaign_brief": str(campaign_brief),
+        "publish_manifest": str(manifest_path),
         "card": str(card_path),
-        "site": None,
-        "x": {"status": "not-run"},
-        "linkedin": {"status": "not-run"},
-        "quality_gate_passed": gate_ok,
+        "site": str(site_path) if site_path else None,
+        "quality_gate_passed": False,
+        "publish": {"status": "not-run", "reason": "Quality gate and publish step run later in pipeline."},
     }
-    if cfg.publish_site:
-        results["site"] = str(publish_site(cfg, posts, brief, card_path))
-    if cfg.auto_approve and cfg.publish_x and gate_ok:
-        results["x"] = publish_x(cfg, posts["x"])
-    if cfg.auto_approve and cfg.publish_linkedin and gate_ok:
-        results["linkedin"] = publish_linkedin(cfg, posts["linkedin"])
+
     if cfg.publish_json_log:
         results["log"] = str(save_log(cfg, results))
+
     print(json.dumps(results, indent=2))
+
 
 if __name__ == "__main__":
     run()

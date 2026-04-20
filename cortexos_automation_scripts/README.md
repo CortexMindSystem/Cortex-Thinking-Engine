@@ -1,4 +1,4 @@
-# CortexOS Automation (Monorepo)
+# SimpliXio Automation (Monorepo)
 
 This folder is the automation engine for marketing + weekly learning loops.
 
@@ -14,8 +14,9 @@ cortexos_automation_scripts/
   scripts/
     filter_signals.py
     build_cortex_today.py
-    marketing_quality_gate.py
     build_weekly_review.py
+    marketing_quality_gate.py
+    publish_outputs.py
     run_weekly_pipeline.py
   output/
     cortex_today/
@@ -44,14 +45,15 @@ pip install -r requirements.txt
 cp .env.example .env
 ```
 
-## Daily run order
+## Daily run order (artifact-first)
 
 ```bash
 python3 scripts/filter_signals.py
 python3 scripts/build_cortex_today.py
+python3 scripts/build_weekly_review.py
 python3 marketing_automation.py
 python3 scripts/marketing_quality_gate.py --strict
-python3 scripts/build_weekly_review.py
+python3 scripts/publish_outputs.py
 ```
 
 ## Weekly pipeline
@@ -60,8 +62,13 @@ python3 scripts/build_weekly_review.py
 python3 scripts/run_weekly_pipeline.py --strict-quality
 ```
 
+The pipeline writes:
+- JSON run log: `output/logs/weekly-pipeline-*.json`
+- Markdown summary: `output/summaries/weekly-pipeline-*.md`
+
 ## Notes
 
 - `build_cortex_today.py` uses the latest `../growth_output/*/(ready_to_publish|pending_approval).json` as primary source.
 - If growth output is missing, it attempts one fallback run of `../scripts/cortex_growth_loop.py`.
-- Social publish in `marketing_automation.py` is gated by `quality_report.json` when present.
+- `marketing_automation.py` generates drafts and artifacts only.
+- `publish_outputs.py` is safe by default (`PUBLISH_DRY_RUN=true`), and updates content memory only when quality passes.
