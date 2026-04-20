@@ -213,17 +213,23 @@ struct CreateNoteView: View {
             Form {
                 Section("Title") {
                     TextField("Note title", text: $title)
+                        .textFieldStyle(.plain)
+                        .cortexInputSurface()
                 }
                 Section("Insight") {
                     TextEditor(text: $insight)
-                        .frame(minHeight: 60)
+                        .scrollContentBackground(.hidden)
+                        .cortexInputSurface(minHeight: CortexInput.multiLineMinHeight)
                 }
                 Section("Implication") {
                     TextEditor(text: $implication)
-                        .frame(minHeight: 60)
+                        .scrollContentBackground(.hidden)
+                        .cortexInputSurface(minHeight: CortexInput.multiLineMinHeight)
                 }
                 Section("Action") {
                     TextField("Next action", text: $action)
+                        .textFieldStyle(.plain)
+                        .cortexInputSurface()
                 }
                 Section("Source URL") {
                     TextField("https://…", text: $sourceURL)
@@ -231,9 +237,13 @@ struct CreateNoteView: View {
                         .keyboardType(.URL)
                         .textInputAutocapitalization(.never)
                         #endif
+                        .textFieldStyle(.plain)
+                        .cortexInputSurface()
                 }
                 Section("Tags (comma-separated)") {
                     TextField("AI, retrieval, context", text: $tagsText)
+                        .textFieldStyle(.plain)
+                        .cortexInputSurface()
                 }
             }
             .navigationTitle("New Note")

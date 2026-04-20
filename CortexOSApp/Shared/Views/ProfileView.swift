@@ -18,8 +18,12 @@ struct ProfileView: View {
         Form {
             Section("Identity") {
                 TextField("Name", text: $editingProfile.name)
+                    .textFieldStyle(.plain)
+                    .cortexInputSurface()
                     .onChange(of: editingProfile.name) { hasChanges = true }
                 TextField("Role", text: $editingProfile.role)
+                    .textFieldStyle(.plain)
+                    .cortexInputSurface()
                     .onChange(of: editingProfile.role) { hasChanges = true }
             }
 
@@ -92,6 +96,8 @@ struct ProfileView: View {
                         hasChanges = true
                     }
                 ))
+                .textFieldStyle(.plain)
+                .cortexInputSurface()
             }
             .onDelete { offsets in
                 items.wrappedValue.remove(atOffsets: offsets)

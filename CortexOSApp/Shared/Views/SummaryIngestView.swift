@@ -31,22 +31,14 @@ struct SummaryIngestView: View {
                     .foregroundStyle(CortexColor.textSecondary)
 
                 TextEditor(text: $content)
-                    .font(CortexFont.body)
                     .scrollContentBackground(.hidden)
-                    .padding(CortexSpacing.sm)
-                    .frame(minHeight: 160)
-                    .background(CortexColor.bgSurface)
-                    .clipShape(RoundedRectangle(cornerRadius: CortexRadius.card, style: .continuous))
-                    .cortexShadow()
+                    .cortexInputSurface(minHeight: 170)
             }
 
             // Source label (optional — where did this come from?)
             TextField("Source (optional)", text: $source)
-                .font(CortexFont.caption)
                 .textFieldStyle(.plain)
-                .padding(CortexSpacing.sm)
-                .background(CortexColor.bgSurface)
-                .clipShape(RoundedRectangle(cornerRadius: CortexRadius.small, style: .continuous))
+                .cortexInputSurface()
 
             // Submit
             Button {

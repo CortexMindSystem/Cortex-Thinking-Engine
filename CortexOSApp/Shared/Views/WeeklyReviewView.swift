@@ -37,6 +37,12 @@ struct WeeklyReviewView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: CortexSpacing.lg) {
                 sectionCard("Summary", systemImage: "text.alignleft") {
+                    if let periodLabel = review.periodLabel, !periodLabel.isEmpty {
+                        Text(periodLabel)
+                            .font(CortexFont.caption)
+                            .foregroundStyle(CortexColor.textTertiary)
+                    }
+
                     if review.quality == "insufficient_history" {
                         HStack(spacing: CortexSpacing.xs) {
                             Image(systemName: "exclamationmark.triangle.fill")
@@ -53,7 +59,7 @@ struct WeeklyReviewView: View {
                         .foregroundStyle(CortexColor.textPrimary)
 
                     HStack(spacing: CortexSpacing.lg) {
-                        metric("Week", "\(review.weekStart) → \(review.weekEnd)")
+                        metric("Week", review.periodLabel ?? "\(review.weekStart) → \(review.weekEnd)")
                         metric("Days", "\(review.daysCovered)")
                         metric("Ignored", "\(review.totalIgnoredSignals)")
                     }

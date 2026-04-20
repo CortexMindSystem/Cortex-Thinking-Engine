@@ -40,7 +40,7 @@ struct KnowledgeNote: Codable, Identifiable, Hashable {
         id: "abc123",
         title: "Context-Aware Retrieval Gains",
         insight: "Contextual embeddings outperform static ones for knowledge retrieval.",
-        implication: "CortexOS ranking should use dynamic context windows.",
+        implication: "SimpliXio ranking should use dynamic context windows.",
         action: "Prototype dynamic context embedding pipeline.",
         sourceURL: "https://example.com/paper",
         tags: ["AI", "retrieval"],

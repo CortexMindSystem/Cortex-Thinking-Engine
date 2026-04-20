@@ -17,7 +17,7 @@ struct SettingsView: View {
     @State private var isRetryingQueue = false
     @State private var showQueueSheet = false
 
-    @AppStorage("cortex_system_name") private var systemName: String = "CortexOS"
+    @AppStorage("cortex_system_name") private var systemName: String = "SimpliXio"
     @AppStorage("cortex_demo_mode_enabled") private var demoModeEnabled: Bool = true
 
     var body: some View {
@@ -40,6 +40,8 @@ struct SettingsView: View {
                         .keyboardType(.URL)
                         .textInputAutocapitalization(.never)
                         #endif
+                        .textFieldStyle(.plain)
+                        .cortexInputSurface()
                         .onChange(of: serverURL) { _, newValue in
                             engine.api.baseURL = newValue
                         }
@@ -101,6 +103,8 @@ struct SettingsView: View {
             // MARK: - Identity
             Section {
                 TextField("Name", text: $systemName)
+                    .textFieldStyle(.plain)
+                    .cortexInputSurface()
             } header: {
                 Text("Identity")
             }
@@ -142,23 +146,53 @@ struct SettingsView: View {
 
             // MARK: - About
             Section("About") {
+                LabeledContent("App", value: "SimpliXio")
+                LabeledContent("Tagline", value: "Decide what matters.")
+                LabeledContent("Subtitle", value: "Turn noise into action.")
+                LabeledContent("Description", value: "A decision system that turns noise into 3 priorities.")
                 LabeledContent("Version", value: "1.1.0")
-                LabeledContent("Built by", value: "Pierre-Henry Soria")
+            }
 
-                Link(destination: URL(string: "https://github.com/pH-7")!) {
+            Section("Author") {
+                HStack(alignment: .top, spacing: CortexSpacing.md) {
+                    Image(systemName: "person.crop.circle.fill")
+                        .font(.title2)
+                        .foregroundStyle(CortexColor.accent)
+
+                    VStack(alignment: .leading, spacing: CortexSpacing.xxs) {
+                        Text("Pierre-Henry Soria")
+                            .font(CortexFont.bodyMedium)
+                            .foregroundStyle(CortexColor.textPrimary)
+
+                        Text("I build context-aware AI systems that help ambitious people think clearly and act decisively.")
+                            .font(CortexFont.caption)
+                            .foregroundStyle(CortexColor.textSecondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+
+                Link(destination: URL(string: "https://pierrehenry.dev")!) {
                     HStack {
-                        Text("GitHub")
+                        Label("Website", systemImage: "globe")
+                            .foregroundStyle(CortexColor.textPrimary)
                         Spacer()
+                        Text("pierrehenry.dev")
+                            .font(CortexFont.caption)
+                            .foregroundStyle(CortexColor.textTertiary)
                         Image(systemName: "arrow.up.right")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
                 }
 
-                Link(destination: URL(string: "https://ph7.me")!) {
+                Link(destination: URL(string: "https://github.com/pH-7")!) {
                     HStack {
-                        Text("Website")
+                        Label("GitHub", systemImage: "chevron.left.forwardslash.chevron.right")
+                            .foregroundStyle(CortexColor.textPrimary)
                         Spacer()
+                        Text("@pH-7")
+                            .font(CortexFont.caption)
+                            .foregroundStyle(CortexColor.textTertiary)
                         Image(systemName: "arrow.up.right")
                             .font(.caption)
                             .foregroundStyle(.secondary)
