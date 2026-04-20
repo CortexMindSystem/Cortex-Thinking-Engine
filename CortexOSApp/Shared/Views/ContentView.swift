@@ -12,13 +12,29 @@ import SwiftUI
 
 struct ContentView: View {
     @StateObject private var engine = CortexEngine()
+    @AppStorage("simplixio_onboarding_completed") private var onboardingCompleted = false
+    @State private var showOnboarding = false
 
     var body: some View {
-        #if os(iOS)
-        iOSRoot
-        #else
-        macOSRoot
-        #endif
+        Group {
+            #if os(iOS)
+            iOSRoot
+            #else
+            macOSRoot
+            #endif
+        }
+        .sheet(isPresented: $showOnboarding) {
+            SimpliXioOnboardingView(
+                showOnboarding: $showOnboarding,
+                onboardingCompleted: $onboardingCompleted
+            )
+            .environmentObject(engine)
+        }
+        .task {
+            if !onboardingCompleted {
+                showOnboarding = true
+            }
+        }
     }
 
     // MARK: - iOS (Focus / Capture)
@@ -101,8 +117,10 @@ struct ContentView: View {
                     .tag(MacSection.memory)
                 Label("Weekly Review", systemImage: "calendar.badge.clock")
                     .tag(MacSection.weeklyReview)
+                Label("Settings", systemImage: "gearshape")
+                    .tag(MacSection.settings)
             }
-            .navigationTitle("CortexOS")
+            .navigationTitle("SimpliXio")
             .listStyle(.sidebar)
         } detail: {
             NavigationStack {
@@ -113,6 +131,7 @@ struct ContentView: View {
                 case .decisions:   DecisionHistoryView()
                 case .memory:      MemoryExplorerView()
                 case .weeklyReview: WeeklyReviewView()
+                case .settings:    SettingsView()
                 case nil:          DailyFocusView()
                 }
             }
@@ -125,11 +144,124 @@ struct ContentView: View {
     }
 
     enum MacSection: Hashable {
-        case focus, notes, insights, decisions, memory, weeklyReview
+        case focus, notes, insights, decisions, memory, weeklyReview, settings
     }
     #endif
 }
 
 #Preview {
     ContentView()
+}
+
+private struct SimpliXioOnboardingView: View {
+    @EnvironmentObject private var engine: CortexEngine
+    @Binding var showOnboarding: Bool
+    @Binding var onboardingCompleted: Bool
+    @State private var isPreparingDemo = false
+
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(alignment: .leading, spacing: CortexSpacing.lg) {
+                    VStack(alignment: .leading, spacing: CortexSpacing.sm) {
+                        Text("SimpliXio")
+                            .font(CortexFont.largeTitle)
+                            .foregroundStyle(CortexColor.textPrimary)
+
+                        Text("Decide what matters.")
+                            .font(CortexFont.title)
+                            .foregroundStyle(CortexColor.textSecondary)
+                    }
+
+                    VStack(alignment: .leading, spacing: CortexSpacing.md) {
+                        onboardingRow(
+                            icon: "target",
+                            title: "See 3 priorities",
+                            message: "Get immediate clarity on what deserves attention now."
+                        )
+                        onboardingRow(
+                            icon: "lightbulb",
+                            title: "Understand why",
+                            message: "Every priority includes reasoning and one next action."
+                        )
+                        onboardingRow(
+                            icon: "square.and.pencil",
+                            title: "Capture fast",
+                            message: "Save thoughts and decisions instantly, even when offline."
+                        )
+                    }
+
+                    Text("You can stay fully offline, or connect a server later in Settings.")
+                        .font(CortexFont.caption)
+                        .foregroundStyle(CortexColor.textTertiary)
+                }
+                .padding(CortexSpacing.xl)
+            }
+            .background(CortexColor.bgPrimary)
+            .navigationTitle("Welcome")
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Skip") { finish() }
+                }
+            }
+            .safeAreaInset(edge: .bottom) {
+                VStack(spacing: CortexSpacing.sm) {
+                    Button {
+                        Task {
+                            isPreparingDemo = true
+                            await engine.populateDemoContent()
+                            isPreparingDemo = false
+                            finish()
+                        }
+                    } label: {
+                        HStack {
+                            Spacer()
+                            if isPreparingDemo {
+                                ProgressView()
+                                    .controlSize(.small)
+                            } else {
+                                Text("Start with Demo Data")
+                                    .font(CortexFont.bodyMedium)
+                            }
+                            Spacer()
+                        }
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .tint(CortexColor.accent)
+                    .disabled(isPreparingDemo)
+
+                    Button("Continue") {
+                        finish()
+                    }
+                    .buttonStyle(.bordered)
+                }
+                .padding(.horizontal, CortexSpacing.xl)
+                .padding(.vertical, CortexSpacing.sm)
+                .background(.ultraThinMaterial)
+            }
+        }
+    }
+
+    private func onboardingRow(icon: String, title: String, message: String) -> some View {
+        HStack(alignment: .top, spacing: CortexSpacing.md) {
+            Image(systemName: icon)
+                .font(.headline)
+                .foregroundStyle(CortexColor.accent)
+                .frame(width: 24, alignment: .center)
+
+            VStack(alignment: .leading, spacing: CortexSpacing.xxs) {
+                Text(title)
+                    .font(CortexFont.bodyMedium)
+                    .foregroundStyle(CortexColor.textPrimary)
+                Text(message)
+                    .font(CortexFont.caption)
+                    .foregroundStyle(CortexColor.textSecondary)
+            }
+        }
+    }
+
+    private func finish() {
+        onboardingCompleted = true
+        showOnboarding = false
+    }
 }

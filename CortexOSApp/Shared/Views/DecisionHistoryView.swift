@@ -69,10 +69,14 @@ private struct RecordDecisionSheet: View {
                 Section("Decision") {
                     TextField("What did you decide?", text: $decision, axis: .vertical)
                         .lineLimit(1...4)
+                        .textFieldStyle(.plain)
+                        .cortexInputSurface(minHeight: CortexInput.multiLineMinHeight)
                 }
                 Section("Why") {
                     TextField("The reasoning", text: $reason, axis: .vertical)
                         .lineLimit(1...3)
+                        .textFieldStyle(.plain)
+                        .cortexInputSurface(minHeight: 96)
                 }
                 Section("Project") {
                     if let active = engine.snapshot?.activeProject {
@@ -89,6 +93,8 @@ private struct RecordDecisionSheet: View {
                         .buttonStyle(.plain)
                     }
                     TextField("Project name", text: $project)
+                        .textFieldStyle(.plain)
+                        .cortexInputSurface()
                 }
             }
             .navigationTitle("Record Decision")

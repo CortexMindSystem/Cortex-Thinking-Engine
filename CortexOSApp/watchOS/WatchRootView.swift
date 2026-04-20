@@ -32,25 +32,23 @@ struct WatchRootView: View {
                     .disabled(model.isSyncing)
                 }
 
-                Section("Top 3 Priorities") {
-                    if let today = model.snapshot?.today, !today.priorities.isEmpty {
-                        ForEach(today.priorities.prefix(3)) { priority in
-                            NavigationLink {
-                                WatchPriorityDetailView(priority: priority)
-                            } label: {
-                                VStack(alignment: .leading, spacing: 4) {
-                                    Text("\(priority.rank). \(priority.title)")
-                                        .font(.headline)
-                                        .lineLimit(2)
-                                    Text(priority.action)
-                                        .font(.caption2)
-                                        .foregroundStyle(.secondary)
-                                        .lineLimit(2)
-                                }
+                Section("What to do next") {
+                    if let priority = model.snapshot?.today?.priorities.first {
+                        NavigationLink {
+                            WatchPriorityDetailView(priority: priority)
+                        } label: {
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text(priority.title)
+                                    .font(.headline)
+                                    .lineLimit(2)
+                                Text(priority.action)
+                                    .font(.caption2)
+                                    .foregroundStyle(.secondary)
+                                    .lineLimit(2)
                             }
                         }
                     } else {
-                        Text("No priorities yet.")
+                        Text("No priority yet.")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
@@ -59,6 +57,10 @@ struct WatchRootView: View {
                 Section("Voice Capture") {
                     TextField("Speak or dictate a thought", text: $model.captureText, axis: .vertical)
                         .lineLimit(2...4)
+                        .textFieldStyle(.plain)
+                        .padding(8)
+                        .background(Color.gray.opacity(0.15))
+                        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
                     Button {
                         Task { await model.captureByVoice() }
                     } label: {
@@ -67,7 +69,7 @@ struct WatchRootView: View {
                     .disabled(model.captureText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 }
             }
-            .navigationTitle("CortexOS")
+            .navigationTitle("SimpliXio")
         }
     }
 }
@@ -116,4 +118,3 @@ private struct WatchPriorityDetailView: View {
         .navigationTitle("Priority \(priority.rank)")
     }
 }
-

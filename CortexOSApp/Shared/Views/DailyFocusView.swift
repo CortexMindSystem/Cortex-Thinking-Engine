@@ -59,7 +59,7 @@ struct DailyFocusView: View {
                     ShareLink(item: shareText) {
                         Image(systemName: "square.and.arrow.up")
                     }
-                    .help("Share CortexOS Today")
+                    .help("Share SimpliXio Today")
                 } else {
                     Image(systemName: "square.and.arrow.up")
                         .foregroundStyle(CortexColor.textTertiary)

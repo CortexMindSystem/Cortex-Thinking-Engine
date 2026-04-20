@@ -86,13 +86,24 @@ struct QuickCaptureView: View {
         .scrollDismissesKeyboard(.interactively)
         .safeAreaInset(edge: .bottom) {
             HStack(spacing: CortexSpacing.md) {
-                Button {
-                    focusedField = nil
-                } label: {
-                    Label("Done", systemImage: "keyboard.chevron.compact.down")
-                        .font(CortexFont.captionMedium)
+                if focusedField != nil {
+                    Button {
+                        focusedField = nil
+                    } label: {
+                        Label("Done", systemImage: "keyboard.chevron.compact.down")
+                            .font(CortexFont.captionMedium)
+                    }
+                    .buttonStyle(.bordered)
+                } else if canSave {
+                    Button {
+                        text = ""
+                        reason = ""
+                    } label: {
+                        Label("Clear", systemImage: "xmark.circle")
+                            .font(CortexFont.captionMedium)
+                    }
+                    .buttonStyle(.bordered)
                 }
-                .buttonStyle(.bordered)
 
                 Button {
                     Task { await save() }
@@ -113,7 +124,7 @@ struct QuickCaptureView: View {
             .background(.ultraThinMaterial)
         }
         .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
+            ToolbarItem(placement: .primaryAction) {
                 if focusedField != nil {
                     Button("Done") {
                         focusedField = nil
@@ -202,7 +213,7 @@ private struct CaptureEditorCard: View {
                 }
             }
             .background(CortexColor.bgSurface)
-            .clipShape(RoundedRectangle(cornerRadius: CortexRadius.card, style: .continuous))
+            .clipShape(RoundedRectangle(cornerRadius: CortexRadius.large, style: .continuous))
             .cortexShadow()
         }
     }

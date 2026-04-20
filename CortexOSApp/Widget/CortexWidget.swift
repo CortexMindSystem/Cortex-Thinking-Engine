@@ -71,7 +71,7 @@ struct CortexFocusWidget: Widget {
                 .containerBackground(.fill.tertiary, for: .widget)
         }
         .configurationDisplayName("Focus")
-        .description("Your #1 priority from CortexOS.")
+        .description("Your #1 priority from SimpliXio.")
         .supportedFamilies([
             .accessoryCircular,
             .accessoryRectangular,
@@ -187,7 +187,7 @@ private struct RectangularView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
         } else {
             VStack(alignment: .leading, spacing: 2) {
-                Label("CortexOS", systemImage: "target")
+                Label("SimpliXio", systemImage: "target")
                     .font(.caption2.weight(.semibold))
                 Text("No focus set")
                     .font(.caption)
@@ -260,7 +260,7 @@ private struct SmallView: View {
                 }
             } else {
                 Spacer()
-                Text("Open CortexOS to set your focus")
+                Text("Open SimpliXio to set your focus")
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.leading)
@@ -301,7 +301,7 @@ private struct MediumView: View {
 
             if items.isEmpty {
                 Spacer()
-                Text("No priorities yet — sync CortexOS.")
+                Text("No priorities yet — sync SimpliXio.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .frame(maxWidth: .infinity)

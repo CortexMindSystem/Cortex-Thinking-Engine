@@ -70,6 +70,7 @@ struct SyncWeeklyReviewCountItem: Codable, Identifiable {
 struct SyncWeeklyReview: Codable {
     let weekStart: String
     let weekEnd: String
+    let periodLabel: String?
     let daysCovered: Int
     let quality: String?
     let confidence: Double?
@@ -84,6 +85,7 @@ struct SyncWeeklyReview: Codable {
         case summary, recommendations, quality, confidence
         case weekStart = "week_start"
         case weekEnd = "week_end"
+        case periodLabel = "period_label"
         case daysCovered = "days_covered"
         case topPriorities = "top_priorities"
         case topSignals = "top_signals"

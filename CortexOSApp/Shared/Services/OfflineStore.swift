@@ -337,7 +337,7 @@ actor OfflineStore {
             )
         }
 
-        var lines = ["CortexOS Today — \(date)", ""]
+        var lines = ["SimpliXio Today — \(date)", ""]
         for item in compact {
             lines.append("\(item.rank). \(item.title)")
             lines.append("Why: \(item.why.isEmpty ? "High decision impact." : item.why)")
@@ -397,11 +397,11 @@ actor OfflineStore {
                 role: "Decision Lead",
                 goals: [
                     "Protect deep work time this week",
-                    "Ship CortexOS reliability fixes",
+                    "Ship SimpliXio reliability fixes",
                     "Keep product direction clear"
                 ],
                 interests: ["decision quality", "signal extraction", "system design"],
-                currentProjects: ["CortexOS"],
+                currentProjects: ["SimpliXio"],
                 constraints: ["clarity over volume", "low friction execution"],
                 ignoredTopics: ["trending gossip", "low-signal updates"]
             )
@@ -451,7 +451,7 @@ actor OfflineStore {
                 id: "demo-decision-1",
                 decision: "Prioritize offline-first reliability for this release",
                 reason: "Without reliable offline behavior, core capture and decision flow breaks.",
-                project: "CortexOS",
+                project: "SimpliXio",
                 assumptions: ["Most sessions start without immediate backend connectivity"],
                 contextTags: ["release", "offline"],
                 createdAt: previousISO,
@@ -462,7 +462,7 @@ actor OfflineStore {
                 id: "demo-decision-2",
                 decision: "Keep the daily view at three priorities maximum",
                 reason: "Decision quality drops when too many items compete for attention.",
-                project: "CortexOS",
+                project: "SimpliXio",
                 assumptions: ["Clarity matters more than volume"],
                 contextTags: ["product", "focus"],
                 createdAt: nowISO,
@@ -481,7 +481,7 @@ actor OfflineStore {
                 nextAction: "Instrument button actions and display sync progress feedback.",
                 confidence: 0.88,
                 tags: ["quality", "ux"],
-                relatedProject: "CortexOS",
+                relatedProject: "SimpliXio",
                 createdAt: previousISO
             ),
             SyncInsight(
@@ -493,7 +493,7 @@ actor OfflineStore {
                 nextAction: "Promote acted items and demote repeatedly ignored signals.",
                 confidence: 0.84,
                 tags: ["learning", "priorities"],
-                relatedProject: "CortexOS",
+                relatedProject: "SimpliXio",
                 createdAt: nowISO
             )
         ]

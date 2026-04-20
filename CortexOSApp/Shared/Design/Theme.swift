@@ -107,6 +107,11 @@ enum CortexRadius {
     static let large: CGFloat = 16
 }
 
+enum CortexInput {
+    static let singleLineMinHeight: CGFloat = 46
+    static let multiLineMinHeight: CGFloat = 120
+}
+
 // MARK: - Shadow modifier
 
 struct CortexShadowModifier: ViewModifier {
@@ -119,5 +124,22 @@ struct CortexShadowModifier: ViewModifier {
 extension View {
     func cortexShadow() -> some View {
         modifier(CortexShadowModifier())
+    }
+
+    /// Unified input surface for text fields/editors across iOS/macOS.
+    /// Keeps controls large, rounded, and visually consistent.
+    func cortexInputSurface(minHeight: CGFloat = CortexInput.singleLineMinHeight) -> some View {
+        self
+            .font(CortexFont.body)
+            .padding(.horizontal, CortexSpacing.md)
+            .padding(.vertical, CortexSpacing.sm)
+            .frame(minHeight: minHeight, alignment: .topLeading)
+            .background(CortexColor.bgSurface)
+            .overlay(
+                RoundedRectangle(cornerRadius: CortexRadius.large, style: .continuous)
+                    .stroke(Color.primary.opacity(0.08), lineWidth: 1)
+            )
+            .clipShape(RoundedRectangle(cornerRadius: CortexRadius.large, style: .continuous))
+            .cortexShadow()
     }
 }
