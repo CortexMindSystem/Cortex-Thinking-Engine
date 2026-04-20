@@ -1,5 +1,5 @@
 # ─────────────────────────────────────────────────────────
-# CortexOS — Swift CI
+# SimpliXio — Swift CI
 # Build + test the SwiftPM package on macOS.
 # Validates models, services, and API contract compliance.
 # ─────────────────────────────────────────────────────────
