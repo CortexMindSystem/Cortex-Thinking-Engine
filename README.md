@@ -1,11 +1,11 @@
-# CortexOS — Your Thinking Engine
+# SimpliXio — Your Thinking Engine
 
 ### _A context, memory, and prioritisation engine for ambitious builders and AI agents_
 
-![CortexOS Mind System](logo.png)
+![Context Layer System](logo.png)
 
 > [!Note]
-> CortexOS turns scattered inputs (RSS feeds, notes, digests) into grounded daily actions — answering **"What should I focus on today?"** using your personal goals, projects, and reading history as context. Works fully offline; LLM is optional.
+> SimpliXio turns scattered inputs (RSS feeds, notes, digests) into grounded daily actions — answering **"What should I focus on today?"** using your personal goals, projects, and reading history as context. Works fully offline; LLM is optional.
 
 ---
 
@@ -14,8 +14,8 @@
 **Requirements:** Python 3.11+, macOS 14+ / iOS 17+ (native apps), Xcode 15+ (Swift)
 
 ```bash
-git clone git@github.com:CortexMindSystem/Cortex-Thinking-Engine.git
-cd Cortex-Thinking-Engine
+git clone git@github.com:SimplixioMindSystem/Thinking-Engine.git
+cd Thinking-Engine
 make install        # creates .venv and installs deps
 ```
 
