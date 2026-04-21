@@ -52,6 +52,7 @@ def build_steps(strict_quality: bool) -> list[tuple[str, list[str], bool]]:
         ("Filter signals", [python_bin, "scripts/filter_signals.py"], True),
         ("Build SimpliXio Today artifact", [python_bin, "scripts/build_cortex_today.py"], True),
         ("Build weekly review", [python_bin, "scripts/build_weekly_review.py"], True),
+        ("Build decision replay", [python_bin, "scripts/build_decision_replay.py"], False),
         ("Generate marketing content", [python_bin, "marketing_automation.py"], True),
         ("Run marketing quality gate", quality_cmd, strict_quality),
         ("Publish outputs", [python_bin, "scripts/publish_outputs.py"], False),
