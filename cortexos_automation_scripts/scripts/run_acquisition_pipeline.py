@@ -11,7 +11,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from acquisition_crm import OUTPUT_DIR, connect, init_db, insert_run
+from acquisition_crm import OUTPUT_DIR, connect, init_db, insert_run, list_best_fit_leads
 
 
 AUTOMATION_ROOT = Path(__file__).resolve().parents[1]
@@ -101,6 +101,16 @@ def weekly_internal_summary() -> dict[str, Any]:
         LIMIT 20
         """
     ).fetchall()
+    lead_source_counts = conn.execute(
+        """
+        SELECT source, COUNT(*) AS total
+        FROM leads
+        WHERE status = 'fit'
+        GROUP BY source
+        ORDER BY total DESC
+        LIMIT 5
+        """
+    ).fetchall()
     top_content = conn.execute(
         """
         SELECT angle, channel, status, quality_score, created_at
@@ -116,10 +126,23 @@ def weekly_internal_summary() -> dict[str, Any]:
         angle_counts[angle] = angle_counts.get(angle, 0) + 1
 
     recommendations: list[str] = []
+    best_audience = "Founders and builders with decision-fatigue signals."
+    best_channel = "LinkedIn"
+    best_message_angle = "proof_of_filtering"
+    stop_doing: list[str] = ["Broad outreach to low-fit or unknown leads."]
+    double_down: list[str] = ["Specific problem-led outreach anchored to observed pain."]
+
+    if lead_source_counts:
+        best_audience = (
+            f"High-fit leads are clustering in {lead_source_counts[0]['source']} signals."
+        )
     if top_leads:
         recommendations.append("Prioritize high-fit leads with clear decision-fatigue or prioritisation pain.")
     if angle_counts:
         best_angle = sorted(angle_counts.items(), key=lambda x: x[1], reverse=True)[0][0]
+        best_message_angle = best_angle
+        if best_angle in {"today_priority", "proof_of_filtering"}:
+            best_channel = "X and LinkedIn"
         recommendations.append(f"Keep testing angle '{best_angle}' but rotate weekly to avoid repetition.")
     recommendations.append("Keep private outreach in needs_approval until explicit approval workflow is set.")
 
@@ -127,7 +150,13 @@ def weekly_internal_summary() -> dict[str, Any]:
         "generated_at": datetime.now(timezone.utc).replace(microsecond=0).isoformat(),
         "fit_leads_count": len(top_leads),
         "top_leads": [dict(row) for row in top_leads[:10]],
+        "top_sources": [dict(row) for row in lead_source_counts],
         "content_angle_counts": angle_counts,
+        "best_audience": best_audience,
+        "best_channel": best_channel,
+        "best_message_angle": best_message_angle,
+        "stop_doing": stop_doing,
+        "double_down": double_down,
         "recommendations": recommendations,
     }
     return summary
@@ -150,10 +179,57 @@ def write_markdown_summary(mode: str, payload: dict[str, Any], path: Path) -> No
             lines.append(f"- **{step['name']}**: {status}")
             if step.get("skip_reason"):
                 lines.append(f"  - skip reason: {step['skip_reason']}")
+
+        step_map = {step.get("name"): parse_json_output(step) for step in payload.get("steps", [])}
+        scored = step_map.get("Score leads") or {}
+        outreach = step_map.get("Draft outreach") or {}
+        quality = step_map.get("Run acquisition quality gate") or {}
+        if scored or outreach or quality:
+            lines.append("")
+            lines.append("## Daily Outcome")
+            lines.append("")
+        if scored:
+            lines.append(f"- Scored: `{scored.get('scored', 0)}`")
+            lines.append(f"- Fit: `{scored.get('fit', 0)}`")
+            lines.append(f"- Candidate: `{scored.get('candidate', 0)}`")
+            lines.append(f"- Not fit: `{scored.get('not_fit', 0)}`")
+            shortlist = scored.get("shortlist", {})
+            if isinstance(shortlist, dict) and shortlist.get("markdown"):
+                lines.append(f"- Lead shortlist: `{shortlist['markdown']}`")
+        if outreach:
+            lines.append(f"- Outreach drafts created: `{outreach.get('created', 0)}`")
+            lines.append(f"- Drafts from fit: `{outreach.get('from_fit', 0)}`")
+            lines.append(f"- Drafts from candidate: `{outreach.get('from_candidate', 0)}`")
+        if quality:
+            lines.append(f"- Quality failures: `{quality.get('failed_count', 0)}`")
+        best = payload.get("best_leads", [])
+        if best:
+            lines.append("")
+            lines.append("## Best Leads")
+            lines.append("")
+            for lead in best:
+                lines.append(
+                    f"- `{lead.get('fit_score', 0)}` · {lead.get('title', '')} ({lead.get('source', '')})"
+                )
+                lines.append(f"  - pain: {lead.get('pain_signal', 'unknown')}")
+                lines.append(f"  - next: {lead.get('next_action', 'review')}")
     else:
         lines.append("## Weekly Signals")
         lines.append("")
         lines.append(f"- Fit leads: `{payload.get('fit_leads_count', 0)}`")
+        lines.append(f"- Best audience: {payload.get('best_audience', 'n/a')}")
+        lines.append(f"- Best channel: {payload.get('best_channel', 'n/a')}")
+        lines.append(f"- Best message angle: {payload.get('best_message_angle', 'n/a')}")
+        stop_doing = payload.get("stop_doing", [])
+        if stop_doing:
+            lines.append("- Stop:")
+            for item in stop_doing:
+                lines.append(f"  - {item}")
+        double_down = payload.get("double_down", [])
+        if double_down:
+            lines.append("- Double down:")
+            for item in double_down:
+                lines.append(f"  - {item}")
         for item in payload.get("recommendations", []):
             lines.append(f"- {item}")
 
@@ -185,6 +261,10 @@ def run_daily(strict_quality: bool) -> dict[str, Any]:
             failed = True
             break
 
+    conn = connect()
+    init_db(conn)
+    best_leads = list_best_fit_leads(conn, limit=10)
+
     return {
         "generated_at": datetime.now(timezone.utc).replace(microsecond=0).isoformat(),
         "failed": failed,
@@ -192,6 +272,7 @@ def run_daily(strict_quality: bool) -> dict[str, Any]:
         "strict_quality": strict_quality,
         "steps": results,
         "skipped": skipped,
+        "best_leads": best_leads,
     }
 
 

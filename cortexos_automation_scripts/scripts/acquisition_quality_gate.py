@@ -79,12 +79,25 @@ def run(*, strict: bool = False) -> dict[str, Any]:
     load_dotenv(AUTOMATION_ROOT / ".env")
     env_strict = os.getenv("ACQ_STRICT", "false").lower() == "true"
     publish_public = os.getenv("PUBLISH_PUBLIC", "false").lower() == "true"
+    fit_threshold = int(os.getenv("ACQ_FIT_THRESHOLD", "55"))
 
     conn = connect()
     init_db(conn)
 
     messages = conn.execute(
-        "SELECT id, draft_text, draft_hash, status FROM messages ORDER BY id DESC LIMIT 100"
+        """
+        SELECT
+            m.id,
+            m.draft_text,
+            m.draft_hash,
+            m.status,
+            l.fit_score AS lead_fit_score,
+            l.status AS lead_status
+        FROM messages m
+        LEFT JOIN leads l ON l.id = m.lead_id
+        ORDER BY m.id DESC
+        LIMIT 100
+        """
     ).fetchall()
     content = conn.execute(
         "SELECT id, body, body_hash, status FROM content ORDER BY id DESC LIMIT 100"
@@ -111,6 +124,16 @@ def run(*, strict: bool = False) -> dict[str, Any]:
             score -= 20
             passed = False
             reason_parts.append("missing_specific_reason")
+        lead_fit = int(row["lead_fit_score"] or 0)
+        if lead_fit < fit_threshold:
+            score -= 30
+            passed = False
+            reason_parts.append(f"lead_fit_below_threshold:{lead_fit}")
+        lead_status = str(row["lead_status"] or "")
+        if lead_status and lead_status != "fit":
+            score -= 20
+            passed = False
+            reason_parts.append(f"lead_status_not_fit:{lead_status}")
         repeated_count = int(
             conn.execute(
                 "SELECT COUNT(*) FROM messages WHERE draft_hash = ?",
@@ -139,7 +162,14 @@ def run(*, strict: bool = False) -> dict[str, Any]:
             compliance_notes="; ".join(reason_parts) + "; private outbound requires manual approval",
         )
         message_report.append(
-            {"id": int(row["id"]), "score": score, "passed": passed, "status": status}
+            {
+                "id": int(row["id"]),
+                "score": score,
+                "passed": passed,
+                "status": status,
+                "lead_fit_score": lead_fit,
+                "lead_status": lead_status or "unknown",
+            }
         )
 
     for row in content:
@@ -186,6 +216,7 @@ def run(*, strict: bool = False) -> dict[str, Any]:
         "strict": strict,
         "env_strict": env_strict,
         "publish_public": publish_public,
+        "fit_threshold": fit_threshold,
         "failed_count": failed,
         "messages": message_report,
         "content": content_report,
