@@ -63,6 +63,15 @@ class WeeklyReview(BaseModel):
     recommendations: list[str] = Field(default_factory=list)
 
 
+class DecisionReplay(BaseModel):
+    date: str = ""
+    signals_reviewed: int = 0
+    signals_kept: int = 0
+    signals_ignored: int = 0
+    summary: str = ""
+    final_priorities: list[dict[str, Any]] = Field(default_factory=list)
+
+
 class ContentPlan(BaseModel):
     angle: str
     score: int
@@ -83,7 +92,7 @@ class Config(BaseModel):
     app_name: str = "SimpliXio"
     app_url: str = "https://github.com/pH-7/CortexOSLLM"
     author_name: str = "Pierre-Henry Soria"
-    author_url: str = "https://ph7.me"
+    author_url: str = "https://pierrehenry.dev"
     rss_feeds: list[str] = Field(default_factory=list)
     github_token: str | None = None
     github_topics: list[str] = Field(default_factory=lambda: ["ai", "agents", "developer-tools"])
@@ -119,7 +128,7 @@ def load_config() -> Config:
         app_name=app_name,
         app_url=app_url,
         author_name=os.getenv("AUTHOR_NAME", "Pierre-Henry Soria"),
-        author_url=os.getenv("AUTHOR_URL", "https://ph7.me"),
+        author_url=os.getenv("AUTHOR_URL", "https://pierrehenry.dev"),
         rss_feeds=rss_feeds,
         github_token=os.getenv("GITHUB_TOKEN") or None,
         github_topics=github_topics,
@@ -173,10 +182,21 @@ def read_weekly_review(cfg: Config) -> WeeklyReview:
     return WeeklyReview.model_validate(json.loads(path.read_text(encoding="utf-8")))
 
 
+def read_decision_replay(cfg: Config) -> DecisionReplay:
+    path = cfg.output_dir / "decision_replay" / "latest.json"
+    if not path.exists():
+        return DecisionReplay()
+    return DecisionReplay.model_validate(json.loads(path.read_text(encoding="utf-8")))
+
+
 def fetch_rss_items(cfg: Config, max_per_feed: int = 5) -> list[TrendItem]:
     items: list[TrendItem] = []
     for feed_url in cfg.rss_feeds:
-        parsed = feedparser.parse(feed_url)
+        try:
+            parsed = feedparser.parse(feed_url)
+        except Exception:
+            # Network/transient feed errors should not fail the whole pipeline.
+            continue
         for entry in parsed.entries[:max_per_feed]:
             items.append(
                 TrendItem(
@@ -237,7 +257,9 @@ def load_content_memory(cfg: Config) -> dict[str, Any]:
         return {"angles": [], "hashes": []}
 
 
-def choose_content_plan(brief: CortexBrief, weekly: WeeklyReview, memory: dict[str, Any]) -> ContentPlan:
+def choose_content_plan(
+    brief: CortexBrief, weekly: WeeklyReview, replay: DecisionReplay, memory: dict[str, Any]
+) -> ContentPlan:
     recent_angles = [str(item.get("angle", "")) for item in memory.get("angles", [])][-6:]
     candidates: list[ContentPlan] = []
 
@@ -283,6 +305,16 @@ def choose_content_plan(brief: CortexBrief, weekly: WeeklyReview, memory: dict[s
             )
         )
 
+    if replay.signals_reviewed > 0:
+        candidates.append(
+            ContentPlan(
+                angle="decision_replay_proof",
+                score=5,
+                reason="Decision replay shows reviewed, ignored, and selected counts from real output.",
+                title=f"Decision replay: reviewed {replay.signals_reviewed} signals",
+            )
+        )
+
     if not candidates:
         return ContentPlan(
             angle="insufficient_signal",
@@ -309,6 +341,7 @@ def deterministic_posts(
     cfg: Config,
     brief: CortexBrief,
     weekly: WeeklyReview,
+    replay: DecisionReplay,
     trends: list[TrendItem],
     plan: ContentPlan,
 ) -> dict[str, GeneratedPost]:
@@ -320,6 +353,11 @@ def deterministic_posts(
         return {}
 
     weekly_line = weekly.summary.strip() if weekly.summary else "Weekly review is building signal history."
+    replay_line = (
+        replay.summary.strip()
+        if replay.summary
+        else "Decision replay is not available for this run."
+    )
     repeated_priority = ""
     if weekly.top_priorities:
         first = weekly.top_priorities[0]
@@ -341,6 +379,7 @@ def deterministic_posts(
         {active[0].action if len(active) > 0 else 'Take one concrete action in the next 30 minutes.'}
 
         Ignored signals: {ignored}
+        Decision replay: reviewed {replay.signals_reviewed}, ignored {replay.signals_ignored}, kept {replay.signals_kept}
         {cfg.app_url}
         """
     ).strip()
@@ -356,6 +395,7 @@ def deterministic_posts(
 
         Ignored signals today: {ignored}
         Weekly review: {weekly_line}
+        Decision replay: {replay_line}
 
         Angle: {plan.angle}
         Context signals reviewed: {trend_titles if trend_titles else 'AI, developer tools, context systems'}
@@ -384,6 +424,13 @@ def deterministic_posts(
         - Days covered: {weekly.days_covered}
         - Repeated priority: {repeated_priority or 'Not enough history yet'}
         - Summary: {weekly_line}
+
+        ## Decision replay
+
+        - Signals reviewed: {replay.signals_reviewed}
+        - Signals kept: {replay.signals_kept}
+        - Signals ignored: {replay.signals_ignored}
+        - Summary: {replay_line}
 
         ## Lesson
 
@@ -427,6 +474,7 @@ def save_campaign_brief(
     cfg: Config,
     brief: CortexBrief,
     weekly: WeeklyReview,
+    replay: DecisionReplay,
     plan: ContentPlan,
     posts: dict[str, GeneratedPost],
     trends: list[TrendItem],
@@ -464,6 +512,13 @@ def save_campaign_brief(
         "",
         f"- Days covered: {weekly.days_covered}",
         f"- Ignored signals this week: {weekly.total_ignored_signals}",
+        "",
+        "## Decision replay context",
+        "",
+        f"- Signals reviewed: {replay.signals_reviewed}",
+        f"- Signals kept: {replay.signals_kept}",
+        f"- Signals ignored: {replay.signals_ignored}",
+        f"- Summary: {replay.summary or 'Not enough replay data yet.'}",
         "",
         "## Signals reviewed",
         "",
@@ -545,12 +600,19 @@ def write_publish_manifest(
     cfg: Config,
     posts: dict[str, GeneratedPost],
     plan: ContentPlan,
+    replay: DecisionReplay,
     quality_gate_passed: bool,
 ) -> Path:
     manifest = {
         "generated_at": datetime.now(timezone.utc).replace(microsecond=0).isoformat(),
         "quality_gate_passed": quality_gate_passed,
         "plan": plan.model_dump(),
+        "decision_replay": {
+            "signals_reviewed": replay.signals_reviewed,
+            "signals_kept": replay.signals_kept,
+            "signals_ignored": replay.signals_ignored,
+            "summary": replay.summary,
+        },
         "posts": {
             channel: {
                 "title": post.title,
@@ -572,21 +634,24 @@ def run() -> None:
 
     brief = read_latest_brief(cfg)
     weekly = read_weekly_review(cfg)
+    replay = read_decision_replay(cfg)
     trends = fetch_rss_items(cfg) + fetch_github_topic_repos(cfg)
     memory = load_content_memory(cfg)
 
-    plan = choose_content_plan(brief, weekly, memory)
-    posts = deterministic_posts(cfg, brief, weekly, trends, plan)
+    plan = choose_content_plan(brief, weekly, replay, memory)
+    posts = deterministic_posts(cfg, brief, weekly, replay, trends, plan)
 
     card_path = cfg.output_dir / "cards" / f"{app_slug(cfg.app_name)}-today-{brief.date}.png"
     render_card(cfg, brief, card_path)
 
     drafts = save_drafts(cfg, posts)
-    campaign_brief = save_campaign_brief(cfg, brief, weekly, plan, posts, trends)
+    campaign_brief = save_campaign_brief(cfg, brief, weekly, replay, plan, posts, trends)
 
     # Generation step remains dry-run by default. Quality + publish happen later in the pipeline.
     gate_ok = False
-    manifest_path = write_publish_manifest(cfg, posts, plan, quality_gate_passed=gate_ok)
+    manifest_path = write_publish_manifest(
+        cfg, posts, plan, replay, quality_gate_passed=gate_ok
+    )
 
     site_path = publish_site(cfg, posts, brief, card_path) if cfg.publish_site else None
 
@@ -594,6 +659,7 @@ def run() -> None:
         "generated_at": datetime.now(timezone.utc).replace(microsecond=0).isoformat(),
         "brief_date": brief.date,
         "plan": plan.model_dump(),
+        "decision_replay": replay.model_dump(),
         "drafts": {k: str(v) for k, v in drafts.items()},
         "latest_drafts": {
             "x": str(cfg.output_dir / "drafts" / "latest-x.md"),
