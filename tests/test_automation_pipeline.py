@@ -6,6 +6,7 @@ import importlib.util
 from pathlib import Path
 import sys
 from typing import Any
+import importlib
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -40,6 +41,15 @@ quality_mod = load_module(
 acq_quality_mod = load_module(
     AUTOMATION_ROOT / "scripts" / "acquisition_quality_gate.py",
     "acquisition_quality_gate_module",
+)
+outreach_mod = load_module(
+    AUTOMATION_ROOT / "scripts" / "outreach_drafter.py",
+    "outreach_drafter_module",
+)
+acq_crm_mod = importlib.import_module("acquisition_crm")
+lead_scorer_mod = load_module(
+    AUTOMATION_ROOT / "scripts" / "lead_scorer.py",
+    "lead_scorer_module",
 )
 marketing_mod = load_module(
     AUTOMATION_ROOT / "marketing_automation.py",
@@ -99,6 +109,29 @@ def test_acquisition_quality_gate_detects_hype_phrase():
     assert result.score < 70
 
 
+def test_lead_scorer_boosts_high_signal_github_repos():
+    score, reason = lead_scorer_mod.score_lead(
+        "Founder shipping decision system for builders",
+        "github",
+        {
+            "excerpt": "We ship weekly and focus on prioritization and context.",
+            "tags": ["open source", "workflow"],
+            "raw": {"stars": 800, "forks": 120, "updated_at": "2026-04-20T00:00:00Z"},
+        },
+    )
+    assert score >= 55
+    assert "github:high_stars" in reason or "founder" in reason
+
+
+def test_lead_scorer_penalizes_internal_artifacts():
+    score, _reason = lead_scorer_mod.score_lead(
+        "Internal weekly review",
+        "simplixio_weekly_review",
+        {"excerpt": "internal artifact", "tags": ["internal_artifact"], "raw": {}},
+    )
+    assert score <= 20
+
+
 def test_quality_gate_detects_repeated_hash():
     analysis = quality_mod.analyse_text(
         "Decision system with 3 priorities. Why and next action. Ignored signals.",
@@ -155,3 +188,122 @@ def test_generated_copy_uses_simplixio_branding():
     assert posts
     assert all("SimpliXio" in post.body for post in posts.values())
     assert all("CortexOS today" not in post.body for post in posts.values())
+
+
+def test_outreach_drafts_only_fit_leads(tmp_path):
+    db_path = tmp_path / "acq.sqlite3"
+    output_dir = tmp_path / "output"
+    acq_crm_mod.DB_PATH = db_path
+    acq_crm_mod.OUTPUT_DIR = output_dir
+    outreach_mod.OUTPUT_DIR = output_dir
+    acq_quality_mod.OUTPUT_DIR = output_dir
+
+    conn = acq_crm_mod.connect()
+    acq_crm_mod.init_db(conn)
+
+    fit_id = acq_crm_mod.upsert_lead(
+        conn,
+        source="github",
+        source_url="https://github.com/example/fit",
+        title="Founder shipping prioritization workflows",
+        pain_signal="Decision fatigue",
+        raw_payload={"excerpt": "strong fit"},
+    )
+    candidate_id = acq_crm_mod.upsert_lead(
+        conn,
+        source="github",
+        source_url="https://github.com/example/candidate",
+        title="Interesting but weaker match",
+        pain_signal="Unknown",
+        raw_payload={"excerpt": "candidate"},
+    )
+    acq_crm_mod.update_lead_score(
+        conn,
+        lead_id=fit_id,
+        fit_score=82,
+        pain_signal="Decision fatigue",
+        status="fit",
+        next_action="draft_outreach",
+    )
+    acq_crm_mod.update_lead_score(
+        conn,
+        lead_id=candidate_id,
+        fit_score=50,
+        pain_signal="Unknown",
+        status="candidate",
+        next_action="manual_review",
+    )
+
+    result = outreach_mod.run(limit=20)
+    assert result["created"] == 1
+    assert result["from_fit"] == 1
+    assert result["from_candidate"] == 0
+
+
+def test_acquisition_quality_gate_rejects_non_fit_outreach(tmp_path):
+    db_path = tmp_path / "acq.sqlite3"
+    output_dir = tmp_path / "output"
+    acq_crm_mod.DB_PATH = db_path
+    acq_crm_mod.OUTPUT_DIR = output_dir
+    acq_quality_mod.OUTPUT_DIR = output_dir
+
+    conn = acq_crm_mod.connect()
+    acq_crm_mod.init_db(conn)
+
+    lead_id = acq_crm_mod.upsert_lead(
+        conn,
+        source="rss",
+        source_url="https://example.com/low-fit",
+        title="Low-fit generic content",
+        pain_signal="Unknown",
+        raw_payload={"excerpt": "generic"},
+    )
+    acq_crm_mod.update_lead_score(
+        conn,
+        lead_id=lead_id,
+        fit_score=34,
+        pain_signal="Unknown",
+        status="candidate",
+        next_action="manual_review",
+    )
+    acq_crm_mod.insert_message(
+        conn,
+        lead_id=lead_id,
+        channel="private_outreach",
+        message_type="private",
+        draft_text="Hi, https://example.com/low-fit looked relevant for decision system workflows.",
+        status="needs_approval",
+    )
+
+    result = acq_quality_mod.run(strict=False)
+    assert result["failed_count"] >= 1
+    assert any(item["status"] == "rejected_quality" for item in result["messages"])
+
+
+def test_scoring_queue_includes_existing_fit_leads(tmp_path):
+    db_path = tmp_path / "acq.sqlite3"
+    output_dir = tmp_path / "output"
+    acq_crm_mod.DB_PATH = db_path
+    acq_crm_mod.OUTPUT_DIR = output_dir
+
+    conn = acq_crm_mod.connect()
+    acq_crm_mod.init_db(conn)
+    lead_id = acq_crm_mod.upsert_lead(
+        conn,
+        source="github",
+        source_url="https://github.com/example/re-score",
+        title="Founder building decision workflows",
+        pain_signal="Decision fatigue",
+        raw_payload={"excerpt": "active project"},
+    )
+    acq_crm_mod.update_lead_score(
+        conn,
+        lead_id=lead_id,
+        fit_score=78,
+        pain_signal="Decision fatigue",
+        status="fit",
+        next_action="draft_outreach",
+    )
+
+    queue = acq_crm_mod.list_leads_for_scoring(conn, limit=10)
+    assert any(item.id == lead_id for item in queue)
