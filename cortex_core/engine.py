@@ -575,6 +575,7 @@ class CortexEngine:
         # Priority brief (may not exist yet)
         priorities = self.decision_engine.get_previous_brief()
         weekly_review = self.build_weekly_review_output()
+        decision_replay = self.build_decision_replay_output()
         today_output = self.build_today_output()
 
         return {
@@ -594,6 +595,7 @@ class CortexEngine:
             "working_memory": self.memory.working.to_dict(),
             "today": today_output,
             "weekly_review": weekly_review,
+            "decision_replay": decision_replay,
             "synced_at": datetime.now(UTC).isoformat(),
         }
 
@@ -617,7 +619,7 @@ class CortexEngine:
         ]
 
         ignored = [str(item).strip() for item in brief.get("ignored", []) if str(item).strip()][:5]
-        lines = [f"CortexOS Today — {brief.get('date', datetime.now(UTC).strftime('%Y-%m-%d'))}", ""]
+        lines = [f"SimpliXio Today — {brief.get('date', datetime.now(UTC).strftime('%Y-%m-%d'))}", ""]
         for item in compact:
             lines.extend(
                 [
@@ -725,7 +727,7 @@ class CortexEngine:
         quality = "insufficient_history" if days_covered < 4 else "sufficient_history"
 
         summary_parts = [
-            f"Reviewed {days_covered} day(s) of CortexOS decisions.",
+            f"Reviewed {days_covered} day(s) of SimpliXio decisions.",
             f"Ignored {total_ignored_signals} low-signal item(s).",
         ]
         if top_priorities:
@@ -760,6 +762,7 @@ class CortexEngine:
         return {
             "week_start": week_start,
             "week_end": week_end,
+            "period_label": f"{week_start} to {week_end}",
             "days_covered": days_covered,
             "quality": quality,
             "confidence": confidence,
@@ -768,6 +771,100 @@ class CortexEngine:
             "total_ignored_signals": total_ignored_signals,
             "summary": " ".join(summary_parts),
             "recommendations": recommendations,
+            "generated_at": datetime.now(UTC).isoformat(),
+        }
+
+    def build_decision_replay_output(self) -> dict | None:
+        """Return a compact replay of how today's decision was formed.
+
+        Source of truth: latest backend decision brief artifact.
+        Returns None when no usable artifact exists.
+        """
+        brief = self.decision_engine.get_previous_brief()
+        if not isinstance(brief, dict):
+            return None
+
+        date_value = str(brief.get("date", "")).strip()
+        priorities_raw = brief.get("priorities", [])
+        ignored_raw = brief.get("ignored", [])
+        signals_raw = brief.get("emerging_signals", [])
+
+        priorities: list[dict[str, str]] = []
+        if isinstance(priorities_raw, list):
+            for item in priorities_raw:
+                if not isinstance(item, dict):
+                    continue
+                title = str(item.get("title", "")).strip()
+                if not title:
+                    continue
+                priorities.append(
+                    {
+                        "title": title,
+                        "why": str(item.get("why_it_matters", "")).strip(),
+                        "action": str(item.get("next_step", "")).strip(),
+                    }
+                )
+        priorities = priorities[:3]
+
+        kept_signals: list[dict[str, str]] = []
+        if isinstance(signals_raw, list):
+            for signal in signals_raw:
+                title = str(signal).strip()
+                if title:
+                    kept_signals.append(
+                        {
+                            "title": title,
+                            "reason": "Connected to current goals or repeated in recent context.",
+                        }
+                    )
+
+        # Safe fallback when explicit kept signals are missing.
+        if not kept_signals and priorities:
+            for item in priorities:
+                kept_signals.append(
+                    {
+                        "title": item["title"],
+                        "reason": "Selected as a final priority with concrete next action.",
+                    }
+                )
+        kept_signals = kept_signals[:5]
+
+        ignored_signals: list[dict[str, str]] = []
+        if isinstance(ignored_raw, list):
+            for signal in ignored_raw:
+                title = str(signal).strip()
+                if title:
+                    ignored_signals.append(
+                        {
+                            "title": title,
+                            "reason": "Not connected strongly enough to current priorities.",
+                        }
+                    )
+        ignored_signals = ignored_signals[:5]
+
+        signals_kept = len(kept_signals)
+        signals_ignored = len(ignored_signals)
+        signals_reviewed = signals_kept + signals_ignored
+
+        if signals_reviewed == 0 and not priorities:
+            return None
+
+        replay_date = date_value or datetime.now(UTC).strftime("%Y-%m-%d")
+        summary = (
+            f"SimpliXio reduced {signals_reviewed} inputs into {len(priorities)} priorities."
+            if signals_reviewed > 0
+            else f"SimpliXio produced {len(priorities)} priorities from available context."
+        )
+
+        return {
+            "date": replay_date,
+            "signals_reviewed": signals_reviewed,
+            "signals_kept": signals_kept,
+            "signals_ignored": signals_ignored,
+            "kept_signals": kept_signals,
+            "ignored_signals": ignored_signals,
+            "final_priorities": priorities,
+            "summary": summary,
             "generated_at": datetime.now(UTC).isoformat(),
         }
 
