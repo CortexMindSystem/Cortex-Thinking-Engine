@@ -187,6 +187,7 @@ class TestEngineWeeklyReview:
         assert review is not None
         assert review["week_start"] == "2026-04-12"
         assert review["week_end"] == "2026-04-18"
+        assert review["period_label"] == "2026-04-12 to 2026-04-18"
         assert review["days_covered"] == 3
         assert review["quality"] == "insufficient_history"
         assert review["confidence"] == 0.43
@@ -201,3 +202,55 @@ class TestEngineWeeklyReview:
         assert signals["Edge AI"] == 2
         assert signals["On-device models"] == 2
         assert "Old signal" not in signals
+
+
+class TestEngineDecisionReplay:
+    def test_build_decision_replay_output_returns_none_without_artifacts(self, tmp_data_dir):
+        engine = _make_engine(tmp_data_dir)
+        assert engine.build_decision_replay_output() is None
+
+    def test_build_decision_replay_output_from_latest_artifact(self, tmp_data_dir):
+        import json
+
+        payload = {
+            "date": "2026-04-21",
+            "priorities": [
+                {"title": "Finish Weekly Review Loop", "why_it_matters": "Compounding weekly learning", "next_step": "Ship macOS surface"},
+                {"title": "Stabilize offline queue", "why_it_matters": "Reliable travel usage", "next_step": "Retry queued sync"},
+                {"title": "Close TestFlight feedback loop", "why_it_matters": "Improve decision quality", "next_step": "Tag acted vs not useful"},
+                {"title": "Extra item should be capped", "why_it_matters": "", "next_step": ""},
+            ],
+            "ignored": [
+                "Low relevance AI news",
+                "Celebrity AI post",
+                "Duplicate launch noise",
+                "Clickbait thread",
+                "Non-project tutorial",
+                "extra ignored should be capped",
+            ],
+            "emerging_signals": [
+                "GitHub issue repeated twice",
+                "Offline sync failures in logs",
+                "User feedback asks for replay",
+                "TestFlight friction notes",
+                "Context drift in priorities",
+                "extra kept should be capped",
+            ],
+            "changes_since_yesterday": [],
+        }
+
+        (tmp_data_dir / "decision_2026-04-21.json").write_text(json.dumps(payload), encoding="utf-8")
+        engine = _make_engine(tmp_data_dir)
+        replay = engine.build_decision_replay_output()
+
+        assert replay is not None
+        assert replay["date"] == "2026-04-21"
+        assert replay["signals_kept"] == 5
+        assert replay["signals_ignored"] == 5
+        assert replay["signals_reviewed"] == 10
+        assert replay["signals_reviewed"] == replay["signals_kept"] + replay["signals_ignored"]
+        assert len(replay["kept_signals"]) == 5
+        assert len(replay["ignored_signals"]) == 5
+        assert len(replay["final_priorities"]) == 3
+        assert replay["final_priorities"][0]["title"] == "Finish Weekly Review Loop"
+        assert replay["summary"]

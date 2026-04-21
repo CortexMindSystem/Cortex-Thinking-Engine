@@ -167,7 +167,7 @@ class TestSyncEndpoints:
     def test_snapshot_has_required_keys(self, client):
         data = client.get("/sync/snapshot").json()
         for key in ("profile", "active_project", "priorities", "today",
-                     "weekly_review",
+                     "weekly_review", "decision_replay",
                      "recent_decisions", "insights", "signals",
                      "working_memory", "synced_at"):
             assert key in data, f"missing key: {key}"
@@ -226,6 +226,11 @@ class TestSyncEndpoints:
         assert "weekly_review" in data
         assert data["weekly_review"] is None
 
+    def test_snapshot_decision_replay_is_nullable(self, client):
+        data = client.get("/sync/snapshot").json()
+        assert "decision_replay" in data
+        assert data["decision_replay"] is None
+
     def test_snapshot_weekly_review_aggregates_recent_decision_artifacts(self, client, tmp_data_dir):
         payloads = {
             "2026-04-12": {
@@ -275,8 +280,22 @@ class TestSyncEndpoints:
         data = client.get("/sync/snapshot").json()
         review = data["weekly_review"]
         assert review is not None
+        for key in (
+            "week_start",
+            "week_end",
+            "period_label",
+            "days_covered",
+            "top_priorities",
+            "top_signals",
+            "total_ignored_signals",
+            "summary",
+            "recommendations",
+            "generated_at",
+        ):
+            assert key in review
         assert review["week_start"] == "2026-04-12"
         assert review["week_end"] == "2026-04-18"
+        assert review["period_label"] == "2026-04-12 to 2026-04-18"
         assert review["days_covered"] == 3
         assert review["quality"] == "insufficient_history"
         assert review["confidence"] == pytest.approx(0.43, abs=0.01)
@@ -291,6 +310,62 @@ class TestSyncEndpoints:
         assert signals["Edge AI"] == 2
         assert signals["On-device models"] == 2
         assert "Old signal" not in signals
+
+    def test_snapshot_decision_replay_aggregates_latest_decision_artifact(self, client, tmp_data_dir):
+        payload = {
+            "date": "2026-04-21",
+            "priorities": [
+                {"title": "Finish Weekly Review Loop", "why_it_matters": "Compounding weekly learning", "next_step": "Ship macOS surface"},
+                {"title": "Stabilize offline queue", "why_it_matters": "Reliable travel usage", "next_step": "Retry queued sync"},
+                {"title": "Close TestFlight feedback loop", "why_it_matters": "Improve decision quality", "next_step": "Tag acted vs not useful"},
+                {"title": "Extra item should be capped", "why_it_matters": "", "next_step": ""},
+            ],
+            "ignored": [
+                "Low relevance AI news",
+                "Celebrity AI post",
+                "Duplicate launch noise",
+                "Clickbait thread",
+                "Non-project tutorial",
+                "extra ignored should be capped",
+            ],
+            "emerging_signals": [
+                "GitHub issue repeated twice",
+                "Offline sync failures in logs",
+                "User feedback asks for replay",
+                "TestFlight friction notes",
+                "Context drift in priorities",
+                "extra kept should be capped",
+            ],
+            "changes_since_yesterday": [],
+        }
+
+        import json
+
+        (tmp_data_dir / "decision_2026-04-21.json").write_text(json.dumps(payload), encoding="utf-8")
+        data = client.get("/sync/snapshot").json()
+        replay = data["decision_replay"]
+        assert replay is not None
+        for key in (
+            "date",
+            "signals_reviewed",
+            "signals_kept",
+            "signals_ignored",
+            "kept_signals",
+            "ignored_signals",
+            "final_priorities",
+            "summary",
+            "generated_at",
+        ):
+            assert key in replay
+        assert replay["date"] == "2026-04-21"
+        assert replay["signals_kept"] == 5
+        assert replay["signals_ignored"] == 5
+        assert replay["signals_reviewed"] == 10
+        assert replay["signals_reviewed"] == replay["signals_kept"] + replay["signals_ignored"]
+        assert len(replay["kept_signals"]) == 5
+        assert len(replay["ignored_signals"]) == 5
+        assert len(replay["final_priorities"]) == 3
+        assert "reduced" in replay["summary"].lower()
 
 
 # ── Integrations + Today Output ────────────────────────────────
