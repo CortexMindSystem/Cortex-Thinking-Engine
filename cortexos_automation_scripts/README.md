@@ -16,6 +16,7 @@ cortexos_automation_scripts/
     filter_signals.py
     build_cortex_today.py
     build_weekly_review.py
+    build_decision_replay.py
     marketing_quality_gate.py
     publish_outputs.py
     run_weekly_pipeline.py
@@ -34,6 +35,11 @@ cortexos_automation_scripts/
       archive/
     filtered_signals/
     weekly_review/
+      latest.json
+      latest.md
+      latest.html
+      archive/
+    decision_replay/
       latest.json
       latest.md
       latest.html
@@ -59,6 +65,7 @@ cp .env.example .env
 python3 scripts/filter_signals.py
 python3 scripts/build_cortex_today.py
 python3 scripts/build_weekly_review.py
+python3 scripts/build_decision_replay.py
 python3 marketing_automation.py
 python3 scripts/marketing_quality_gate.py --strict
 python3 scripts/publish_outputs.py
