@@ -7,6 +7,11 @@
 //
 
 import SwiftUI
+#if os(iOS)
+import UIKit
+#elseif os(macOS)
+import AppKit
+#endif
 
 struct SettingsView: View {
     @EnvironmentObject private var engine: CortexEngine
@@ -16,9 +21,13 @@ struct SettingsView: View {
     @State private var isPreparingDemo = false
     @State private var isRetryingQueue = false
     @State private var showQueueSheet = false
+    @State private var projectCopyFeedback: String = ""
 
     @AppStorage("cortex_system_name") private var systemName: String = "SimpliXio"
     @AppStorage("cortex_demo_mode_enabled") private var demoModeEnabled: Bool = true
+
+    private let projectURL = URL(string: "https://github.com/SimplixioMindSystem/Thinking-Engine")!
+    private let orgURL = URL(string: "https://github.com/SimplixioMindSystem")!
 
     var body: some View {
         Form {
@@ -153,6 +162,63 @@ struct SettingsView: View {
                 LabeledContent("Version", value: "1.1.0")
             }
 
+            Section("Project") {
+                HStack {
+                    ShareLink(item: projectURL) {
+                        Label("Share Project", systemImage: "square.and.arrow.up")
+                            .font(CortexFont.bodyMedium)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    Spacer()
+                }
+
+                Link(destination: projectURL) {
+                    HStack {
+                        Label("Repository", systemImage: "shippingbox.fill")
+                            .foregroundStyle(CortexColor.textPrimary)
+                        Spacer()
+                        Text("Thinking-Engine")
+                            .font(CortexFont.caption)
+                            .foregroundStyle(CortexColor.textTertiary)
+                        Image(systemName: "arrow.up.right")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+
+                Link(destination: orgURL) {
+                    HStack {
+                        Label("Organization", systemImage: "building.2.fill")
+                            .foregroundStyle(CortexColor.textPrimary)
+                        Spacer()
+                        Text("SimplixioMindSystem")
+                            .font(CortexFont.caption)
+                            .foregroundStyle(CortexColor.textTertiary)
+                        Image(systemName: "arrow.up.right")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+
+                Button {
+                    copyToClipboard(projectURL.absoluteString)
+                    projectCopyFeedback = "Repository URL copied"
+                } label: {
+                    HStack {
+                        Label("Copy Repository URL", systemImage: "doc.on.doc")
+                            .foregroundStyle(CortexColor.textPrimary)
+                        Spacer()
+                    }
+                }
+                .buttonStyle(.plain)
+
+                if !projectCopyFeedback.isEmpty {
+                    Text(projectCopyFeedback)
+                        .font(CortexFont.caption)
+                        .foregroundStyle(CortexColor.textTertiary)
+                }
+            }
+
             Section("Author") {
                 HStack(alignment: .top, spacing: CortexSpacing.md) {
                     Image(systemName: "person.crop.circle.fill")
@@ -185,12 +251,12 @@ struct SettingsView: View {
                     }
                 }
 
-                Link(destination: URL(string: "https://github.com/pH-7")!) {
+                Link(destination: orgURL) {
                     HStack {
                         Label("GitHub", systemImage: "chevron.left.forwardslash.chevron.right")
                             .foregroundStyle(CortexColor.textPrimary)
                         Spacer()
-                        Text("@pH-7")
+                        Text("SimplixioMindSystem")
                             .font(CortexFont.caption)
                             .foregroundStyle(CortexColor.textTertiary)
                         Image(systemName: "arrow.up.right")
@@ -209,6 +275,15 @@ struct SettingsView: View {
         .sheet(isPresented: $showQueueSheet) {
             queueSheet
         }
+    }
+
+    private func copyToClipboard(_ value: String) {
+        #if os(iOS)
+        UIPasteboard.general.string = value
+        #elseif os(macOS)
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(value, forType: .string)
+        #endif
     }
 
     private func testConnection() async {
