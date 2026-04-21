@@ -117,6 +117,8 @@ struct ContentView: View {
                     .tag(MacSection.memory)
                 Label("Weekly Review", systemImage: "calendar.badge.clock")
                     .tag(MacSection.weeklyReview)
+                Label("Decision Replay", systemImage: "arrow.triangle.branch")
+                    .tag(MacSection.decisionReplay)
                 Label("Settings", systemImage: "gearshape")
                     .tag(MacSection.settings)
             }
@@ -131,6 +133,7 @@ struct ContentView: View {
                 case .decisions:   DecisionHistoryView()
                 case .memory:      MemoryExplorerView()
                 case .weeklyReview: WeeklyReviewView()
+                case .decisionReplay: DecisionReplayView()
                 case .settings:    SettingsView()
                 case nil:          DailyFocusView()
                 }
@@ -144,7 +147,7 @@ struct ContentView: View {
     }
 
     enum MacSection: Hashable {
-        case focus, notes, insights, decisions, memory, weeklyReview, settings
+        case focus, notes, insights, decisions, memory, weeklyReview, decisionReplay, settings
     }
     #endif
 }
