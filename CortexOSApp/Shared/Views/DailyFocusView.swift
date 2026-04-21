@@ -15,6 +15,7 @@ struct DailyFocusView: View {
     /// Priorities the user has swiped away this session (not persisted — resets on next sync)
     @State private var dismissedTitles: Set<String> = []
     @State private var selectedPriority: SyncPriority?
+    @State private var showDecisionReplay = false
 
     var body: some View {
         Group {
@@ -92,6 +93,19 @@ struct DailyFocusView: View {
                 onIgnore: { dismiss(priority) }
             )
         }
+        #if os(iOS)
+        .sheet(isPresented: $showDecisionReplay) {
+            NavigationStack {
+                DecisionReplayView(compactMode: true)
+                    .environmentObject(engine)
+                    .toolbar {
+                        ToolbarItem(placement: .topBarTrailing) {
+                            Button("Done") { showDecisionReplay = false }
+                        }
+                    }
+            }
+        }
+        #endif
     }
 
     // MARK: - Quick context when empty
@@ -151,10 +165,21 @@ struct DailyFocusView: View {
         let visible = brief.priorities.filter { !dismissedTitles.contains($0.title) }
 
         VStack(alignment: .leading, spacing: CortexSpacing.lg) {
-            if let status = engine.lastSyncStatus {
-                Text(status)
-                    .font(CortexFont.caption)
-                    .foregroundStyle(CortexColor.textTertiary)
+            VStack(alignment: .leading, spacing: CortexSpacing.xxs) {
+                if let status = engine.lastSyncStatus {
+                    Text(status)
+                        .font(CortexFont.caption)
+                        .foregroundStyle(CortexColor.textTertiary)
+                }
+                if let updated = lastUpdatedLabel {
+                    Text(updated)
+                        .font(CortexFont.caption)
+                        .foregroundStyle(CortexColor.textTertiary)
+                }
+            }
+
+            if let replay = engine.snapshot?.decisionReplay {
+                decisionReplaySummaryCard(replay)
             }
 
             // Date — subtle
@@ -191,7 +216,7 @@ struct DailyFocusView: View {
 
             if !allIgnored.isEmpty {
                 VStack(alignment: .leading, spacing: CortexSpacing.xs) {
-                    Text("Ignored today")
+                    Text("Ignored today (\(allIgnored.count))")
                         .font(CortexFont.captionMedium)
                         .foregroundStyle(CortexColor.textTertiary)
 
@@ -232,6 +257,43 @@ struct DailyFocusView: View {
         guard let shareText = engine.snapshot?.today?.shareText else { return nil }
         let trimmed = shareText.trimmingCharacters(in: .whitespacesAndNewlines)
         return trimmed.isEmpty ? nil : trimmed
+    }
+
+    private var lastUpdatedLabel: String? {
+        guard let raw = engine.snapshot?.syncedAt,
+              let date = ISO8601DateFormatter().date(from: raw) else { return nil }
+
+        let rel = RelativeDateTimeFormatter()
+        rel.unitsStyle = .abbreviated
+        return "Last updated \(rel.localizedString(for: date, relativeTo: Date()))"
+    }
+
+    @ViewBuilder
+    private func decisionReplaySummaryCard(_ replay: SyncDecisionReplay) -> some View {
+        Button {
+            showDecisionReplay = true
+        } label: {
+            HStack(alignment: .top, spacing: CortexSpacing.md) {
+                VStack(alignment: .leading, spacing: CortexSpacing.xxs) {
+                    Text("Decision Replay")
+                        .font(CortexFont.captionMedium)
+                        .foregroundStyle(CortexColor.textPrimary)
+                    Text("\(replay.signalsReviewed) reviewed • \(replay.signalsIgnored) ignored • \(replay.finalPriorities.count) selected")
+                        .font(CortexFont.caption)
+                        .foregroundStyle(CortexColor.textSecondary)
+                }
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .font(.caption2)
+                    .foregroundStyle(CortexColor.textTertiary)
+            }
+            .padding(CortexSpacing.md)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(CortexColor.bgSurface)
+            .clipShape(RoundedRectangle(cornerRadius: CortexRadius.card, style: .continuous))
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Decision Replay")
     }
 }
 
@@ -277,10 +339,8 @@ private struct HeroPriorityCard: View {
                 .padding(.top, CortexSpacing.xxs)
             }
 
-            // Feedback — macOS only (research flow)
-            #if os(macOS)
+            // Feedback — one-tap on both iOS and macOS
             FeedbackRow(onFeedback: onFeedback)
-            #endif
         }
         .padding(CortexSpacing.lg)
         .background(
@@ -349,10 +409,8 @@ private struct FocusPriorityCard: View {
                 Spacer(minLength: 0)
             }
 
-            // Feedback — macOS only
-            #if os(macOS)
+            // Feedback — one-tap on both iOS and macOS
             FeedbackRow(onFeedback: onFeedback)
-            #endif
         }
         .padding(CortexSpacing.md)
         .background(CortexColor.bgSurface)
