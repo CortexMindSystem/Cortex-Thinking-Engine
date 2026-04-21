@@ -121,10 +121,9 @@ def load_config() -> Config:
     raw_app_name = os.getenv("APP_NAME", "SimpliXio").strip()
     app_name = "SimpliXio" if raw_app_name.lower() in {"cortexos", "cortex os"} else raw_app_name
 
-    raw_app_url = os.getenv(
+    app_url = os.getenv(
         "APP_URL", "https://github.com/SimplixioMindSystem/Thinking-Engine"
     ).strip()
-    app_url = raw_app_url
 
     return Config(
         app_name=app_name,
