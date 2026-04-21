@@ -4,17 +4,23 @@ from __future__ import annotations
 
 import importlib.util
 from pathlib import Path
+import sys
 from typing import Any
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 AUTOMATION_ROOT = REPO_ROOT / "cortexos_automation_scripts"
+AUTOMATION_SCRIPTS = AUTOMATION_ROOT / "scripts"
+
+if str(AUTOMATION_SCRIPTS) not in sys.path:
+    sys.path.insert(0, str(AUTOMATION_SCRIPTS))
 
 
 def load_module(path: Path, name: str):
     spec = importlib.util.spec_from_file_location(name, path)
     assert spec and spec.loader
     module = importlib.util.module_from_spec(spec)
+    sys.modules[name] = module
     spec.loader.exec_module(module)  # type: ignore[attr-defined]
     return module
 
@@ -23,9 +29,17 @@ pipeline_mod = load_module(
     AUTOMATION_ROOT / "scripts" / "run_weekly_pipeline.py",
     "run_weekly_pipeline_module",
 )
+acq_pipeline_mod = load_module(
+    AUTOMATION_ROOT / "scripts" / "run_acquisition_pipeline.py",
+    "run_acquisition_pipeline_module",
+)
 quality_mod = load_module(
     AUTOMATION_ROOT / "scripts" / "marketing_quality_gate.py",
     "marketing_quality_gate_module",
+)
+acq_quality_mod = load_module(
+    AUTOMATION_ROOT / "scripts" / "acquisition_quality_gate.py",
+    "acquisition_quality_gate_module",
 )
 marketing_mod = load_module(
     AUTOMATION_ROOT / "marketing_automation.py",
@@ -55,6 +69,34 @@ def test_pipeline_strict_quality_flag():
     _name, cmd, fail_on_error = quality
     assert "--strict" in cmd
     assert fail_on_error is True
+
+
+def test_acquisition_pipeline_step_order():
+    steps = acq_pipeline_mod.build_daily_steps(strict_quality=False)
+    names = [name for name, _cmd, _strict in steps]
+    assert names == [
+        "Collect lead signals",
+        "Score leads",
+        "Draft outreach",
+        "Generate public content",
+        "Run acquisition quality gate",
+    ]
+
+
+def test_acquisition_pipeline_strict_quality_flag():
+    steps = acq_pipeline_mod.build_daily_steps(strict_quality=True)
+    quality = [step for step in steps if step[0] == "Run acquisition quality gate"][0]
+    _name, cmd, fail_on_error = quality
+    assert "--strict" in cmd
+    assert fail_on_error is True
+
+
+def test_acquisition_quality_gate_detects_hype_phrase():
+    result = acq_quality_mod.analyse_text(
+        "This revolutionary AI-powered productivity app will supercharge everything."
+    )
+    assert result.passed is False
+    assert result.score < 70
 
 
 def test_quality_gate_detects_repeated_hash():
