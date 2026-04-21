@@ -57,6 +57,7 @@ marketing_mod = load_module(
 )
 marketing_mod.CortexBrief.model_rebuild(_types_namespace={"Priority": marketing_mod.Priority})
 marketing_mod.WeeklyReview.model_rebuild(_types_namespace={"Any": Any})
+marketing_mod.DecisionReplay.model_rebuild(_types_namespace={"Any": Any})
 marketing_mod.Config.model_rebuild(_types_namespace={"Path": Path})
 
 
@@ -67,6 +68,7 @@ def test_pipeline_step_order():
         "Filter signals",
         "Build SimpliXio Today artifact",
         "Build weekly review",
+        "Build decision replay",
         "Generate marketing content",
         "Run marketing quality gate",
         "Publish outputs",
@@ -144,7 +146,8 @@ def test_quality_gate_detects_repeated_hash():
 def test_content_plan_skips_when_no_signal():
     brief = marketing_mod.CortexBrief(date="2026-04-19", priorities=[], ignored_signals_count=0)
     weekly = marketing_mod.WeeklyReview(days_covered=0, top_priorities=[], recommendations=[])
-    plan = marketing_mod.choose_content_plan(brief, weekly, memory={"angles": [], "hashes": []})
+    replay = marketing_mod.DecisionReplay()
+    plan = marketing_mod.choose_content_plan(brief, weekly, replay, memory={"angles": [], "hashes": []})
     assert plan.skip_generation is True
     assert plan.angle == "insufficient_signal"
 
@@ -156,9 +159,11 @@ def test_content_plan_avoids_recent_angle():
         ignored_signals_count=4,
     )
     weekly = marketing_mod.WeeklyReview(days_covered=0, top_priorities=[], recommendations=[])
+    replay = marketing_mod.DecisionReplay()
     plan = marketing_mod.choose_content_plan(
         brief,
         weekly,
+        replay,
         memory={"angles": [{"angle": "today_priority"}], "hashes": []},
     )
     assert plan.angle == "ignored_signals"
@@ -178,16 +183,35 @@ def test_generated_copy_uses_simplixio_branding():
         ignored_signals_count=3,
     )
     weekly = marketing_mod.WeeklyReview(days_covered=4)
+    replay = marketing_mod.DecisionReplay(
+        date="2026-04-19",
+        signals_reviewed=20,
+        signals_kept=6,
+        signals_ignored=14,
+        summary="SimpliXio reduced 20 signals into 3 priorities.",
+    )
     plan = marketing_mod.ContentPlan(
         angle="today_priority",
         score=4,
         reason="Daily top priority exists with why/action context.",
         title="Top priority angle",
     )
-    posts = marketing_mod.deterministic_posts(cfg, brief, weekly, trends=[], plan=plan)
+    posts = marketing_mod.deterministic_posts(cfg, brief, weekly, replay, trends=[], plan=plan)
     assert posts
     assert all("SimpliXio" in post.body for post in posts.values())
     assert all("CortexOS today" not in post.body for post in posts.values())
+
+
+def test_content_plan_prefers_decision_replay_signal():
+    brief = marketing_mod.CortexBrief(
+        date="2026-04-19",
+        priorities=[],
+        ignored_signals_count=0,
+    )
+    weekly = marketing_mod.WeeklyReview(days_covered=0, top_priorities=[], recommendations=[])
+    replay = marketing_mod.DecisionReplay(signals_reviewed=30, signals_kept=8, signals_ignored=22)
+    plan = marketing_mod.choose_content_plan(brief, weekly, replay, memory={"angles": [], "hashes": []})
+    assert plan.angle == "decision_replay_proof"
 
 
 def test_outreach_drafts_only_fit_leads(tmp_path):
