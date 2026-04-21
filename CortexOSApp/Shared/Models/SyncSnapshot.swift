@@ -16,6 +16,7 @@ struct SyncSnapshot: Codable {
     let priorities: PriorityBrief?
     let today: SyncTodayOutput?
     let weeklyReview: SyncWeeklyReview?
+    let decisionReplay: SyncDecisionReplay?
     let recentDecisions: [SyncDecision]
     let insights: [SyncInsight]
     let signals: [SyncSignal]
@@ -25,10 +26,49 @@ struct SyncSnapshot: Codable {
     enum CodingKeys: String, CodingKey {
         case profile, priorities, today, insights, signals
         case weeklyReview = "weekly_review"
+        case decisionReplay = "decision_replay"
         case activeProject = "active_project"
         case recentDecisions = "recent_decisions"
         case workingMemory = "working_memory"
         case syncedAt = "synced_at"
+    }
+}
+
+// MARK: - Decision Replay (backend-computed)
+
+struct SyncDecisionReplaySignal: Codable, Identifiable {
+    var id: String { "\(title)-\(reason)" }
+    let title: String
+    let reason: String
+}
+
+struct SyncDecisionReplayPriority: Codable, Identifiable {
+    var id: String { title }
+    let title: String
+    let why: String
+    let action: String
+}
+
+struct SyncDecisionReplay: Codable {
+    let date: String
+    let signalsReviewed: Int
+    let signalsKept: Int
+    let signalsIgnored: Int
+    let keptSignals: [SyncDecisionReplaySignal]
+    let ignoredSignals: [SyncDecisionReplaySignal]
+    let finalPriorities: [SyncDecisionReplayPriority]
+    let summary: String
+    let generatedAt: String
+
+    enum CodingKeys: String, CodingKey {
+        case date, summary
+        case signalsReviewed = "signals_reviewed"
+        case signalsKept = "signals_kept"
+        case signalsIgnored = "signals_ignored"
+        case keptSignals = "kept_signals"
+        case ignoredSignals = "ignored_signals"
+        case finalPriorities = "final_priorities"
+        case generatedAt = "generated_at"
     }
 }
 
