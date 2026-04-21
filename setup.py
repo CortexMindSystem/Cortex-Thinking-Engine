@@ -1,5 +1,5 @@
 """
-CortexOS – setup.py
+SimpliXio – setup.py
 Install with: pip install -e .
 """
 
@@ -8,10 +8,10 @@ from setuptools import setup, find_packages
 setup(
     name="cortex-os",
     version="0.1.0",
-    description="CortexOS: Your operating system for thinking",
+    description="SimpliXio: A decision system that turns noise into 3 priorities",
     author="Pierre-Henry Soria",
     author_email="hi@ph7.me",
-    url="https://github.com/pH-7/CortexOSLLM",
+    url="https://github.com/SimplixioMindSystem/Thinking-Engine",
     packages=find_packages(),
     python_requires=">=3.11",
     install_requires=[
