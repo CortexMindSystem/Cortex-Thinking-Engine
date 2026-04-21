@@ -124,12 +124,7 @@ def load_config() -> Config:
     raw_app_url = os.getenv(
         "APP_URL", "https://github.com/SimplixioMindSystem/Thinking-Engine"
     ).strip()
-    app_url = (
-        "https://github.com/SimplixioMindSystem/Thinking-Engine"
-        if "CortexMindSystem/Cortex-Thinking-Engine" in raw_app_url
-        or "pH-7/CortexOSLLM" in raw_app_url
-        else raw_app_url
-    )
+    app_url = raw_app_url
 
     return Config(
         app_name=app_name,
