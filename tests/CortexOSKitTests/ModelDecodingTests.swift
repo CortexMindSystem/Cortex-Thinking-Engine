@@ -15,9 +15,9 @@ final class UserProfileTests: XCTestCase {
         let json = """
         {
             "name": "Pierre",
-            "goals": ["Ship CortexOS"],
+            "goals": ["Ship SimpliXio"],
             "interests": ["AI", "Swift"],
-            "current_projects": ["CortexOS"],
+            "current_projects": ["SimpliXio"],
             "constraints": ["Solo founder"],
             "ignored_topics": ["crypto"]
         }
@@ -25,9 +25,9 @@ final class UserProfileTests: XCTestCase {
 
         let profile = try JSONDecoder().decode(UserProfile.self, from: json)
         XCTAssertEqual(profile.name, "Pierre")
-        XCTAssertEqual(profile.goals, ["Ship CortexOS"])
+        XCTAssertEqual(profile.goals, ["Ship SimpliXio"])
         XCTAssertEqual(profile.interests, ["AI", "Swift"])
-        XCTAssertEqual(profile.currentProjects, ["CortexOS"])
+        XCTAssertEqual(profile.currentProjects, ["SimpliXio"])
         XCTAssertEqual(profile.constraints, ["Solo founder"])
         XCTAssertEqual(profile.ignoredTopics, ["crypto"])
     }
@@ -75,7 +75,7 @@ final class KnowledgeNoteTests: XCTestCase {
             "id": "abc123",
             "title": "Context-Aware Retrieval",
             "insight": "Dynamic embeddings work better.",
-            "implication": "Use in CortexOS.",
+            "implication": "Use in SimpliXio.",
             "action": "Prototype it.",
             "source_url": "https://example.com",
             "tags": ["AI", "retrieval"],
@@ -173,7 +173,7 @@ final class SyncSnapshotDecodingTests: XCTestCase {
             "role": "Builder",
             "goals": ["Ship weekly"],
             "interests": ["decision systems"],
-            "current_projects": ["CortexOS"],
+            "current_projects": ["SimpliXio"],
             "ignored_topics": ["noise"]
           },
           "active_project": null,
@@ -183,12 +183,13 @@ final class SyncSnapshotDecodingTests: XCTestCase {
             "priorities": [],
             "ignored_signals": [],
             "changes_since_yesterday": [],
-            "share_text": "CortexOS Today",
+            "share_text": "SimpliXio Today",
             "generated_at": "2026-04-19T00:00:00Z"
           },
           "weekly_review": {
             "week_start": "2026-04-13",
             "week_end": "2026-04-19",
+            "period_label": "2026-04-13 to 2026-04-19",
             "days_covered": 7,
             "quality": "sufficient_history",
             "confidence": 1.0,
@@ -201,6 +202,23 @@ final class SyncSnapshotDecodingTests: XCTestCase {
             "total_ignored_signals": 12,
             "summary": "Reviewed 7 days.",
             "recommendations": ["Promote recurring priority to roadmap decision."],
+            "generated_at": "2026-04-19T00:00:00Z"
+          },
+          "decision_replay": {
+            "date": "2026-04-19",
+            "signals_reviewed": 42,
+            "signals_kept": 6,
+            "signals_ignored": 36,
+            "kept_signals": [
+              {"title": "GitHub issue repeated twice", "reason": "Related to active project"}
+            ],
+            "ignored_signals": [
+              {"title": "Low relevance AI news", "reason": "Not connected to current goals"}
+            ],
+            "final_priorities": [
+              {"title": "Finish Weekly Review Loop", "why": "Compounds learning", "action": "Ship macOS surface"}
+            ],
+            "summary": "SimpliXio reduced 42 inputs into 3 priorities.",
             "generated_at": "2026-04-19T00:00:00Z"
           },
           "recent_decisions": [],
@@ -220,11 +238,17 @@ final class SyncSnapshotDecodingTests: XCTestCase {
         XCTAssertNotNil(snapshot.weeklyReview)
         XCTAssertEqual(snapshot.weeklyReview?.weekStart, "2026-04-13")
         XCTAssertEqual(snapshot.weeklyReview?.weekEnd, "2026-04-19")
+        XCTAssertEqual(snapshot.weeklyReview?.periodLabel, "2026-04-13 to 2026-04-19")
         XCTAssertEqual(snapshot.weeklyReview?.daysCovered, 7)
         XCTAssertEqual(snapshot.weeklyReview?.quality, "sufficient_history")
         XCTAssertEqual(snapshot.weeklyReview?.confidence, 1.0)
         XCTAssertEqual(snapshot.weeklyReview?.totalIgnoredSignals, 12)
         XCTAssertEqual(snapshot.weeklyReview?.topPriorities.first?.title, "Build sync layer")
+        XCTAssertNotNil(snapshot.decisionReplay)
+        XCTAssertEqual(snapshot.decisionReplay?.signalsReviewed, 42)
+        XCTAssertEqual(snapshot.decisionReplay?.signalsKept, 6)
+        XCTAssertEqual(snapshot.decisionReplay?.signalsIgnored, 36)
+        XCTAssertEqual(snapshot.decisionReplay?.finalPriorities.first?.title, "Finish Weekly Review Loop")
     }
 
     func testDecodeSnapshotWithNullWeeklyReview() throws {
@@ -245,10 +269,11 @@ final class SyncSnapshotDecodingTests: XCTestCase {
             "priorities": [],
             "ignored_signals": [],
             "changes_since_yesterday": [],
-            "share_text": "CortexOS Today",
+            "share_text": "SimpliXio Today",
             "generated_at": "2026-04-19T00:00:00Z"
           },
           "weekly_review": null,
+          "decision_replay": null,
           "recent_decisions": [],
           "insights": [],
           "signals": [],
@@ -264,6 +289,7 @@ final class SyncSnapshotDecodingTests: XCTestCase {
 
         let snapshot = try JSONDecoder().decode(SyncSnapshot.self, from: json)
         XCTAssertNil(snapshot.weeklyReview)
+        XCTAssertNil(snapshot.decisionReplay)
     }
 
     func testDecodeSnapshotWithoutWeeklyReviewKey() throws {
@@ -284,7 +310,7 @@ final class SyncSnapshotDecodingTests: XCTestCase {
             "priorities": [],
             "ignored_signals": [],
             "changes_since_yesterday": [],
-            "share_text": "CortexOS Today",
+            "share_text": "SimpliXio Today",
             "generated_at": "2026-04-19T00:00:00Z"
           },
           "recent_decisions": [],
@@ -302,5 +328,6 @@ final class SyncSnapshotDecodingTests: XCTestCase {
 
         let snapshot = try JSONDecoder().decode(SyncSnapshot.self, from: json)
         XCTAssertNil(snapshot.weeklyReview)
+        XCTAssertNil(snapshot.decisionReplay)
     }
 }
