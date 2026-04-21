@@ -1,0 +1,60 @@
+name: SimpliXio Daily Automation
+
+on:
+  schedule:
+    - cron: "0 9 * * *"
+  workflow_dispatch:
+
+jobs:
+  daily-automation:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install -r cortexos_automation_scripts/requirements.txt
+
+      - name: Run automation pipelines
+        working-directory: cortexos_automation_scripts
+        env:
+          APP_NAME: SimpliXio
+          APP_URL: https://github.com/pH-7/CortexOSLLM
+          AUTHOR_NAME: Pierre-Henry Soria
+          AUTHOR_URL: https://pierrehenry.dev
+          RSS_FEEDS: ${{ secrets.RSS_FEEDS }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOPICS: ai,agents,developer-tools,context-engineering
+          CORTEX_OUTPUTS_DIR: output/cortex_today
+          PUBLISH_X: "false"
+          PUBLISH_LINKEDIN: "false"
+          PUBLISH_SITE: "true"
+          PUBLISH_JSON_LOG: "true"
+          PUBLISH_DRY_RUN: "true"
+          OUTPUT_DIR: output
+        run: |
+          python scripts/run_weekly_pipeline.py --strict-quality
+          python scripts/run_acquisition_pipeline.py --mode daily --strict-quality
+
+      - name: Commit generated outputs
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add cortexos_automation_scripts/output/
+          if git diff --cached --quiet; then
+            echo "No generated changes to commit"
+            exit 0
+          fi
+          git commit -m "Update daily SimpliXio automation artifacts"
+          git push
