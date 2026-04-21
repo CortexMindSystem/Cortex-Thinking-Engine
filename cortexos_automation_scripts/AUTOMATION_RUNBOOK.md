@@ -45,6 +45,15 @@ make autopilot-weekly
 make autopilot-acq-weekly
 ```
 
+Weekly marketing pipeline order:
+1. Filter signals
+2. Build SimpliXio Today artifact
+3. Build weekly review
+4. Build decision replay
+5. Generate marketing drafts
+6. Run quality gate
+7. Publish/export only if allowed and quality passed
+
 ## Publish Safety
 
 Publishing remains opt-in.
