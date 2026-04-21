@@ -90,7 +90,7 @@ class GeneratedPost(BaseModel):
 
 class Config(BaseModel):
     app_name: str = "SimpliXio"
-    app_url: str = "https://github.com/pH-7/CortexOSLLM"
+    app_url: str = "https://github.com/SimplixioMindSystem/Thinking-Engine"
     author_name: str = "Pierre-Henry Soria"
     author_url: str = "https://pierrehenry.dev"
     rss_feeds: list[str] = Field(default_factory=list)
@@ -121,8 +121,15 @@ def load_config() -> Config:
     raw_app_name = os.getenv("APP_NAME", "SimpliXio").strip()
     app_name = "SimpliXio" if raw_app_name.lower() in {"cortexos", "cortex os"} else raw_app_name
 
-    raw_app_url = os.getenv("APP_URL", "https://github.com/pH-7/CortexOSLLM").strip()
-    app_url = "https://github.com/pH-7/CortexOSLLM" if "CortexMindSystem/Cortex-Thinking-Engine" in raw_app_url else raw_app_url
+    raw_app_url = os.getenv(
+        "APP_URL", "https://github.com/SimplixioMindSystem/Thinking-Engine"
+    ).strip()
+    app_url = (
+        "https://github.com/SimplixioMindSystem/Thinking-Engine"
+        if "CortexMindSystem/Cortex-Thinking-Engine" in raw_app_url
+        or "pH-7/CortexOSLLM" in raw_app_url
+        else raw_app_url
+    )
 
     return Config(
         app_name=app_name,
