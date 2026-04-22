@@ -7,6 +7,51 @@ It is monorepo-aware:
 - reads source data from the main repo (`../growth_output`, `../weekly_digest_*.md`)
 - writes automation artifacts to `cortexos_automation_scripts/output/`
 
+## What It Does (Simple Words)
+
+### Marketing automation
+
+The marketing scripts do this:
+1. Collect and filter real project signals.
+2. Build real product artifacts (`SimpliXio Today`, `Weekly Review`, `Decision Replay`).
+3. Generate draft posts (X, LinkedIn, blog), HTML pages, and cards from those artifacts.
+4. Run quality checks (no hype words, no weak/generic copy, no repeated angle).
+5. Only queue publish output if quality passes and publish flags are enabled.
+
+Important:
+- By default this is safe/dry-run.
+- It does not invent traction/users/revenue.
+- It writes logs and summaries every run.
+
+### Acquisition / prospection automation
+
+The acquisition scripts do this:
+1. Collect public, compliant lead signals (GitHub, RSS, HN, internal artifacts).
+2. Score lead fit for SimpliXio (`fit`, `candidate`, `not_fit`).
+3. Draft personalized private outreach messages for high-fit leads.
+4. Run acquisition quality/compliance checks.
+5. Save everything in SQLite CRM + JSON/Markdown reports.
+
+Important:
+- Private outreach is draft-only by default (`needs_approval`).
+- No LinkedIn scraping.
+- No automatic cold DM/email sending by default.
+- Public content queueing still requires quality pass + explicit publish flags.
+
+## What Is Automatic vs Manual
+
+Fully automated:
+- lead discovery
+- lead scoring
+- outreach draft generation
+- public content draft generation
+- quality gate checks
+- run logs + summaries
+
+Manual approval required:
+- private outbound sending (DM/email/comment/reply)
+- any high-risk public posting choice
+
 ## Structure
 
 ```text
@@ -17,6 +62,8 @@ cortexos_automation_scripts/
     build_cortex_today.py
     build_weekly_review.py
     build_decision_replay.py
+    build_public_newsletter.py
+    generate_newsletter.py
     marketing_quality_gate.py
     publish_outputs.py
     run_weekly_pipeline.py
@@ -44,6 +91,12 @@ cortexos_automation_scripts/
       latest.md
       latest.html
       archive/
+    newsletters/
+      drafts/
+      approved/
+      rejected/
+      logs/
+      latest.json
     drafts/
     quality_gate/
     logs/
@@ -66,9 +119,16 @@ python3 scripts/filter_signals.py
 python3 scripts/build_cortex_today.py
 python3 scripts/build_weekly_review.py
 python3 scripts/build_decision_replay.py
+python3 scripts/generate_newsletter.py --period weekly --mode weekly-lessons --strict-safety
 python3 marketing_automation.py
 python3 scripts/marketing_quality_gate.py --strict
 python3 scripts/publish_outputs.py
+```
+
+Single command (recommended):
+
+```bash
+python3 scripts/run_weekly_pipeline.py --strict-quality
 ```
 
 ## Weekly pipeline
@@ -133,6 +193,45 @@ Safety defaults:
 - no LinkedIn scraping
 - no outbound sending in these scripts
 - public publish queue requires `PUBLISH_PUBLIC=true` and quality pass
+
+Single command outputs (daily):
+- JSON log: `output/acquisition/logs/acquisition-daily-*.json`
+- Markdown summary: `output/acquisition/summaries/acquisition-daily-*.md`
+- Lead shortlist: `output/acquisition/drafts/latest_lead_shortlist.md`
+- Outreach drafts: `output/acquisition/drafts/latest_outreach.md`
+
+## Newsletter generation
+
+Weekly public-safe newsletter draft:
+
+```bash
+python3 scripts/generate_newsletter.py --period weekly --mode weekly-lessons --strict-safety
+```
+
+Custom range from selected source IDs:
+
+```bash
+python3 scripts/generate_newsletter.py \
+  --period custom --from 2026-04-01 --to 2026-04-21 \
+  --mode product-builder-notes \
+  --source-ids thought-12,decision-7 \
+  --strict-safety
+```
+
+What it does:
+- reads selected source material (`thoughts`, `notes`, `decisions`, `priority-feedback`, `weekly-review`, `decision-replay`)
+- supports `daily`, `weekly`, `monthly`, or `custom` date ranges
+- supports source filtering by `--source-ids`, `--tags`, and `--keywords`
+- redacts sensitive patterns (emails, phone numbers, long numbers, URLs, common secret token formats)
+- blocks confidential indicators and marks unsafe drafts as `needs_review` in strict mode
+- stores safety + redaction logs with source IDs for manual review
+- writes Markdown + HTML + JSON metadata with safety + redaction reports
+
+Outputs:
+- `output/newsletters/drafts/newsletter-*.md` (or `rejected/` when blocked)
+- `output/newsletters/drafts/newsletter-*.html`
+- `output/newsletters/logs/newsletter-*.json`
+- `output/newsletters/latest.json`
 
 ## Notes
 

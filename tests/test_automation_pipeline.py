@@ -2,12 +2,12 @@
 
 from __future__ import annotations
 
-import importlib.util
-from pathlib import Path
-import sys
-from typing import Any
 import importlib
-
+import importlib.util
+import json
+import sys
+from pathlib import Path
+from typing import Any
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 AUTOMATION_ROOT = REPO_ROOT / "cortexos_automation_scripts"
@@ -55,6 +55,10 @@ marketing_mod = load_module(
     AUTOMATION_ROOT / "marketing_automation.py",
     "marketing_automation_module",
 )
+newsletter_mod = load_module(
+    AUTOMATION_ROOT / "scripts" / "generate_newsletter.py",
+    "generate_newsletter_module",
+)
 marketing_mod.CortexBrief.model_rebuild(_types_namespace={"Priority": marketing_mod.Priority})
 marketing_mod.WeeklyReview.model_rebuild(_types_namespace={"Any": Any})
 marketing_mod.DecisionReplay.model_rebuild(_types_namespace={"Any": Any})
@@ -69,6 +73,7 @@ def test_pipeline_step_order():
         "Build SimpliXio Today artifact",
         "Build weekly review",
         "Build decision replay",
+        "Build public newsletter",
         "Generate marketing content",
         "Run marketing quality gate",
         "Publish outputs",
@@ -77,7 +82,7 @@ def test_pipeline_step_order():
 
 def test_pipeline_strict_quality_flag():
     steps = pipeline_mod.build_steps(strict_quality=True)
-    quality = [step for step in steps if step[0] == "Run marketing quality gate"][0]
+    quality = next(step for step in steps if step[0] == "Run marketing quality gate")
     _name, cmd, fail_on_error = quality
     assert "--strict" in cmd
     assert fail_on_error is True
@@ -97,16 +102,14 @@ def test_acquisition_pipeline_step_order():
 
 def test_acquisition_pipeline_strict_quality_flag():
     steps = acq_pipeline_mod.build_daily_steps(strict_quality=True)
-    quality = [step for step in steps if step[0] == "Run acquisition quality gate"][0]
+    quality = next(step for step in steps if step[0] == "Run acquisition quality gate")
     _name, cmd, fail_on_error = quality
     assert "--strict" in cmd
     assert fail_on_error is True
 
 
 def test_acquisition_quality_gate_detects_hype_phrase():
-    result = acq_quality_mod.analyse_text(
-        "This revolutionary AI-powered productivity app will supercharge everything."
-    )
+    result = acq_quality_mod.analyse_text("This revolutionary AI-powered productivity app will supercharge everything.")
     assert result.passed is False
     assert result.score < 70
 
@@ -137,7 +140,9 @@ def test_lead_scorer_penalizes_internal_artifacts():
 def test_quality_gate_detects_repeated_hash():
     analysis = quality_mod.analyse_text(
         "Decision system with 3 priorities. Why and next action. Ignored signals.",
-        previous_hashes={quality_mod.text_hash("Decision system with 3 priorities. Why and next action. Ignored signals.")},
+        previous_hashes={
+            quality_mod.text_hash("Decision system with 3 priorities. Why and next action. Ignored signals.")
+        },
     )
     assert analysis["repeated_hash"] is True
     assert analysis["passed"] is True or analysis["score"] < 100
@@ -331,3 +336,101 @@ def test_scoring_queue_includes_existing_fit_leads(tmp_path):
 
     queue = acq_crm_mod.list_leads_for_scoring(conn, limit=10)
     assert any(item.id == lead_id for item in queue)
+
+
+def test_newsletter_generation_strict_safety_marks_needs_review(tmp_path):
+    data_dir = tmp_path / "data"
+    data_dir.mkdir(parents=True, exist_ok=True)
+
+    notes = [
+        {
+            "id": "n1",
+            "title": "Weekly insight",
+            "insight": "I noticed founders are overwhelmed. Contact me at me@example.com.",
+            "created_at": "2026-04-21T10:00:00Z",
+            "archived": False,
+        },
+        {
+            "id": "n2",
+            "title": "Do not publish",
+            "insight": "This is confidential and internal only.",
+            "created_at": "2026-04-21T12:00:00Z",
+            "archived": False,
+        },
+    ]
+    (data_dir / "knowledge_notes.json").write_text(json.dumps(notes, indent=2), encoding="utf-8")
+
+    decisions = [
+        {
+            "id": "d1",
+            "decision": "Ship decision replay to users",
+            "reason": "Context is at https://private.example.com/internal",
+            "created_at": "2026-04-21T13:00:00Z",
+        }
+    ]
+    (data_dir / "decisions.json").write_text(json.dumps(decisions, indent=2), encoding="utf-8")
+
+    newsletter_mod.pick_data_dir = lambda: data_dir
+    output_dir = tmp_path / "out" / "newsletters"
+
+    payload = newsletter_mod.run_generation(
+        period="weekly",
+        mode="weekly-lessons",
+        strict_safety=True,
+        output=str(output_dir),
+    )
+    latest_md = Path(payload["outputs"]["markdown"])
+
+    assert latest_md.exists()
+    text = latest_md.read_text(encoding="utf-8").lower()
+    assert "me@example.com" not in text
+    assert "private.example.com" not in text
+    assert "this is confidential and internal only" not in text
+    assert "[personal detail removed]" in text
+    assert payload["status"] == "needs_review"
+    assert payload["safe_to_publish"] is False
+    assert "n1" in payload["source_ids"]
+    assert "n2" in payload["source_ids"]
+    assert any(item["item_type"] == "url" for item in payload["safety_report"]["redactions_applied"])
+
+
+def test_newsletter_generation_custom_range_and_source_ids_filter(tmp_path):
+    data_dir = tmp_path / "data"
+    data_dir.mkdir(parents=True, exist_ok=True)
+
+    notes = [
+        {
+            "id": "old-note",
+            "title": "Old thought",
+            "insight": "Should be excluded by custom range.",
+            "created_at": "2026-03-01T10:00:00Z",
+            "archived": False,
+        },
+        {
+            "id": "target-note",
+            "title": "Builder lesson",
+            "insight": "Reduce noise into action with 3 priorities.",
+            "created_at": "2026-04-21T10:00:00Z",
+            "archived": False,
+        },
+    ]
+    (data_dir / "knowledge_notes.json").write_text(json.dumps(notes, indent=2), encoding="utf-8")
+    newsletter_mod.pick_data_dir = lambda: data_dir
+
+    output_dir = tmp_path / "out" / "newsletters"
+    payload = newsletter_mod.run_generation(
+        period="custom",
+        from_date="2026-04-20",
+        to_date="2026-04-22",
+        mode="product-builder-notes",
+        source_ids="target-note",
+        strict_safety=True,
+        output=str(output_dir),
+    )
+
+    assert payload["status"] == "draft"
+    assert payload["period_start"] == "2026-04-20"
+    assert payload["period_end"] == "2026-04-22"
+    assert payload["source_ids"] == ["target-note"]
+    assert payload["selected_filters"]["source_ids"] == ["target-note"]
+    assert payload["source_count_total"] == 1
