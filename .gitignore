@@ -71,6 +71,7 @@ xcuserdata/
 CortexOSApp/*.ipa
 CortexOSApp/*.pkg
 CortexOSApp/CortexOS.app/
+CortexOSApp/SimpliXio.app/
 CortexOSApp/fastlane/report.xml
 CortexOSApp/generate_icons.py
 CortexOSApp/*.mobileprovision
