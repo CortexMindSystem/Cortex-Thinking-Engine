@@ -178,19 +178,29 @@ private struct SimpliXioOnboardingView: View {
 
                     VStack(alignment: .leading, spacing: CortexSpacing.md) {
                         onboardingRow(
+                            icon: "square.and.pencil",
+                            title: "Capture signals",
+                            message: "Capture notes, links, and thoughts in seconds, even offline."
+                        )
+                        onboardingRow(
                             icon: "target",
-                            title: "See 3 priorities",
-                            message: "Get immediate clarity on what deserves attention now."
+                            title: "Get 3 priorities",
+                            message: "SimpliXio app filters noise into the three things that matter now."
                         )
                         onboardingRow(
                             icon: "lightbulb",
                             title: "Understand why",
-                            message: "Every priority includes reasoning and one next action."
+                            message: "Each priority explains why it matters and what to do next."
                         )
                         onboardingRow(
-                            icon: "square.and.pencil",
-                            title: "Capture fast",
-                            message: "Save thoughts and decisions instantly, even when offline."
+                            icon: "arrow.right.circle",
+                            title: "Take action",
+                            message: "Move on one clear next step instead of juggling everything."
+                        )
+                        onboardingRow(
+                            icon: "checkmark.seal",
+                            title: "Learn by feedback",
+                            message: "Mark what was useful or done so SimpliXio improves over time."
                         )
                     }
 
@@ -210,6 +220,25 @@ private struct SimpliXioOnboardingView: View {
             .safeAreaInset(edge: .bottom) {
                 VStack(spacing: CortexSpacing.sm) {
                     Button {
+                        finish()
+                    } label: {
+                        HStack {
+                            Image(systemName: "arrow.right.circle.fill")
+                                .imageScale(.medium)
+                            Text("Start")
+                                .font(CortexFont.bodyMedium.weight(.semibold))
+                            Spacer(minLength: 0)
+                        }
+                        .foregroundStyle(Color.white)
+                        .padding(.horizontal, CortexSpacing.lg)
+                        .frame(maxWidth: .infinity, minHeight: 52, alignment: .center)
+                        .background(CortexColor.accent)
+                        .clipShape(RoundedRectangle(cornerRadius: CortexRadius.large, style: .continuous))
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityHint("Continue with your own data")
+
+                    Button {
                         Task {
                             isPreparingDemo = true
                             await engine.populateDemoContent()
@@ -218,26 +247,33 @@ private struct SimpliXioOnboardingView: View {
                         }
                     } label: {
                         HStack {
-                            Spacer()
                             if isPreparingDemo {
                                 ProgressView()
                                     .controlSize(.small)
-                            } else {
-                                Text("Start with Demo Data")
-                                    .font(CortexFont.bodyMedium)
+                                    .tint(CortexColor.accent)
                             }
-                            Spacer()
+                            Image(systemName: "sparkles")
+                                .imageScale(.medium)
+                            Text("Start with Demo Data")
+                                .font(CortexFont.bodyMedium.weight(.semibold))
+                            Spacer(minLength: 0)
                         }
+                        .foregroundStyle(CortexColor.textPrimary)
+                        .padding(.horizontal, CortexSpacing.lg)
+                        .frame(maxWidth: .infinity, minHeight: 52, alignment: .center)
+                        .background(CortexColor.bgSurface)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: CortexRadius.large, style: .continuous)
+                                .stroke(Color.primary.opacity(0.12), lineWidth: 1)
+                        )
+                        .clipShape(RoundedRectangle(cornerRadius: CortexRadius.large, style: .continuous))
                     }
-                    .buttonStyle(.borderedProminent)
-                    .tint(CortexColor.accent)
+                    .buttonStyle(.plain)
                     .disabled(isPreparingDemo)
-
-                    Button("Continue") {
-                        finish()
-                    }
-                    .buttonStyle(.bordered)
+                    .opacity(isPreparingDemo ? 0.7 : 1.0)
+                    .accessibilityHint("Preview SimpliXio with example priorities and notes")
                 }
+                .frame(maxWidth: 560)
                 .padding(.horizontal, CortexSpacing.xl)
                 .padding(.vertical, CortexSpacing.sm)
                 .background(.ultraThinMaterial)
