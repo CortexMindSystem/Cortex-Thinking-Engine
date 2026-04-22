@@ -7,10 +7,9 @@ import argparse
 import json
 import subprocess
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
-
 
 AUTOMATION_ROOT = Path(__file__).resolve().parents[1]
 LOG_DIR = AUTOMATION_ROOT / "output" / "logs"
@@ -53,6 +52,19 @@ def build_steps(strict_quality: bool) -> list[tuple[str, list[str], bool]]:
         ("Build SimpliXio Today artifact", [python_bin, "scripts/build_cortex_today.py"], True),
         ("Build weekly review", [python_bin, "scripts/build_weekly_review.py"], True),
         ("Build decision replay", [python_bin, "scripts/build_decision_replay.py"], False),
+        (
+            "Build public newsletter",
+            [
+                python_bin,
+                "scripts/generate_newsletter.py",
+                "--period",
+                "weekly",
+                "--mode",
+                "weekly-lessons",
+                "--strict-safety",
+            ],
+            False,
+        ),
         ("Generate marketing content", [python_bin, "marketing_automation.py"], True),
         ("Run marketing quality gate", quality_cmd, strict_quality),
         ("Publish outputs", [python_bin, "scripts/publish_outputs.py"], False),
@@ -60,7 +72,8 @@ def build_steps(strict_quality: bool) -> list[tuple[str, list[str], bool]]:
 
 
 def run_step(name: str, command: list[str]) -> dict[str, Any]:
-    process = subprocess.run(
+    # Commands come from the fixed step list in this module, not user input.
+    process = subprocess.run(  # noqa: S603
         command,
         cwd=AUTOMATION_ROOT,
         capture_output=True,
@@ -143,12 +156,12 @@ def main() -> None:
             failed = True
             break
 
-    stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    stamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
     log_path = LOG_DIR / f"weekly-pipeline-{stamp}.json"
     summary_path = SUMMARY_DIR / f"weekly-pipeline-{stamp}.md"
 
     payload = {
-        "generated_at": datetime.now(timezone.utc).replace(microsecond=0).isoformat(),
+        "generated_at": datetime.now(UTC).replace(microsecond=0).isoformat(),
         "failed": failed,
         "strict_quality": args.strict_quality,
         "steps": results,
