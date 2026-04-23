@@ -2,119 +2,154 @@ import SwiftUI
 
 struct WatchRootView: View {
     @EnvironmentObject private var model: WatchDecisionModel
+    @Environment(\.scenePhase) private var scenePhase
 
     var body: some View {
-        NavigationStack {
-            List {
-                Section {
-                    HStack {
-                        Circle()
-                            .fill(model.isOffline ? Color.orange : Color.green)
-                            .frame(width: 8, height: 8)
-                        Text(model.isOffline ? "Offline" : "Connected")
-                            .font(.caption2)
-                        Spacer()
-                        if model.pendingCount > 0 {
-                            Text("Queue \(model.pendingCount)")
-                                .font(.caption2)
-                                .foregroundStyle(.blue)
-                        }
-                    }
-                    Text(model.status)
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
+        TabView {
+            NavigationStack {
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 10) {
+                        statusRow
 
-                    Button {
-                        Task { await model.sync() }
-                    } label: {
-                        Label(model.isSyncing ? "Syncing..." : "Sync", systemImage: "arrow.clockwise")
-                    }
-                    .disabled(model.isSyncing)
-                }
+                        if let priority = model.topPriority {
+                            Text(priority.title)
+                                .font(.headline)
+                                .lineLimit(2)
+                                .multilineTextAlignment(.leading)
 
-                Section("What to do next") {
-                    if let priority = model.snapshot?.today?.priorities.first {
-                        NavigationLink {
-                            WatchPriorityDetailView(priority: priority)
-                        } label: {
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text(priority.title)
-                                    .font(.headline)
-                                    .lineLimit(2)
-                                Text(priority.action)
-                                    .font(.caption2)
-                                    .foregroundStyle(.secondary)
-                                    .lineLimit(2)
+                            Text(priority.action)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                                .lineLimit(2)
+
+                            NavigationLink {
+                                WatchFeedbackView(priority: priority)
+                            } label: {
+                                Label("Feedback", systemImage: "hand.thumbsup")
                             }
+                            .buttonStyle(.borderedProminent)
+                        } else {
+                            Text("No priority yet")
+                                .font(.headline)
+                            Text("Sync to pull your latest action.")
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                            Button {
+                                Task { await model.sync() }
+                            } label: {
+                                Label(model.isSyncing ? "Syncing..." : "Sync", systemImage: "arrow.clockwise")
+                            }
+                            .disabled(model.isSyncing)
+                            .buttonStyle(.borderedProminent)
                         }
-                    } else {
-                        Text("No priority yet.")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
                     }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, 8)
                 }
-
-                Section("Voice Capture") {
-                    TextField("Speak or dictate a thought", text: $model.captureText, axis: .vertical)
-                        .lineLimit(2...4)
-                        .textFieldStyle(.plain)
-                        .padding(8)
-                        .background(Color.gray.opacity(0.15))
-                        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-                    Button {
-                        Task { await model.captureByVoice() }
-                    } label: {
-                        Label("Capture", systemImage: "mic.fill")
-                    }
-                    .disabled(model.captureText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-                }
+                .navigationTitle("Next")
             }
-            .navigationTitle("SimpliXio")
+            .tag(0)
+
+            NavigationStack {
+                WatchFeedbackView(priority: model.topPriority)
+            }
+            .tag(1)
+
+            NavigationStack {
+                WatchCaptureView()
+            }
+            .tag(2)
+        }
+        .tabViewStyle(.page)
+        .onChange(of: scenePhase) { _, phase in
+            guard phase == .active else { return }
+            Task { await model.sync() }
+        }
+    }
+
+    private var statusRow: some View {
+        HStack(spacing: 6) {
+            Circle()
+                .fill(model.isOffline ? CortexColor.warning : CortexColor.success)
+                .frame(width: 6, height: 6)
+            Text(model.updatedStatus)
+                .font(.caption2)
+                .foregroundStyle(CortexColor.textSecondary)
+            Spacer()
+            if model.pendingCount > 0 {
+                Text("Q\(model.pendingCount)")
+                    .font(.caption2)
+                    .foregroundStyle(CortexColor.accent)
+            }
         }
     }
 }
 
-private struct WatchPriorityDetailView: View {
+private struct WatchFeedbackView: View {
     @EnvironmentObject private var model: WatchDecisionModel
-    let priority: SyncTodayPriority
+    let priority: SyncTodayPriority?
 
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 10) {
-                Text(priority.title)
-                    .font(.headline)
-                Text("Why")
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-                Text(priority.why)
-                    .font(.caption)
-
-                Text("Action")
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-                Text(priority.action)
-                    .font(.caption)
-
-                HStack(spacing: 8) {
-                    Button("Done") {
-                        Task {
-                            await model.sendQuickFeedback(for: priority, useful: true, acted: true)
-                            await model.sync()
-                        }
-                    }
-                    .buttonStyle(.borderedProminent)
-
-                    Button("Later") {
-                        Task {
-                            await model.sendQuickFeedback(for: priority, useful: false, acted: false)
-                        }
-                    }
-                    .buttonStyle(.bordered)
+        List {
+            if let priority {
+                Section {
+                    Text(priority.title)
+                        .font(.caption)
+                        .lineLimit(2)
+                        .foregroundStyle(.secondary)
                 }
+
+                Section("Useful?") {
+                    Button("Useful") {
+                        Task { await model.sendQuickFeedback(for: priority, useful: true, acted: nil) }
+                    }
+                    Button("Not useful") {
+                        Task { await model.sendQuickFeedback(for: priority, useful: false, acted: nil) }
+                    }
+                }
+
+                Section("Done?") {
+                    Button("Done") {
+                        Task { await model.sendQuickFeedback(for: priority, useful: true, acted: true) }
+                    }
+                    Button("Not done") {
+                        Task { await model.sendQuickFeedback(for: priority, useful: true, acted: false) }
+                    }
+                }
+            } else {
+                Text("No priority to rate yet.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.horizontal, 8)
         }
-        .navigationTitle("Priority \(priority.rank)")
+        .navigationTitle("Feedback")
+    }
+}
+
+private struct WatchCaptureView: View {
+    @EnvironmentObject private var model: WatchDecisionModel
+
+    var body: some View {
+        List {
+            Section {
+                TextField("Dictate or type a note", text: $model.captureText, axis: .vertical)
+                    .lineLimit(2...4)
+                    .textFieldStyle(.plain)
+                    .padding(8)
+                    .background(CortexColor.bgSecondary)
+                    .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+
+                Button {
+                    Task { await model.captureByVoice() }
+                } label: {
+                    Label("Save note", systemImage: "mic.fill")
+                }
+                .disabled(model.captureText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            } footer: {
+                Text(model.isOffline ? "Offline: captured items queue automatically." : "Captured items sync automatically.")
+                    .font(.caption2)
+            }
+        }
+        .navigationTitle("Capture")
     }
 }
