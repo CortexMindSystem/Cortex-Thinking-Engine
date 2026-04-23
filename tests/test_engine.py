@@ -254,3 +254,25 @@ class TestEngineDecisionReplay:
         assert len(replay["final_priorities"]) == 3
         assert replay["final_priorities"][0]["title"] == "Finish Weekly Review Loop"
         assert replay["summary"]
+
+
+class TestEngineSignalMatching:
+    def test_build_signal_matching_output_enforces_calm_queue_limits(self, tmp_data_dir):
+        engine = _make_engine(tmp_data_dir)
+
+        for idx in range(20):
+            engine.capture_signal(
+                text=f"Decision tension {idx}: decide offline retry strategy for release.",
+                source="capture",
+                project="SimpliXio",
+                tags=["offline", "release"],
+            )
+
+        ranked = engine.build_signal_matching_output()
+        assert len(ranked["top_priorities"]) <= 3
+        assert len(ranked["what_matters_now"]) <= 3
+        assert len(ranked["decision_queue"]) <= 5
+        assert len(ranked["action_ready_queue"]) <= 5
+        assert len(ranked["recurring_patterns"]) <= 5
+        assert len(ranked["unresolved_tensions"]) <= 5
+        assert len(ranked["content_candidates"]) <= 5
