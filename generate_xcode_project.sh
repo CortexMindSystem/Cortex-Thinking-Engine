@@ -1,7 +1,7 @@
 #!/bin/bash
 #
 # generate_xcode_project.sh
-# Generates a proper Xcode project for CortexOS multiplatform app.
+# Generates a proper Xcode project for SimpliXio multiplatform app.
 #
 # Usage:
 #   chmod +x generate_xcode_project.sh
@@ -16,7 +16,7 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_ROOT="$SCRIPT_DIR"
 APP_DIR="$PROJECT_ROOT/CortexOSApp"
 
-echo "🧠 CortexOS Xcode Project Generator"
+echo "🧠 SimpliXio Xcode Project Generator"
 echo "====================================="
 
 # Check for xcodegen (preferred) or fall back to manual instructions
@@ -24,7 +24,7 @@ if command -v xcodegen &> /dev/null; then
     echo "✅ Found xcodegen, generating project..."
 
     cat > "$APP_DIR/project.yml" << 'YAML'
-name: CortexOS
+name: SimpliXio
 options:
   bundleIdPrefix: me.ph7.cortexos
   deploymentTarget:
@@ -53,6 +53,7 @@ targets:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: me.ph7.cortexos.ios
+        PRODUCT_NAME: SimpliXio
         INFOPLIST_FILE: iOS/Info.plist
         TARGETED_DEVICE_FAMILY: "1,2"
 
@@ -69,6 +70,7 @@ targets:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: me.ph7.cortexos.macos
+        PRODUCT_NAME: SimpliXio
         INFOPLIST_FILE: macOS/Info.plist
         CODE_SIGN_ENTITLEMENTS: macOS/CortexOS.entitlements
 YAML
@@ -90,7 +92,7 @@ else
     echo "Option B — Create project in Xcode manually:"
     echo "  1. Open Xcode → File → New → Project"
     echo "  2. Choose 'Multiplatform → App'"
-    echo "  3. Name: CortexOS, Bundle ID: me.ph7.cortexos"
+    echo "  3. Name: SimpliXio, Bundle ID: me.ph7.cortexos"
     echo "  4. Language: Swift, Interface: SwiftUI"
     echo "  5. Save into: $APP_DIR"
     echo "  6. Delete auto-generated ContentView.swift and App file"
