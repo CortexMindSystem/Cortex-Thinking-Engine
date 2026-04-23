@@ -221,6 +221,30 @@ final class SyncSnapshotDecodingTests: XCTestCase {
             "summary": "SimpliXio reduced 42 inputs into 3 priorities.",
             "generated_at": "2026-04-19T00:00:00Z"
           },
+          "newsletter": {
+            "status": "draft",
+            "mode": "weekly-lessons",
+            "period_start": "2026-04-13",
+            "period_end": "2026-04-19",
+            "safe_to_publish": true,
+            "generated_at": "2026-04-19T00:00:00Z",
+            "title": "From Noise to Action",
+            "subtitle": "A practical reflection from real notes and decisions.",
+            "preview": "This draft comes from real captured thoughts and decisions.",
+            "source_count_total": 5,
+            "source_count_usable": 4,
+            "safety_report": {
+              "safe_to_publish": true,
+              "remaining_concerns": [],
+              "recommendation": "No critical safety blockers detected."
+            },
+            "taste_gate": {
+              "passed": true,
+              "score": 88,
+              "reasons": []
+            },
+            "markdown_path": "/tmp/newsletter.md"
+          },
           "recent_decisions": [],
           "insights": [],
           "signals": [],
@@ -249,6 +273,10 @@ final class SyncSnapshotDecodingTests: XCTestCase {
         XCTAssertEqual(snapshot.decisionReplay?.signalsKept, 6)
         XCTAssertEqual(snapshot.decisionReplay?.signalsIgnored, 36)
         XCTAssertEqual(snapshot.decisionReplay?.finalPriorities.first?.title, "Finish Weekly Review Loop")
+        XCTAssertNotNil(snapshot.newsletter)
+        XCTAssertEqual(snapshot.newsletter?.status, "draft")
+        XCTAssertEqual(snapshot.newsletter?.mode, "weekly-lessons")
+        XCTAssertEqual(snapshot.newsletter?.sourceCountUsable, 4)
     }
 
     func testDecodeSnapshotWithNullWeeklyReview() throws {
@@ -274,6 +302,7 @@ final class SyncSnapshotDecodingTests: XCTestCase {
           },
           "weekly_review": null,
           "decision_replay": null,
+          "newsletter": null,
           "recent_decisions": [],
           "insights": [],
           "signals": [],
@@ -290,6 +319,7 @@ final class SyncSnapshotDecodingTests: XCTestCase {
         let snapshot = try JSONDecoder().decode(SyncSnapshot.self, from: json)
         XCTAssertNil(snapshot.weeklyReview)
         XCTAssertNil(snapshot.decisionReplay)
+        XCTAssertNil(snapshot.newsletter)
     }
 
     func testDecodeSnapshotWithoutWeeklyReviewKey() throws {
@@ -329,5 +359,6 @@ final class SyncSnapshotDecodingTests: XCTestCase {
         let snapshot = try JSONDecoder().decode(SyncSnapshot.self, from: json)
         XCTAssertNil(snapshot.weeklyReview)
         XCTAssertNil(snapshot.decisionReplay)
+        XCTAssertNil(snapshot.newsletter)
     }
 }
