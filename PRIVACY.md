@@ -1,8 +1,8 @@
-# Privacy Policy — [CortexOS](https://github.com/CortexMindSystem/)
+# Privacy Policy — [SimpliXio](https://github.com/SimplixioMindSystem/)
 
-_Last updated: March 25, 2026_
+_Last updated: April 19, 2026_
 
-CortexOS is designed with privacy as a core principle. We do **not** collect, store, or transmit any personal data to our servers or any third parties.
+SimpliXio is designed with privacy as a core principle. We do **not** collect, store, or transmit any personal data to our servers or any third parties.
 
 ## What Data Is Collected?
 - **No personal data is collected.**
@@ -18,10 +18,10 @@ CortexOS is designed with privacy as a core principle. We do **not** collect, st
 - We do not use analytics, advertising, or tracking libraries.
 
 ## Third-Party Services
-- If you connect to third-party APIs (e.g., OpenAI, Anthropic), your data is subject to their privacy policies. CortexOS does not transmit your data to any other service by default.
+- If you connect to third-party APIs (e.g., OpenAI, Anthropic), your data is subject to their privacy policies. SimpliXio does not transmit your data to any other service by default.
 
 ## Children's Privacy
-- CortexOS does not knowingly collect information from children under 13.
+- SimpliXio does not knowingly collect information from children under 13.
 
 ## Contact
 For any privacy questions, contact [Pierre-Henry](mailto:pierre@pierrehenry.dev)
