@@ -7,6 +7,7 @@ Draft-only by design. No autopublish.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import re
 from collections import Counter
@@ -22,6 +23,7 @@ DRAFTS_DIR = OUTPUT_ROOT / "drafts"
 APPROVED_DIR = OUTPUT_ROOT / "approved"
 REJECTED_DIR = OUTPUT_ROOT / "rejected"
 LOGS_DIR = OUTPUT_ROOT / "logs"
+PUBLIC_PROOF_ROOT = AUTOMATION_ROOT / "output" / "public_proof" / "newsletters"
 
 NEWSLETTER_MODES = {
     "personal-reflection",
@@ -37,6 +39,15 @@ SOURCE_TYPES = {
     "priority-feedback",
     "weekly-review",
     "decision-replay",
+    "approved-writing",
+}
+
+CLASSIFICATION_LABELS = {
+    "private",
+    "sensitive",
+    "internal",
+    "public_safe",
+    "public_ready",
 }
 
 EMAIL_RE = re.compile(r"\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b", re.IGNORECASE)
@@ -70,6 +81,50 @@ CONFIDENTIAL_TERMS = {
     "credit card",
 }
 
+PRIVATE_TERMS = {
+    "do-not-publish",
+    "do not publish",
+    "private",
+    "private conversation",
+}
+
+INTERNAL_TERMS = {
+    "internal",
+    "internal only",
+    "client",
+    "workplace",
+    "nda",
+}
+
+SENSITIVE_TERMS = {
+    "visa",
+    "immigration",
+    "health",
+    "salary",
+    "revenue",
+    "bank account",
+    "credit card",
+    "password",
+    "secret",
+    "token",
+    "api key",
+    "credential",
+}
+
+VOICE_PHRASES_AVOID = {
+    "revolutionary",
+    "game-changer",
+    "unleash",
+    "supercharge",
+    "cutting-edge",
+    "seamless",
+    "next-gen",
+    "transform",
+    "unlock",
+    "futuristic",
+    "ai-powered productivity app",
+}
+
 STOPWORDS = {
     "the",
     "a",
@@ -97,6 +152,14 @@ STOPWORDS = {
     "simplixio",
 }
 
+CLASSIFICATION_RANK = {
+    "private": 0,
+    "sensitive": 1,
+    "internal": 2,
+    "public_safe": 3,
+    "public_ready": 4,
+}
+
 
 @dataclass
 class SourceItem:
@@ -118,6 +181,8 @@ class SanitizedItem:
     tags: list[str] = field(default_factory=list)
     redactions: list[str] = field(default_factory=list)
     blocked_reasons: list[str] = field(default_factory=list)
+    classification: str = "sensitive"
+    classification_reasons: list[str] = field(default_factory=list)
 
 
 def utc_now() -> datetime:
@@ -128,6 +193,7 @@ def ensure_dirs(output_root: Path | None = None) -> None:
     root = output_root or OUTPUT_ROOT
     for path in (root / "drafts", root / "approved", root / "rejected", root / "logs"):
         path.mkdir(parents=True, exist_ok=True)
+    PUBLIC_PROOF_ROOT.mkdir(parents=True, exist_ok=True)
 
 
 def parse_iso_datetime(value: str) -> datetime | None:
@@ -181,6 +247,101 @@ def normalize_tag_set(values: list[str]) -> set[str]:
 
 def parse_csv_list(raw: str) -> list[str]:
     return [item.strip() for item in raw.split(",") if item.strip()]
+
+
+def text_hash(value: str) -> str:
+    return hashlib.sha256(value.encode("utf-8")).hexdigest()
+
+
+def load_json_if_exists(path: Path, fallback: Any) -> Any:
+    if not path.exists():
+        return fallback
+    try:
+        payload = load_json(path)
+    except Exception:
+        return fallback
+    return payload if isinstance(payload, type(fallback)) else fallback
+
+
+def load_newsletter_memory(path: Path) -> dict[str, Any]:
+    payload = load_json_if_exists(path, {})
+    if not isinstance(payload, dict):
+        return {"recent_hashes": [], "recent_angles": [], "history": []}
+    return {
+        "recent_hashes": [str(item) for item in payload.get("recent_hashes", []) if str(item).strip()],
+        "recent_angles": [str(item) for item in payload.get("recent_angles", []) if str(item).strip()],
+        "history": payload.get("history", []) if isinstance(payload.get("history", []), list) else [],
+    }
+
+
+def save_newsletter_memory(path: Path, payload: dict[str, Any]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    trimmed = {
+        "recent_hashes": payload.get("recent_hashes", [])[:50],
+        "recent_angles": payload.get("recent_angles", [])[:30],
+        "history": payload.get("history", [])[:40],
+    }
+    path.write_text(json.dumps(trimmed, indent=2), encoding="utf-8")
+
+
+def select_preferred_classification(classifications: list[str]) -> str:
+    labels = [item for item in classifications if item in CLASSIFICATION_RANK]
+    if not labels:
+        return "sensitive"
+    return sorted(labels, key=lambda item: CLASSIFICATION_RANK[item])[0]
+
+
+def classify_source_item(item: SourceItem, *, redactions: list[str], blockers: list[str]) -> tuple[str, list[str]]:
+    lowered = item.text.lower()
+    tags = normalize_tag_set(item.tags)
+
+    labels: list[str] = []
+    reasons: list[str] = []
+
+    if item.source_type == "approved-writing":
+        labels.append("public_ready")
+        reasons.append("approved_public_source")
+
+    if any(term in lowered for term in PRIVATE_TERMS) or "private" in tags:
+        labels.append("private")
+        reasons.append("private_marker_detected")
+    if any(term in lowered for term in INTERNAL_TERMS) or "internal" in tags:
+        labels.append("internal")
+        reasons.append("internal_marker_detected")
+    if any(term in lowered for term in SENSITIVE_TERMS) or redactions or blockers or "sensitive" in tags:
+        labels.append("sensitive")
+        reasons.append("sensitive_marker_detected")
+
+    if not labels:
+        if item.source_type in {"weekly-review", "decision-replay", "approved-writing"}:
+            labels.append("public_safe")
+            reasons.append("artifact_source_default_public_safe")
+        else:
+            # Privacy-first fallback when confidence is uncertain.
+            labels.append("sensitive")
+            reasons.append("uncertain_classification_downgraded")
+
+    classification = select_preferred_classification(labels)
+    return classification, sorted(set(reasons))
+
+
+def build_classification_summary(items: list[SanitizedItem]) -> dict[str, Any]:
+    counts = Counter(item.classification for item in items)
+    per_item: list[dict[str, Any]] = []
+    for item in items:
+        per_item.append(
+            {
+                "source_id": item.source_id,
+                "source_type": item.source_type,
+                "classification": item.classification,
+                "reasons": item.classification_reasons,
+            }
+        )
+
+    return {
+        "counts": {label: int(counts.get(label, 0)) for label in sorted(CLASSIFICATION_LABELS)},
+        "items": per_item,
+    }
 
 
 def build_period_range(
@@ -450,6 +611,37 @@ def load_decision_replay_output(
     ]
 
 
+def load_approved_writing(
+    start_date: date,
+    end_date: date,
+) -> list[SourceItem]:
+    if not APPROVED_DIR.exists():
+        return []
+
+    items: list[SourceItem] = []
+    for path in sorted(APPROVED_DIR.glob("newsletter-*.md")):
+        stamp = path.stem.replace("newsletter-", "")
+        parsed_dt = parse_iso_datetime(stamp.replace("Z", "+00:00")) if "T" in stamp else None
+        day = parsed_dt.date() if parsed_dt else datetime.fromtimestamp(path.stat().st_mtime, tz=UTC).date()
+        if not in_range(day, start_date, end_date):
+            continue
+
+        text = path.read_text(encoding="utf-8").strip()
+        if not text:
+            continue
+        items.append(
+            SourceItem(
+                source_id=path.stem,
+                source_type="approved-writing",
+                source_file=str(path),
+                date=day.isoformat(),
+                text=text,
+                tags=["public_ready"],
+            )
+        )
+    return items
+
+
 def collect_source_items(
     *,
     data_dir: Path,
@@ -469,6 +661,8 @@ def collect_source_items(
         items.extend(load_weekly_review_output(start_date, end_date))
     if "decision-replay" in source_types:
         items.extend(load_decision_replay_output(start_date, end_date))
+    if "approved-writing" in source_types:
+        items.extend(load_approved_writing(start_date, end_date))
 
     return items
 
@@ -527,9 +721,14 @@ def detect_blockers(text: str) -> list[str]:
 
 def sanitize_source_item(item: SourceItem) -> SanitizedItem:
     redacted, redactions = apply_redactions(item.text)
-    blockers = detect_blockers(redacted)
+    blockers = detect_blockers(item.text)
+    classification, classification_reasons = classify_source_item(
+        item,
+        redactions=redactions,
+        blockers=blockers,
+    )
     clean_text = redacted
-    if blockers:
+    if blockers or classification in {"private", "internal"}:
         clean_text = ""
 
     return SanitizedItem(
@@ -541,7 +740,47 @@ def sanitize_source_item(item: SourceItem) -> SanitizedItem:
         tags=item.tags,
         redactions=redactions,
         blocked_reasons=blockers,
+        classification=classification,
+        classification_reasons=classification_reasons,
     )
+
+
+def build_voice_profile(items: list[SanitizedItem], existing: dict[str, Any]) -> dict[str, Any]:
+    approved = [item for item in items if item.source_type == "approved-writing" and item.text]
+    if not approved:
+        return {
+            "source": str(existing.get("source", "memory")),
+            "preferred_phrases": existing.get("preferred_phrases", []),
+            "tone": existing.get("tone", "direct, practical, reflective"),
+            "words_to_avoid": sorted(VOICE_PHRASES_AVOID),
+        }
+
+    phrase_counter: Counter[str] = Counter()
+    for item in approved:
+        text = item.text.lower()
+        for phrase in re.findall(r"[a-z][a-z\s]{8,40}", text):
+            cleaned = " ".join(phrase.split())
+            if len(cleaned.split()) < 2:
+                continue
+            if any(bad in cleaned for bad in VOICE_PHRASES_AVOID):
+                continue
+            phrase_counter[cleaned] += 1
+
+    preferred = [phrase for phrase, _ in phrase_counter.most_common(6)]
+    if not preferred:
+        preferred = existing.get("preferred_phrases", [])[:6]
+
+    return {
+        "source": "approved-writing",
+        "preferred_phrases": preferred,
+        "tone": "direct, practical, reflective",
+        "words_to_avoid": sorted(VOICE_PHRASES_AVOID),
+    }
+
+
+def save_voice_profile(path: Path, profile: dict[str, Any]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(profile, indent=2), encoding="utf-8")
 
 
 def mode_subtitle(mode: str) -> str:
@@ -604,6 +843,7 @@ def build_sections(
     start_date: date,
     end_date: date,
     items: list[SanitizedItem],
+    voice_profile: dict[str, Any],
 ) -> dict[str, Any]:
     keywords = top_keywords(items)
     titles = title_options(mode, f"{start_date.isoformat()} to {end_date.isoformat()}", keywords)
@@ -614,10 +854,17 @@ def build_sections(
     replay_lines = group_items(items, "decision-replay", limit=3)
     review_lines = group_items(items, "weekly-review", limit=3)
 
+    preferred_phrase = ""
+    preferred_phrases = voice_profile.get("preferred_phrases", [])
+    if isinstance(preferred_phrases, list) and preferred_phrases:
+        preferred_phrase = str(preferred_phrases[0]).strip().capitalize()
+
     opening_hook = (
         "This draft comes from real captured thoughts and decisions. "
         "It is cleaned for public safety without flattening the original intent."
     )
+    if preferred_phrase:
+        opening_hook = f"{preferred_phrase}. {opening_hook}"
 
     main_idea_lines = thought_lines[:3] + decision_lines[:2]
     what_i_noticed = decision_lines[:4] + replay_lines[:2]
@@ -714,11 +961,99 @@ def build_quality_scores(
     }
 
 
+def build_taste_gate(
+    *,
+    sections: dict[str, Any],
+    quality_scores: dict[str, int],
+    source_count_usable: int,
+    memory: dict[str, Any],
+) -> dict[str, Any]:
+    combined_text = " ".join(
+        [
+            sections.get("opening_hook", ""),
+            " ".join(sections.get("main_newsletter_body", [])),
+            " ".join(sections.get("key_lessons", [])),
+            sections.get("practical_takeaway", ""),
+            sections.get("closing_thought", ""),
+        ]
+    ).strip()
+    lowered = combined_text.lower()
+    words = [token for token in re.findall(r"[A-Za-z0-9]+", combined_text) if token]
+
+    reasons: list[str] = []
+    if source_count_usable < 2:
+        reasons.append("not_enough_real_source_material")
+    if len(words) > 850:
+        reasons.append("too_long")
+    if len(words) < 60:
+        reasons.append("too_short")
+    if any(term in lowered for term in VOICE_PHRASES_AVOID):
+        reasons.append("hype_phrase_detected")
+    if len(sections.get("keywords", [])) < 2:
+        reasons.append("too_vague")
+    if quality_scores.get("overall", 0) < 70:
+        reasons.append("low_quality_score")
+
+    digest = text_hash(combined_text)
+    recent_hashes = {str(item) for item in memory.get("recent_hashes", [])}
+    if digest in recent_hashes:
+        reasons.append("too_similar_to_previous_output")
+
+    angle = str(sections.get("keywords", [""])[0]).strip() if sections.get("keywords") else ""
+    recent_angles = {str(item).strip().lower() for item in memory.get("recent_angles", [])}
+    if angle and angle.lower() in recent_angles:
+        reasons.append("repeated_angle")
+
+    score_penalty = min(60, len(reasons) * 10)
+    score = max(0, quality_scores.get("overall", 0) - score_penalty)
+    passed = score >= 70 and not reasons
+
+    return {
+        "passed": passed,
+        "score": score,
+        "reasons": reasons,
+        "content_hash": digest,
+        "primary_angle": angle,
+    }
+
+
+def build_content_flywheel(sections: dict[str, Any]) -> dict[str, str]:
+    title = str(sections.get("title_options", ["SimpliXio update"])[0]).strip()
+    takeaway = str(sections.get("practical_takeaway", "")).strip()
+    noticed = sections.get("what_i_noticed", [])
+    noticed_line = str(noticed[0]).strip() if isinstance(noticed, list) and noticed else "Decision quality improves when noise is ignored early."
+
+    return {
+        "x_post": (
+            f"SimpliXio update: {noticed_line} "
+            f"Core lesson: {takeaway}"
+        ).strip(),
+        "linkedin_post": (
+            f"{title}\n\n{sections.get('opening_hook', '').strip()}\n\n"
+            f"What mattered: {noticed_line}\n"
+            f"What to do next: {takeaway}"
+        ).strip(),
+        "blog_outline": (
+            f"{title}\n- Main idea: {noticed_line}\n"
+            f"- What this means: {'; '.join(sections.get('what_this_means', [])[:2])}\n"
+            f"- Practical takeaway: {takeaway}"
+        ).strip(),
+        "launch_note": f"Built from real SimpliXio artifacts. {takeaway}".strip(),
+        "acquisition_angle": (
+            "Use this insight to start low-pressure conversations with builders dealing with decision fatigue."
+        ),
+        "product_lesson": noticed_line,
+        "future_content_idea": "Show one concrete decision where ignored signals improved execution quality.",
+    }
+
+
 def render_markdown(
     *,
     sections: dict[str, Any],
     safety_report: dict[str, Any],
     quality_scores: dict[str, int],
+    classification_summary: dict[str, Any],
+    taste_gate: dict[str, Any],
 ) -> str:
     title_options = sections["title_options"]
     title = title_options[0]
@@ -812,6 +1147,13 @@ def render_markdown(
     lines.append(f"- Recommendation: {safety_report['recommendation']}")
     lines.append("")
 
+    lines.append("## Classification Summary")
+    lines.append("")
+    lines.append("- Source labels:")
+    for label, count in classification_summary.get("counts", {}).items():
+        lines.append(f"  - {label}: {count}")
+    lines.append("")
+
     lines.append("## Redaction Report")
     lines.append("")
     if safety_report["redactions_applied"]:
@@ -825,6 +1167,19 @@ def render_markdown(
     lines.append("")
     for key in ("authenticity", "clarity", "usefulness", "privacy_safety", "public_value", "alignment", "overall"):
         lines.append(f"- {key.replace('_', ' ')}: {quality_scores[key]}")
+    lines.append("")
+
+    lines.append("## Taste Gate")
+    lines.append("")
+    lines.append(f"- Passed: {'yes' if taste_gate.get('passed') else 'no'}")
+    lines.append(f"- Score: {taste_gate.get('score', 0)}")
+    reasons = taste_gate.get("reasons", [])
+    if reasons:
+        lines.append("- Reasons:")
+        for reason in reasons:
+            lines.append(f"  - {reason}")
+    else:
+        lines.append("- Reasons: none")
     lines.append("")
 
     return "\n".join(lines)
@@ -917,11 +1272,41 @@ def write_outputs(
     latest_json.write_text(json.dumps(payload, indent=2), encoding="utf-8")
 
     return {
+        "basename": basename,
         "markdown": str(md_path),
         "html": str(html_path),
         "log": str(log_path),
         "latest": str(latest_json),
     }
+
+
+def archive_public_proof(
+    *,
+    basename: str,
+    markdown_text: str,
+    payload: dict[str, Any],
+    should_archive: bool,
+) -> str | None:
+    if not should_archive:
+        return None
+    PUBLIC_PROOF_ROOT.mkdir(parents=True, exist_ok=True)
+    md_path = PUBLIC_PROOF_ROOT / f"{basename}.md"
+    json_path = PUBLIC_PROOF_ROOT / f"{basename}.json"
+    md_path.write_text(markdown_text, encoding="utf-8")
+    archive_payload = {
+        "status": payload.get("status"),
+        "generated_at": payload.get("generated_at"),
+        "period": payload.get("period"),
+        "period_start": payload.get("period_start"),
+        "period_end": payload.get("period_end"),
+        "source_ids": payload.get("source_ids", []),
+        "classification_summary": payload.get("classification_summary", {}),
+        "quality_scores": payload.get("quality_scores", {}),
+        "taste_gate": payload.get("taste_gate", {}),
+        "safety_report": payload.get("safety_report", {}),
+    }
+    json_path.write_text(json.dumps(archive_payload, indent=2), encoding="utf-8")
+    return str(md_path)
 
 
 def run_generation(
@@ -932,6 +1317,7 @@ def run_generation(
     mode: str = "weekly-lessons",
     output: str = "",
     strict_safety: bool = True,
+    strict_taste: bool = True,
     sources: str = "",
     source_ids: str = "",
     tags: str = "",
@@ -942,6 +1328,8 @@ def run_generation(
 
     output_root = Path(output).expanduser().resolve() if output else OUTPUT_ROOT
     ensure_dirs(output_root)
+    memory_path = output_root / "memory.json"
+    voice_profile_path = output_root / "voice_profile.json"
 
     data_dir = pick_data_dir()
     if data_dir is None:
@@ -996,8 +1384,21 @@ def run_generation(
 
     sanitized = [sanitize_source_item(item) for item in source_items]
     usable = [item for item in sanitized if item.text]
+    classification_summary = build_classification_summary(sanitized)
+    memory = load_newsletter_memory(memory_path)
+    existing_voice_profile = load_json_if_exists(voice_profile_path, {})
+    voice_profile = build_voice_profile(sanitized, existing_voice_profile)
+    save_voice_profile(voice_profile_path, voice_profile)
 
     safety_report = build_safety_report(sanitized)
+    taste_gate = {
+        "passed": False,
+        "score": 0,
+        "reasons": ["not_evaluated"],
+        "content_hash": "",
+        "primary_angle": "",
+    }
+    content_flywheel: dict[str, str] = {}
     quality_scores = {
         "authenticity": 0,
         "clarity": 0,
@@ -1010,13 +1411,16 @@ def run_generation(
 
     if not usable:
         status = "rejected"
-        reason = "no_public_safe_items"
+        reason = "not_enough_public_safe_items"
         markdown_text = (
-            "# SimpliXio Newsletter Draft\n\nNo public-safe source material was available for this period.\n"
+            "# SimpliXio Newsletter Draft\n\nNot enough public-safe material yet.\n\n"
+            "- Capture a thought\n- Add a decision\n- Run Weekly Review\n"
         )
         html_text = (
             "<html><body><h1>SimpliXio Newsletter Draft</h1>"
-            "<p>No public-safe source material was available for this period.</p></body></html>"
+            "<p>Not enough public-safe material yet.</p>"
+            "<ul><li>Capture a thought</li><li>Add a decision</li><li>Run Weekly Review</li></ul>"
+            "</body></html>"
         )
     else:
         sections = build_sections(
@@ -1024,6 +1428,7 @@ def run_generation(
             start_date=start_date,
             end_date=end_date,
             items=usable,
+            voice_profile=voice_profile,
         )
         quality_scores = build_quality_scores(
             mode=mode,
@@ -1031,10 +1436,19 @@ def run_generation(
             safety_report=safety_report,
             sanitized_items=usable,
         )
+        taste_gate = build_taste_gate(
+            sections=sections,
+            quality_scores=quality_scores,
+            source_count_usable=len(usable),
+            memory=memory,
+        )
+        content_flywheel = build_content_flywheel(sections)
         markdown_text = render_markdown(
             sections=sections,
             safety_report=safety_report,
             quality_scores=quality_scores,
+            classification_summary=classification_summary,
+            taste_gate=taste_gate,
         )
         html_text = render_html(markdown_text)
 
@@ -1042,6 +1456,9 @@ def run_generation(
         if strict_safety and not safe_to_publish:
             status = "needs_review"
             reason = "strict_safety_blocked"
+        elif strict_taste and not taste_gate["passed"]:
+            status = "needs_review"
+            reason = "strict_taste_blocked"
         else:
             status = "draft"
             reason = "ok"
@@ -1054,6 +1471,7 @@ def run_generation(
         "period_end": end_date.isoformat(),
         "mode": mode,
         "strict_safety": strict_safety,
+        "strict_taste": strict_taste,
         "safe_to_publish": bool(safety_report["safe_to_publish"]),
         "reason": reason,
         "source_data_dir": str(data_dir),
@@ -1068,6 +1486,7 @@ def run_generation(
             "keywords": sorted(selected_keywords),
         },
         "safety_report": safety_report,
+        "classification_summary": classification_summary,
         "redaction_report": {
             "total_items_redacted": sum(1 for item in sanitized if item.redactions),
             "total_items_blocked": sum(1 for item in sanitized if item.blocked_reasons),
@@ -1075,6 +1494,7 @@ def run_generation(
                 {
                     "source_id": item.source_id,
                     "source_type": item.source_type,
+                    "classification": item.classification,
                     "redactions": item.redactions,
                     "blocked_reasons": item.blocked_reasons,
                 }
@@ -1082,7 +1502,10 @@ def run_generation(
                 if item.redactions or item.blocked_reasons
             ],
         },
+        "voice_profile_used": voice_profile,
         "quality_scores": quality_scores,
+        "taste_gate": taste_gate,
+        "content_flywheel": content_flywheel,
     }
 
     payload["outputs"] = write_outputs(
@@ -1092,6 +1515,35 @@ def run_generation(
         html_text=html_text,
         payload=payload,
     )
+
+    archive_path = archive_public_proof(
+        basename=str(payload["outputs"].get("basename", "")),
+        markdown_text=markdown_text,
+        payload=payload,
+        should_archive=(
+            bool(safety_report["safe_to_publish"])
+            and bool(taste_gate.get("passed"))
+            and classification_summary.get("counts", {}).get("public_ready", 0) > 0
+        ),
+    )
+    if archive_path:
+        payload["outputs"]["public_proof_markdown"] = archive_path
+
+    if taste_gate.get("content_hash"):
+        history_entry = {
+            "generated_at": payload["generated_at"],
+            "hash": taste_gate["content_hash"],
+            "angle": taste_gate.get("primary_angle", ""),
+            "status": status,
+            "safe_to_publish": payload["safe_to_publish"],
+        }
+        memory["recent_hashes"] = [taste_gate["content_hash"], *memory.get("recent_hashes", [])]
+        angle = str(taste_gate.get("primary_angle", "")).strip()
+        if angle:
+            memory["recent_angles"] = [angle, *memory.get("recent_angles", [])]
+        memory["history"] = [history_entry, *memory.get("history", [])]
+        save_newsletter_memory(memory_path, memory)
+
     return payload
 
 
@@ -1117,7 +1569,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--source-ids", default="", help="Comma-separated source IDs to include.")
     parser.add_argument("--tags", default="", help="Comma-separated tags filter.")
     parser.add_argument("--keywords", default="", help="Comma-separated keyword filter.")
-    parser.set_defaults(strict_safety=True)
+    parser.set_defaults(strict_safety=True, strict_taste=True)
     parser.add_argument(
         "--strict-safety",
         dest="strict_safety",
@@ -1125,10 +1577,10 @@ def parse_args() -> argparse.Namespace:
         help="Enable strict safety mode (unsafe drafts become needs_review).",
     )
     parser.add_argument(
-        "--no-strict-safety",
-        dest="strict_safety",
-        action="store_false",
-        help="Disable strict safety mode (unsafe drafts remain draft).",
+        "--strict-taste",
+        dest="strict_taste",
+        action="store_true",
+        help="Enable strict taste mode (generic or repetitive drafts become needs_review).",
     )
     return parser.parse_args()
 
@@ -1142,6 +1594,7 @@ def main() -> None:
         mode=args.mode,
         output=args.output,
         strict_safety=args.strict_safety,
+        strict_taste=args.strict_taste,
         sources=args.sources,
         source_ids=args.source_ids,
         tags=args.tags,
