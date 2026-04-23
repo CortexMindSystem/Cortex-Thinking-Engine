@@ -119,7 +119,7 @@ python3 scripts/filter_signals.py
 python3 scripts/build_cortex_today.py
 python3 scripts/build_weekly_review.py
 python3 scripts/build_decision_replay.py
-python3 scripts/generate_newsletter.py --period weekly --mode weekly-lessons --strict-safety
+python3 scripts/generate_newsletter.py --period weekly --mode weekly-lessons --strict-safety --strict-taste
 python3 marketing_automation.py
 python3 scripts/marketing_quality_gate.py --strict
 python3 scripts/publish_outputs.py
@@ -205,7 +205,7 @@ Single command outputs (daily):
 Weekly public-safe newsletter draft:
 
 ```bash
-python3 scripts/generate_newsletter.py --period weekly --mode weekly-lessons --strict-safety
+python3 scripts/generate_newsletter.py --period weekly --mode weekly-lessons --strict-safety --strict-taste
 ```
 
 Custom range from selected source IDs:
@@ -215,23 +215,31 @@ python3 scripts/generate_newsletter.py \
   --period custom --from 2026-04-01 --to 2026-04-21 \
   --mode product-builder-notes \
   --source-ids thought-12,decision-7 \
-  --strict-safety
+  --strict-safety --strict-taste
 ```
 
 What it does:
 - reads selected source material (`thoughts`, `notes`, `decisions`, `priority-feedback`, `weekly-review`, `decision-replay`)
 - supports `daily`, `weekly`, `monthly`, or `custom` date ranges
 - supports source filtering by `--source-ids`, `--tags`, and `--keywords`
+- classifies each source item (`private`, `sensitive`, `internal`, `public_safe`, `public_ready`) before generation
 - redacts sensitive patterns (emails, phone numbers, long numbers, URLs, common secret token formats)
 - blocks confidential indicators and marks unsafe drafts as `needs_review` in strict mode
+- runs a strict taste gate (generic/repetitive/weak drafts become `needs_review`)
+- updates local voice memory from approved writing only (`output/newsletters/voice_profile.json`)
+- writes content-flywheel snippets (X, LinkedIn, blog outline, acquisition angle) inside the JSON log
 - stores safety + redaction logs with source IDs for manual review
-- writes Markdown + HTML + JSON metadata with safety + redaction reports
+- writes Markdown + HTML + JSON metadata with safety + redaction + classification + taste reports
+- archives only safe + taste-passing + `public_ready` drafts to `output/public_proof/newsletters/`
 
 Outputs:
 - `output/newsletters/drafts/newsletter-*.md` (or `rejected/` when blocked)
 - `output/newsletters/drafts/newsletter-*.html`
 - `output/newsletters/logs/newsletter-*.json`
 - `output/newsletters/latest.json`
+- `output/newsletters/voice_profile.json`
+- `output/newsletters/memory.json`
+- `output/public_proof/newsletters/newsletter-*.md` (only when archive rules pass)
 
 ## Notes
 
