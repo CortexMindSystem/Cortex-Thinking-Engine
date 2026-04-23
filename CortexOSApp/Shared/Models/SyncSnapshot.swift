@@ -17,6 +17,16 @@ struct SyncSnapshot: Codable {
     let today: SyncTodayOutput?
     let weeklyReview: SyncWeeklyReview?
     let decisionReplay: SyncDecisionReplay?
+    let newsletter: SyncNewsletter?
+    let whatMattersNow: [SyncRankedSignal]?
+    let signalTopPriorities: [SyncRankedPriority]?
+    let decisionQueue: [SyncRankedSignal]?
+    let actionReadyQueue: [SyncRankedSignal]?
+    let recurringPatterns: [SyncRecurringPattern]?
+    let unresolvedTensions: [SyncRankedSignal]?
+    let contentCandidates: [SyncRankedSignal]?
+    let signalGraph: SyncSignalGraph?
+    let signalMatchingCounts: SyncSignalMatchingCounts?
     let recentDecisions: [SyncDecision]
     let insights: [SyncInsight]
     let signals: [SyncSignal]
@@ -27,10 +37,223 @@ struct SyncSnapshot: Codable {
         case profile, priorities, today, insights, signals
         case weeklyReview = "weekly_review"
         case decisionReplay = "decision_replay"
+        case newsletter
+        case whatMattersNow = "what_matters_now"
+        case signalTopPriorities = "signal_top_priorities"
+        case decisionQueue = "decision_queue"
+        case actionReadyQueue = "action_ready_queue"
+        case recurringPatterns = "recurring_patterns"
+        case unresolvedTensions = "unresolved_tensions"
+        case contentCandidates = "content_candidates"
+        case signalGraph = "signal_graph"
+        case signalMatchingCounts = "signal_matching_counts"
         case activeProject = "active_project"
         case recentDecisions = "recent_decisions"
         case workingMemory = "working_memory"
         case syncedAt = "synced_at"
+    }
+}
+
+// MARK: - Signal Matching (deterministic ranked surfaces)
+
+struct SyncSignalExplainability: Codable {
+    let whyItSurfaced: String
+    let topContributors: [String]
+    let loweredConfidence: [String]
+    let missingForReadiness: [String]
+    let rankScore: Double
+
+    enum CodingKeys: String, CodingKey {
+        case whyItSurfaced = "why_it_surfaced"
+        case topContributors = "top_contributors"
+        case loweredConfidence = "lowered_confidence"
+        case missingForReadiness = "missing_for_readiness"
+        case rankScore = "rank_score"
+    }
+}
+
+struct SyncSignalScoreBundle: Codable {
+    let importance: Double
+    let clarity: Double
+    let decisionReadiness: Double
+    let actionReadiness: Double
+    let recurrence: Double
+    let emotionalIntensity: Double
+    let publishability: Double
+    let staleness: Double
+
+    enum CodingKeys: String, CodingKey {
+        case importance, clarity, recurrence, staleness
+        case decisionReadiness = "decision_readiness"
+        case actionReadiness = "action_readiness"
+        case emotionalIntensity = "emotional_intensity"
+        case publishability
+    }
+}
+
+struct SyncRankedSignal: Codable, Identifiable {
+    let signalID: String
+    let title: String
+    let signalType: String
+    let horizon: String
+    let rankScore: Double
+    let scores: SyncSignalScoreBundle
+    let topics: [String]
+    let sensitivity: String
+    let explainability: SyncSignalExplainability
+    let nextAction: String
+    let capturedAt: String
+
+    var id: String { signalID }
+
+    enum CodingKeys: String, CodingKey {
+        case title, horizon, scores, topics, sensitivity, explainability
+        case signalID = "signal_id"
+        case signalType = "signal_type"
+        case rankScore = "rank_score"
+        case nextAction = "next_action"
+        case capturedAt = "captured_at"
+    }
+}
+
+struct SyncRankedPriority: Codable, Identifiable {
+    let title: String
+    let why: String
+    let action: String
+    let signalID: String
+    let rankScore: Double
+    let horizon: String
+    var id: String { signalID }
+
+    enum CodingKeys: String, CodingKey {
+        case title, why, action, horizon
+        case signalID = "signal_id"
+        case rankScore = "rank_score"
+    }
+}
+
+struct SyncRecurringPattern: Codable, Identifiable {
+    let topic: String
+    let count: Int
+    let unresolvedCount: Int
+    let avgImportance: Double
+    let sampleSignals: [String]
+    var id: String { topic }
+
+    enum CodingKeys: String, CodingKey {
+        case topic, count
+        case unresolvedCount = "unresolved_count"
+        case avgImportance = "avg_importance"
+        case sampleSignals = "sample_signals"
+    }
+}
+
+struct SyncSignalGraphNode: Codable, Identifiable {
+    let id: String
+    let type: String
+    let title: String
+    let topics: [String]
+    let sensitivity: String
+}
+
+struct SyncSignalGraphEdge: Codable, Identifiable {
+    let from: String
+    let to: String
+    let relation: String
+    let confidence: Double
+    var id: String { "\(from)->\(to):\(relation)" }
+}
+
+struct SyncSignalGraph: Codable {
+    let nodes: [SyncSignalGraphNode]
+    let edges: [SyncSignalGraphEdge]
+}
+
+struct SyncSignalMatchingCounts: Codable {
+    let signalsTotal: Int
+    let signalsActive: Int
+    let ignored: Int
+
+    enum CodingKeys: String, CodingKey {
+        case ignored
+        case signalsTotal = "signals_total"
+        case signalsActive = "signals_active"
+    }
+}
+
+// MARK: - Newsletter (automation-backed, optional)
+
+struct SyncNewsletterSafetyReport: Codable {
+    let safeToPublish: Bool?
+    let remainingConcerns: [String]?
+    let recommendation: String?
+
+    enum CodingKeys: String, CodingKey {
+        case safeToPublish = "safe_to_publish"
+        case remainingConcerns = "remaining_concerns"
+        case recommendation
+    }
+}
+
+struct SyncNewsletterTasteGate: Codable {
+    let passed: Bool?
+    let score: Int?
+    let reasons: [String]?
+}
+
+struct SyncNewsletter: Codable {
+    let status: String
+    let mode: String
+    let periodStart: String
+    let periodEnd: String
+    let safeToPublish: Bool
+    let generatedAt: String
+    let title: String
+    let subtitle: String
+    let preview: String
+    let sourceCountTotal: Int
+    let sourceCountUsable: Int
+    let safetyReport: SyncNewsletterSafetyReport?
+    let tasteGate: SyncNewsletterTasteGate?
+    let markdownPath: String
+
+    enum CodingKeys: String, CodingKey {
+        case status, mode, title, subtitle, preview
+        case periodStart = "period_start"
+        case periodEnd = "period_end"
+        case safeToPublish = "safe_to_publish"
+        case generatedAt = "generated_at"
+        case sourceCountTotal = "source_count_total"
+        case sourceCountUsable = "source_count_usable"
+        case safetyReport = "safety_report"
+        case tasteGate = "taste_gate"
+        case markdownPath = "markdown_path"
+    }
+}
+
+struct NewsletterGenerateRequest: Codable {
+    let period: String
+    let mode: String
+    let strictSafety: Bool
+    let strictTaste: Bool
+
+    enum CodingKeys: String, CodingKey {
+        case period, mode
+        case strictSafety = "strict_safety"
+        case strictTaste = "strict_taste"
+    }
+}
+
+struct NewsletterGenerationResult: Codable {
+    let status: String
+    let reason: String?
+    let safeToPublish: Bool?
+    let generatedAt: String?
+
+    enum CodingKeys: String, CodingKey {
+        case status, reason
+        case safeToPublish = "safe_to_publish"
+        case generatedAt = "generated_at"
     }
 }
 
