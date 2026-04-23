@@ -7,11 +7,6 @@
 //
 
 import SwiftUI
-#if os(iOS)
-import UIKit
-#elseif os(macOS)
-import AppKit
-#endif
 
 struct SettingsView: View {
     @EnvironmentObject private var engine: CortexEngine
@@ -21,13 +16,17 @@ struct SettingsView: View {
     @State private var isPreparingDemo = false
     @State private var isRetryingQueue = false
     @State private var showQueueSheet = false
-    @State private var projectCopyFeedback: String = ""
 
     @AppStorage("cortex_system_name") private var systemName: String = "SimpliXio"
     @AppStorage("cortex_demo_mode_enabled") private var demoModeEnabled: Bool = true
 
     private let projectURL = URL(string: "https://github.com/SimplixioMindSystem/Thinking-Engine")!
     private let orgURL = URL(string: "https://github.com/SimplixioMindSystem")!
+    private var appVersionDisplay: String {
+        let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "Unknown"
+        let build = Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? ""
+        return build.isEmpty ? version : "\(version) (\(build))"
+    }
 
     var body: some View {
         Form {
@@ -146,31 +145,50 @@ struct SettingsView: View {
                 }
                 .disabled(isPreparingDemo)
 
-                Text("Use demo mode to review all screens with realistic preloaded content.")
+                Text("Use demo mode to preload sample priorities and notes.")
                     .font(CortexFont.caption)
                     .foregroundStyle(CortexColor.textTertiary)
-            } header: {
-                Text("App Review")
-            }
+
+                if let status = engine.lastSyncStatus, !status.isEmpty {
+                    Text(status)
+                        .font(CortexFont.caption)
+                        .foregroundStyle(CortexColor.accent)
+                }
+            } header: { Text("Demo") }
 
             // MARK: - About
             Section("About") {
                 LabeledContent("App", value: "SimpliXio")
-                LabeledContent("Tagline", value: "Decide what matters.")
-                LabeledContent("Subtitle", value: "Turn noise into action.")
-                LabeledContent("Description", value: "A decision system that turns noise into 3 priorities.")
-                LabeledContent("Version", value: "1.1.0")
+                LabeledContent("Purpose", value: "Turn noise into 3 priorities.")
+                LabeledContent("Version", value: appVersionDisplay)
             }
 
             Section("Project") {
-                HStack {
-                    ShareLink(item: projectURL) {
-                        Label("Share Project", systemImage: "square.and.arrow.up")
-                            .font(CortexFont.bodyMedium)
+                ShareLink(item: projectURL) {
+                    HStack(spacing: CortexSpacing.sm) {
+                        Image(systemName: "square.and.arrow.up.fill")
+                            .imageScale(.medium)
+                        Text("Share Project")
+                            .font(CortexFont.bodyMedium.weight(.semibold))
                     }
-                    .buttonStyle(.borderedProminent)
-                    Spacer()
+                    .foregroundStyle(Color.white)
+                    .frame(maxWidth: .infinity, minHeight: 48, alignment: .center)
+                    .background(
+                        LinearGradient(
+                            colors: [CortexColor.accent, CortexColor.accent.opacity(0.82)],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: CortexRadius.large, style: .continuous)
+                            .stroke(Color.white.opacity(0.16), lineWidth: 1)
+                    )
+                    .clipShape(RoundedRectangle(cornerRadius: CortexRadius.large, style: .continuous))
+                    .cortexShadow()
                 }
+                .buttonStyle(.plain)
+                .listRowBackground(Color.clear)
 
                 Link(destination: projectURL) {
                     HStack {
@@ -198,24 +216,6 @@ struct SettingsView: View {
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
-                }
-
-                Button {
-                    copyToClipboard(projectURL.absoluteString)
-                    projectCopyFeedback = "Repository URL copied"
-                } label: {
-                    HStack {
-                        Label("Copy Repository URL", systemImage: "doc.on.doc")
-                            .foregroundStyle(CortexColor.textPrimary)
-                        Spacer()
-                    }
-                }
-                .buttonStyle(.plain)
-
-                if !projectCopyFeedback.isEmpty {
-                    Text(projectCopyFeedback)
-                        .font(CortexFont.caption)
-                        .foregroundStyle(CortexColor.textTertiary)
                 }
             }
 
@@ -277,15 +277,6 @@ struct SettingsView: View {
         }
     }
 
-    private func copyToClipboard(_ value: String) {
-        #if os(iOS)
-        UIPasteboard.general.string = value
-        #elseif os(macOS)
-        NSPasteboard.general.clearContents()
-        NSPasteboard.general.setString(value, forType: .string)
-        #endif
-    }
-
     private func testConnection() async {
         isTesting = true
         connectionFeedback = nil
@@ -305,8 +296,8 @@ struct SettingsView: View {
     }
 
     private var statusColor: Color {
-        if engine.api.isOffline { return .blue }
-        return engine.isConnected ? .green : .red.opacity(0.6)
+        if engine.api.isOffline { return CortexColor.neutral }
+        return engine.isConnected ? CortexColor.success : CortexColor.error
     }
 
     private var queueSheet: some View {
@@ -390,9 +381,9 @@ private enum ConnectionFeedback {
 
     var color: Color {
         switch self {
-        case .success: .green
-        case .failure: .red
-        case .local: .blue
+        case .success: CortexColor.success
+        case .failure: CortexColor.error
+        case .local: CortexColor.neutral
         }
     }
 }
