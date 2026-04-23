@@ -32,10 +32,10 @@ jobs:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           OPENAI_MODEL: ${{ secrets.OPENAI_MODEL }}
           APP_NAME: SimpliXio
-          APP_URL: https://github.com/pH-7/CortexOSLLM
+          APP_URL: https://github.com/SimplixioMindSystem/Thinking-Engine
           AUTHOR_NAME: Pierre-Henry Soria
-          AUTHOR_URL: https://ph7.me
-          SITE_BASE_URL: https://ph7.me
+          AUTHOR_URL: https://pierrehenry.dev
+          SITE_BASE_URL: https://pierrehenry.dev
           RSS_FEEDS: ${{ secrets.RSS_FEEDS }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_TOPICS: ai,agents,developer-tools,context-engineering
