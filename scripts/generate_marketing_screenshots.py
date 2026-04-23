@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-CortexOS App Store Marketing Screenshot Generator
+SimpliXio App Store Marketing Screenshot Generator
 ─────────────────────────────────────────────────
 Creates professional marketing screenshots with:
 - Device frames (iPhone/iPad/Mac)
@@ -23,7 +23,7 @@ ASSETS_DIR = ROOT / "CortexOSApp" / "store_assets"
 RAW_DIR = ROOT / "CortexOSApp" / "screenshot_results"
 OUTPUT_DIR = ASSETS_DIR / "marketing"
 
-# CortexOS Brand Colors (vibrant, electric aesthetic)
+# SimpliXio Brand Colors (vibrant, electric aesthetic)
 BRAND_GRADIENT_START = (15, 23, 42)  # Deep navy
 BRAND_GRADIENT_MID = (88, 28, 135)  # Vivid purple
 BRAND_GRADIENT_END = (157, 23, 77)  # Hot magenta
@@ -36,10 +36,10 @@ BRAND_TEXT_SECONDARY = (255, 255, 255, 200)  # White with alpha
 
 # Marketing copy for each screen
 IPHONE_MARKETING = {
-    "01_focus": {"headline": "Focus on\nWhat Matters", "subheadline": "AI-powered daily priorities"},
-    "02_decide": {"headline": "Decide\nwith Clarity", "subheadline": "Record decisions that compound"},
-    "03_capture": {"headline": "Capture\nEvery Thought", "subheadline": "Quick notes that build memory"},
-    "04_settings": {"headline": "Your Thinking\nSystem", "subheadline": "Personalized to how you work"},
+    "01_focus": {"headline": "Decide what\nmatters.", "subheadline": "Turn noise into action."},
+    "02_decide": {"headline": "3 priorities.\nClear action.", "subheadline": "A decision system that turns noise into 3 priorities."},
+    "03_capture": {"headline": "Capture fast.\nDecide faster.", "subheadline": "Understand what matters and what to do next."},
+    "04_settings": {"headline": "Not another\nAI app.", "subheadline": "A decision system for clearer action."},
 }
 
 MAC_MARKETING = {
@@ -356,7 +356,7 @@ def create_iphone_screenshot(raw_path, marketing_info, output_size, variant=0):
     headline_font_size = int(width * 0.09)  # Slightly larger
     headline_font = get_font(headline_font_size, bold=True, style="headline")
 
-    headline = marketing_info.get("headline", "CortexOS")
+    headline = marketing_info.get("headline", "SimpliXio")
 
     # Calculate text position (centered, top area)
     lines = headline.split("\n")
@@ -451,7 +451,7 @@ def create_mac_screenshot(raw_path, marketing_info, output_size, variant=0):
     headline_font_size = int(height * 0.085)  # Slightly larger for impact
     headline_font = get_font(headline_font_size, bold=True, style="headline")
 
-    headline = marketing_info.get("headline", "CortexOS")
+    headline = marketing_info.get("headline", "SimpliXio")
 
     # Text area is left 5% of width
     text_x = int(width * 0.05)
@@ -484,7 +484,7 @@ def create_mac_screenshot(raw_path, marketing_info, output_size, variant=0):
 def process_all_screenshots():
     """Process all screenshots and create marketing versions."""
     print("═" * 55)
-    print(" CortexOS — Marketing Screenshot Generator")
+    print(" SimpliXio — Marketing Screenshot Generator")
     print("═" * 55)
 
     # Create output directories
