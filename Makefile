@@ -1,9 +1,10 @@
 # ─────────────────────────────────────────────────────
-# CortexOS — Makefile
+# SimpliXio — Makefile
 # Common development commands for the monorepo.
 # ─────────────────────────────────────────────────────
 
-.PHONY: help install lint test test-python test-swift security serve clean
+.PHONY: help install lint test test-python test-swift security serve clean \
+	autopilot-weekly autopilot-acq-daily autopilot-acq-weekly autopilot-all
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | \
@@ -37,7 +38,7 @@ test-swift: ## Build & test Swift package
 
 # ── Server ──────────────────────────────────────────
 
-serve: ## Start the CortexOS API server
+serve: ## Start the SimpliXio API server
 	.venv/bin/python -m cortex_core.api.server
 
 # ── Clean ───────────────────────────────────────────
@@ -45,3 +46,16 @@ serve: ## Start the CortexOS API server
 clean: ## Remove build artifacts
 	rm -rf .venv .build .pytest_cache __pycache__ .ruff_cache
 	find . -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true
+
+# ── Automation ─────────────────────────────────────
+
+autopilot-weekly: ## Run strict weekly marketing automation pipeline
+	cd cortexos_automation_scripts && python3 scripts/run_weekly_pipeline.py --strict-quality
+
+autopilot-acq-daily: ## Run strict daily acquisition pipeline
+	cd cortexos_automation_scripts && python3 scripts/run_acquisition_pipeline.py --mode daily --strict-quality
+
+autopilot-acq-weekly: ## Run weekly acquisition review pipeline
+	cd cortexos_automation_scripts && python3 scripts/run_acquisition_pipeline.py --mode weekly
+
+autopilot-all: autopilot-weekly autopilot-acq-daily autopilot-acq-weekly ## Run all automation pipelines in safe order
