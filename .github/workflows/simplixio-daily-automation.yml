@@ -30,7 +30,7 @@ jobs:
         working-directory: cortexos_automation_scripts
         env:
           APP_NAME: SimpliXio
-          APP_URL: https://github.com/pH-7/CortexOSLLM
+          APP_URL: https://github.com/SimplixioMindSystem/Thinking-Engine
           AUTHOR_NAME: Pierre-Henry Soria
           AUTHOR_URL: https://pierrehenry.dev
           RSS_FEEDS: ${{ secrets.RSS_FEEDS }}
