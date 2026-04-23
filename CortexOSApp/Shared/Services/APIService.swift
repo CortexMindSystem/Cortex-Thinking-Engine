@@ -56,7 +56,10 @@ final class APIService: ObservableObject {
         self.baseURL = baseURL ?? saved ?? APIService.defaultServerURL
 
         let config = URLSessionConfiguration.default
-        config.timeoutIntervalForRequest = 30
+        // Keep UI responsive in weak/no-network review environments.
+        // We want fast fallback to local/offline data instead of long hangs.
+        config.timeoutIntervalForRequest = 8
+        config.timeoutIntervalForResource = 12
         self.session = URLSession(configuration: config)
 
         self.decoder = JSONDecoder()
@@ -248,6 +251,30 @@ final class APIService: ObservableObject {
             return await OfflineStore.shared.snapshot()
         }
         return try await request("GET", path: "/sync/snapshot")
+    }
+
+    func generateNewsletterDraft(
+        period: String = "weekly",
+        mode: String = "weekly-lessons",
+        strictSafety: Bool = true,
+        strictTaste: Bool = true
+    ) async throws -> NewsletterGenerationResult {
+        if isOffline {
+            throw APIError.networkError(
+                NSError(
+                    domain: NSURLErrorDomain,
+                    code: -1009,
+                    userInfo: [NSLocalizedDescriptionKey: "Newsletter generation requires server connection."]
+                )
+            )
+        }
+        let requestBody = NewsletterGenerateRequest(
+            period: period,
+            mode: mode,
+            strictSafety: strictSafety,
+            strictTaste: strictTaste
+        )
+        return try await request("POST", path: "/sync/newsletter/generate", body: requestBody)
     }
 
     // MARK: - Context (mutations)
