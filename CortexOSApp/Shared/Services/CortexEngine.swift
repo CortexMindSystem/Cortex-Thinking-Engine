@@ -31,6 +31,7 @@ final class CortexEngine: ObservableObject {
     @Published var isSyncing = false
     @Published var errorMessage: String?
     @Published var lastSyncStatus: String?
+    @Published var newsletterStatus: String?
     @Published var demoModeEnabled = false
     @Published var pendingSyncActions = 0
     @Published var pendingNotes = 0
@@ -80,6 +81,12 @@ final class CortexEngine: ObservableObject {
     // MARK: - Notes
 
     func fetchNotes() async {
+        if demoModeEnabled {
+            notes = await OfflineStore.shared.listNotes()
+            errorMessage = nil
+            return
+        }
+
         isLoading = true
         defer { isLoading = false }
         do {
@@ -134,6 +141,12 @@ final class CortexEngine: ObservableObject {
     // MARK: - Profile
 
     func fetchProfile() async {
+        if demoModeEnabled {
+            profile = await OfflineStore.shared.getProfile()
+            errorMessage = nil
+            return
+        }
+
         do {
             profile = try await api.getProfile()
             errorMessage = nil
@@ -159,6 +172,11 @@ final class CortexEngine: ObservableObject {
         if isSyncing { return }
         isSyncing = true
         defer { isSyncing = false }
+        lastSyncStatus = "Syncing..."
+
+        if await applyDemoStateIfEnabled(force: false) {
+            return
+        }
 
         do {
             snapshot = try await api.fetchSnapshot()
@@ -190,8 +208,26 @@ final class CortexEngine: ObservableObject {
             snapshot = await OfflineStore.shared.snapshot()
             if let snapshot { await SnapshotCache.shared.save(snapshot) }
             errorMessage = nil
-            lastSyncStatus = "Using local data"
+            lastSyncStatus = "Using local data (offline fallback)"
             await refreshPendingSyncActions()
+        }
+    }
+
+    func generateNewsletterDraft(period: String = "weekly", mode: String = "weekly-lessons") async -> Bool {
+        do {
+            let result = try await api.generateNewsletterDraft(
+                period: period,
+                mode: mode,
+                strictSafety: true,
+                strictTaste: true
+            )
+            newsletterStatus = result.status
+            await sync()
+            return result.status != "error"
+        } catch {
+            newsletterStatus = "error"
+            errorMessage = error.localizedDescription
+            return false
         }
     }
 
@@ -279,16 +315,39 @@ final class CortexEngine: ObservableObject {
         demoModeEnabled = enabled
 
         if enabled {
-            _ = await OfflineStore.shared.ensureDemoContentIfNeeded()
-            await fetchNotes()
+            _ = await applyDemoStateIfEnabled(force: true)
+        } else {
             await sync()
+            await fetchNotes()
+            await fetchProfile()
         }
     }
 
     func populateDemoContent() async {
-        _ = await OfflineStore.shared.ensureDemoContentIfNeeded(force: true)
-        await fetchNotes()
-        await sync()
+        await OfflineStore.shared.setDemoModeEnabled(true)
+        demoModeEnabled = true
+        _ = await applyDemoStateIfEnabled(force: true)
+    }
+
+    private func applyDemoStateIfEnabled(force: Bool) async -> Bool {
+        guard demoModeEnabled else { return false }
+
+        _ = await OfflineStore.shared.ensureDemoContentIfNeeded(force: force)
+        notes = await OfflineStore.shared.listNotes()
+        profile = await OfflineStore.shared.getProfile()
+        snapshot = await OfflineStore.shared.snapshot()
+
+        if let snapshot {
+            await SnapshotCache.shared.save(snapshot)
+        }
+        updateWidgetData()
+
+        // Demo mode is intentionally local-first to guarantee app reviewability.
+        isConnected = true
+        errorMessage = nil
+        lastSyncStatus = force ? "Demo content loaded" : "Demo mode active"
+        await refreshPendingSyncActions()
+        return true
     }
 
     // MARK: - Queue visibility
