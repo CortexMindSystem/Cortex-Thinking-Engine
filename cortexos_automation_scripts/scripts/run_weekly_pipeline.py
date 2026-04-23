@@ -62,6 +62,7 @@ def build_steps(strict_quality: bool) -> list[tuple[str, list[str], bool]]:
                 "--mode",
                 "weekly-lessons",
                 "--strict-safety",
+                "--strict-taste",
             ],
             False,
         ),
