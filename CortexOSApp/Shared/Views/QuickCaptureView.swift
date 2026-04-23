@@ -213,6 +213,10 @@ private struct CaptureEditorCard: View {
                 }
             }
             .background(CortexColor.bgSurface)
+            .overlay(
+                RoundedRectangle(cornerRadius: CortexRadius.large, style: .continuous)
+                    .stroke(Color.primary.opacity(0.08), lineWidth: 1)
+            )
             .clipShape(RoundedRectangle(cornerRadius: CortexRadius.large, style: .continuous))
             .cortexShadow()
         }
