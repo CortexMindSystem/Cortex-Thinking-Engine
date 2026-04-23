@@ -14,7 +14,9 @@ from __future__ import annotations
 
 from collections import Counter
 from datetime import UTC, datetime, timedelta
+import importlib.util
 from pathlib import Path
+import sys
 from typing import Any
 
 from cortex_core.config import CortexConfig
@@ -31,6 +33,7 @@ from cortex_core.pipeline import Pipeline
 from cortex_core.posts import PostGenerator
 from cortex_core.retrieve import HybridRetriever
 from cortex_core.scoring import evaluate_digest
+from cortex_core.signal_matching import SignalMatcher
 from cortex_core.signals import SignalStore, detect_signals
 from cortex_core.why_engine import EvaluationContext, SourceItem, WhyEngine
 
@@ -56,6 +59,7 @@ class CortexEngine:
         self.items = ItemStore(self.config.data_dir / "items.json")
         self.insights = InsightStore(self.config.data_dir / "insights.json")
         self.signal_store = SignalStore(self.config.data_dir / "signals.json")
+        self.signal_matcher = SignalMatcher(self.config.data_dir)
         self.decision_engine = DecisionEngine(self.config.data_dir)
         self.retriever = HybridRetriever()
         self.why_engine = WhyEngine()
@@ -73,7 +77,22 @@ class CortexEngine:
 
     def add_note(self, **fields) -> dict:
         note = KnowledgeNote(**{k: v for k, v in fields.items() if k in KnowledgeNote.__dataclass_fields__})
-        return self.store.add(note).to_dict()
+        saved = self.store.add(note)
+        signal_text = " ".join(
+            part
+            for part in (saved.title, saved.insight, saved.implication, saved.action)
+            if str(part).strip()
+        ).strip()
+        if signal_text:
+            active_project = self.memory.profile.current_projects[0] if self.memory.profile.current_projects else ""
+            self.signal_matcher.ingest(
+                text=signal_text,
+                source="note",
+                source_id=saved.id,
+                project=active_project,
+                tags=saved.tags,
+            )
+        return saved.to_dict()
 
     def update_note(self, note_id: str, **fields) -> dict | None:
         note = self.store.update(note_id, **fields)
@@ -146,6 +165,7 @@ class CortexEngine:
             "items_count": self.items.count,
             "insights_count": self.insights.count,
             "signals_count": self.signal_store.count,
+            "signal_events_count": len(self.signal_matcher.list_signals(limit=1000)),
             "decisions_count": len(self.decision_engine.all_decisions),
             "llm_provider": self.config.llm.provider,
             "llm_model": self.config.llm.model,
@@ -448,6 +468,16 @@ class CortexEngine:
         # Also add to project memory if project specified
         if project:
             self.memory.add_project_decision(project, decision)
+        signal_text = " ".join(part for part in (decision, reason, " ".join(assumptions or [])) if part).strip()
+        if signal_text:
+            self.signal_matcher.ingest(
+                text=signal_text,
+                source="decision",
+                source_id=dec.id,
+                project=project,
+                tags=["decision"],
+                signal_type_hint="decision",
+            )
         return dec.to_dict()
 
     def record_outcome(self, decision_id: str, outcome: str, impact_score: float = 0.0) -> dict | None:
@@ -475,6 +505,14 @@ class CortexEngine:
             self.memory.working.temporary_notes = notes[-200:]
 
         self.memory.save()
+
+        signal_id = self.signal_matcher.find_best_signal_id(cleaned)
+        if signal_id:
+            self.signal_matcher.apply_feedback(
+                signal_id=signal_id,
+                action_type="acted_on" if useful and acted else ("ignored" if not useful else "reopened"),
+                note=f"useful={useful},acted={acted}",
+            )
 
     def get_decisions(self, *, project: str | None = None, limit: int = 10) -> list[dict]:
         """Get recent decisions, optionally filtered by project."""
@@ -555,6 +593,54 @@ class CortexEngine:
         """Return complete memory state for agent consumption."""
         return self.memory.full_context()
 
+    # ── Signal matching (backend-first ranking core) ──────────────────────
+
+    def capture_signal(
+        self,
+        *,
+        text: str,
+        source: str = "capture",
+        source_id: str = "",
+        context: str = "",
+        project: str = "",
+        tags: list[str] | None = None,
+        signal_type_hint: str = "",
+    ) -> dict | None:
+        """Capture one raw signal for deterministic normalization and ranking."""
+        return self.signal_matcher.ingest(
+            text=text,
+            source=source,
+            source_id=source_id,
+            context=context,
+            project=project,
+            tags=tags or [],
+            signal_type_hint=signal_type_hint,
+        )
+
+    def list_captured_signals(self, *, limit: int = 200) -> list[dict]:
+        return self.signal_matcher.list_signals(limit=limit)
+
+    def feedback_signal(self, *, signal_id: str, action_type: str, note: str = "") -> dict | None:
+        return self.signal_matcher.apply_feedback(signal_id=signal_id, action_type=action_type, note=note)
+
+    def override_signal(
+        self,
+        *,
+        signal_id: str,
+        override_type: str,
+        note: str = "",
+        expires_at: str = "",
+    ) -> dict | None:
+        return self.signal_matcher.apply_override(
+            signal_id=signal_id,
+            override_type=override_type,
+            note=note,
+            expires_at=expires_at,
+        )
+
+    def build_signal_matching_output(self) -> dict:
+        return self.signal_matcher.build_ranked_output()
+
     # ── Sync ────────────────────────────────────────────────────
 
     def build_sync_snapshot(self) -> dict:
@@ -576,6 +662,8 @@ class CortexEngine:
         priorities = self.decision_engine.get_previous_brief()
         weekly_review = self.build_weekly_review_output()
         decision_replay = self.build_decision_replay_output()
+        newsletter = self.build_newsletter_output()
+        signal_matching = self.build_signal_matching_output()
         today_output = self.build_today_output()
 
         return {
@@ -596,6 +684,16 @@ class CortexEngine:
             "today": today_output,
             "weekly_review": weekly_review,
             "decision_replay": decision_replay,
+            "newsletter": newsletter,
+            "what_matters_now": signal_matching.get("what_matters_now", []),
+            "signal_top_priorities": signal_matching.get("top_priorities", []),
+            "decision_queue": signal_matching.get("decision_queue", []),
+            "action_ready_queue": signal_matching.get("action_ready_queue", []),
+            "recurring_patterns": signal_matching.get("recurring_patterns", []),
+            "unresolved_tensions": signal_matching.get("unresolved_tensions", []),
+            "content_candidates": signal_matching.get("content_candidates", []),
+            "signal_graph": signal_matching.get("signal_graph", {}),
+            "signal_matching_counts": signal_matching.get("counts", {}),
             "synced_at": datetime.now(UTC).isoformat(),
         }
 
@@ -606,17 +704,33 @@ class CortexEngine:
             # Generate lazily so first sync still has usable output.
             brief = self.generate_decision_brief()
 
-        priorities = brief.get("priorities", [])[:3]
-        compact = [
-            {
-                "rank": int(item.get("rank", idx + 1)),
-                "title": str(item.get("title", "")).strip(),
-                "why": str(item.get("why_it_matters", "")).strip(),
-                "action": str(item.get("next_step", "")).strip(),
-            }
-            for idx, item in enumerate(priorities)
-            if str(item.get("title", "")).strip()
-        ]
+        ranked = self.build_signal_matching_output()
+        ranked_priorities = ranked.get("top_priorities", [])
+        compact: list[dict[str, Any]] = []
+        if isinstance(ranked_priorities, list) and ranked_priorities:
+            compact = [
+                {
+                    "rank": idx + 1,
+                    "title": str(item.get("title", "")).strip(),
+                    "why": str(item.get("why", "")).strip(),
+                    "action": str(item.get("action", "")).strip(),
+                }
+                for idx, item in enumerate(ranked_priorities[:3])
+                if str(item.get("title", "")).strip()
+            ]
+
+        if not compact:
+            priorities = brief.get("priorities", [])[:3]
+            compact = [
+                {
+                    "rank": int(item.get("rank", idx + 1)),
+                    "title": str(item.get("title", "")).strip(),
+                    "why": str(item.get("why_it_matters", "")).strip(),
+                    "action": str(item.get("next_step", "")).strip(),
+                }
+                for idx, item in enumerate(priorities)
+                if str(item.get("title", "")).strip()
+            ]
 
         ignored = [str(item).strip() for item in brief.get("ignored", []) if str(item).strip()][:5]
         lines = [f"SimpliXio Today — {brief.get('date', datetime.now(UTC).strftime('%Y-%m-%d'))}", ""]
@@ -867,6 +981,118 @@ class CortexEngine:
             "summary": summary,
             "generated_at": datetime.now(UTC).isoformat(),
         }
+
+    def build_newsletter_output(self) -> dict | None:
+        """Return latest newsletter draft summary when available.
+
+        Source of truth: automation output artifact at
+        cortexos_automation_scripts/output/newsletters/latest.json.
+        """
+        latest_path = Path(__file__).resolve().parents[1] / "cortexos_automation_scripts" / "output" / "newsletters" / "latest.json"
+        if not latest_path.exists():
+            return None
+
+        try:
+            import json
+
+            payload = json.loads(latest_path.read_text(encoding="utf-8"))
+        except Exception:
+            return None
+        if not isinstance(payload, dict):
+            return None
+
+        outputs = payload.get("outputs", {})
+        markdown_path = ""
+        if isinstance(outputs, dict):
+            markdown_path = str(outputs.get("markdown", "")).strip()
+
+        title = ""
+        subtitle = ""
+        preview = ""
+        if markdown_path:
+            try:
+                md_lines = Path(markdown_path).read_text(encoding="utf-8").splitlines()
+            except Exception:
+                md_lines = []
+            for raw_line in md_lines:
+                line = raw_line.strip()
+                if not line:
+                    continue
+                if not title and line.startswith("# "):
+                    title = line[2:].strip()
+                    continue
+                if title and not subtitle:
+                    subtitle = line
+                    continue
+                if title and subtitle and not preview and not line.startswith("## "):
+                    preview = line
+                    break
+
+        safety_report = payload.get("safety_report", {})
+        classification_summary = payload.get("classification_summary", {})
+        taste_gate = payload.get("taste_gate", {})
+
+        return {
+            "status": str(payload.get("status", "")).strip(),
+            "mode": str(payload.get("mode", "")).strip(),
+            "period_start": str(payload.get("period_start", "")).strip(),
+            "period_end": str(payload.get("period_end", "")).strip(),
+            "safe_to_publish": bool(payload.get("safe_to_publish", False)),
+            "generated_at": str(payload.get("generated_at", "")).strip(),
+            "title": title,
+            "subtitle": subtitle,
+            "preview": preview,
+            "source_count_total": int(payload.get("source_count_total", 0) or 0),
+            "source_count_usable": int(payload.get("source_count_usable", 0) or 0),
+            "safety_report": safety_report if isinstance(safety_report, dict) else {},
+            "classification_summary": classification_summary if isinstance(classification_summary, dict) else {},
+            "taste_gate": taste_gate if isinstance(taste_gate, dict) else {},
+            "markdown_path": markdown_path,
+        }
+
+    def generate_newsletter_draft(
+        self,
+        *,
+        period: str = "weekly",
+        mode: str = "weekly-lessons",
+        strict_safety: bool = True,
+        strict_taste: bool = True,
+    ) -> dict:
+        """Generate newsletter draft through shared automation script."""
+        script_path = Path(__file__).resolve().parents[1] / "cortexos_automation_scripts" / "scripts" / "generate_newsletter.py"
+        if not script_path.exists():
+            return {
+                "status": "error",
+                "reason": "newsletter_script_missing",
+                "safe_to_publish": False,
+            }
+
+        spec = importlib.util.spec_from_file_location("simplixio_newsletter_module", script_path)
+        if spec is None or spec.loader is None:
+            return {
+                "status": "error",
+                "reason": "newsletter_script_load_failed",
+                "safe_to_publish": False,
+            }
+
+        module = importlib.util.module_from_spec(spec)
+        try:
+            sys.modules[spec.name] = module
+            spec.loader.exec_module(module)  # type: ignore[attr-defined]
+            run_generation = getattr(module, "run_generation")
+            return run_generation(
+                period=period,
+                mode=mode,
+                strict_safety=strict_safety,
+                strict_taste=strict_taste,
+            )
+        except Exception as exc:
+            return {
+                "status": "error",
+                "reason": "newsletter_generation_failed",
+                "error": str(exc),
+                "safe_to_publish": False,
+            }
 
     # ── Integrations ────────────────────────────────────────────
 
