@@ -167,7 +167,11 @@ class TestSyncEndpoints:
     def test_snapshot_has_required_keys(self, client):
         data = client.get("/sync/snapshot").json()
         for key in ("profile", "active_project", "priorities", "today",
-                     "weekly_review", "decision_replay",
+                     "weekly_review", "decision_replay", "newsletter",
+                     "what_matters_now", "signal_top_priorities",
+                     "decision_queue", "action_ready_queue",
+                     "recurring_patterns", "unresolved_tensions",
+                     "content_candidates", "signal_graph", "signal_matching_counts",
                      "recent_decisions", "insights", "signals",
                      "working_memory", "synced_at"):
             assert key in data, f"missing key: {key}"
@@ -230,6 +234,103 @@ class TestSyncEndpoints:
         data = client.get("/sync/snapshot").json()
         assert "decision_replay" in data
         assert data["decision_replay"] is None
+
+    def test_snapshot_newsletter_is_nullable(self, client):
+        data = client.get("/sync/snapshot").json()
+        assert "newsletter" in data
+        newsletter = data["newsletter"]
+        if newsletter is not None:
+            assert isinstance(newsletter, dict)
+            assert "status" in newsletter
+            assert "safe_to_publish" in newsletter
+
+    def test_generate_newsletter_endpoint_returns_payload(self, client):
+        resp = client.post("/sync/newsletter/generate", json={"period": "weekly", "mode": "weekly-lessons"})
+        assert resp.status_code == 200
+        data = resp.json()
+        assert "status" in data
+        assert "safe_to_publish" in data
+
+    def test_signal_capture_and_ranked_queues(self, client):
+        capture = client.post(
+            "/context/signals/capture",
+            json={
+                "text": "I am blocked on shipping offline queue and need to decide retry strategy today.",
+                "source": "quick_capture",
+                "project": "SimpliXio",
+                "tags": ["offline", "queue"],
+            },
+        )
+        assert capture.status_code == 200
+        payload = capture.json()
+        assert "signal" in payload
+        signal_id = payload["signal"]["id"]
+
+        queues = client.get("/context/signals/queues")
+        assert queues.status_code == 200
+        q = queues.json()
+        assert "top_priorities" in q
+        assert "decision_queue" in q
+        assert "action_ready_queue" in q
+        assert "signal_graph" in q
+        assert any(item["signal_id"] == signal_id for item in q["decision_queue"] + q["action_ready_queue"] + q["what_matters_now"])
+
+    def test_signal_feedback_and_override(self, client):
+        capture = client.post(
+            "/context/signals/capture",
+            json={"text": "Should we keep weekly replay in the macOS sidebar?", "source": "capture"},
+        )
+        signal_id = capture.json()["signal"]["id"]
+
+        fb = client.post(
+            "/context/signals/feedback",
+            json={"signal_id": signal_id, "action_type": "acted_on", "note": "used in planning"},
+        )
+        assert fb.status_code == 200
+        assert fb.json()["signal"]["feedback_counts"]["acted_on"] >= 1
+
+        ov = client.post(
+            "/context/signals/override",
+            json={"signal_id": signal_id, "override_type": "pin", "note": "critical this week"},
+        )
+        assert ov.status_code == 200
+        assert ov.json()["signal"]["status"] == "pinned"
+
+    def test_signal_routes_return_expected_shapes(self, client):
+        capture = client.post(
+            "/context/signals/capture",
+            json={"text": "Recurring issue in offline queue retries", "source": "capture"},
+        )
+        assert capture.status_code == 200
+        signal_id = capture.json()["signal"]["id"]
+
+        captured = client.get("/context/signals")
+        assert captured.status_code == 200
+        captured_rows = captured.json()
+        assert isinstance(captured_rows, list)
+        assert any(row["id"] == signal_id for row in captured_rows)
+
+        emerging = client.get("/context/signals/emerging")
+        assert emerging.status_code == 200
+        assert isinstance(emerging.json(), list)
+
+    def test_signal_queue_endpoint_enforces_calm_defaults(self, client):
+        for idx in range(20):
+            client.post(
+                "/context/signals/capture",
+                json={"text": f"Recurring decision blocker {idx} in release flow", "source": "capture"},
+            )
+
+        queues = client.get("/context/signals/queues")
+        assert queues.status_code == 200
+        payload = queues.json()
+        assert len(payload["top_priorities"]) <= 3
+        assert len(payload["what_matters_now"]) <= 3
+        assert len(payload["decision_queue"]) <= 5
+        assert len(payload["action_ready_queue"]) <= 5
+        assert len(payload["recurring_patterns"]) <= 5
+        assert len(payload["unresolved_tensions"]) <= 5
+        assert len(payload["content_candidates"]) <= 5
 
     def test_snapshot_weekly_review_aggregates_recent_decision_artifacts(self, client, tmp_data_dir):
         payloads = {
