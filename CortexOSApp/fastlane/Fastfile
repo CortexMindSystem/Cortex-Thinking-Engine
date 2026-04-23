@@ -5,9 +5,9 @@
 #
 # Usage:
 #   cd CortexOSApp
-#   fastlane ios_testflight    — build iOS + upload to TestFlight
-#   fastlane mac_testflight    — build macOS + upload to TestFlight
-#   fastlane all_testflight    — both platforms
+#   fastlane ios_testflight version:1.1.2    — build iOS + upload to TestFlight
+#   fastlane mac_testflight version:1.1.2    — build macOS + upload to TestFlight
+#   fastlane all_testflight version:1.1.2    — both platforms
 
 default_platform(:ios)
 require "open3"
@@ -51,14 +51,57 @@ before_all do
   )
 end
 
+# ── Release version helpers ────────────────────────────────
+
+def resolve_release_version(options = {})
+  value = options[:version] || ENV["VERSION_NUMBER"] || ENV["APP_VERSION"]
+  value = value.to_s.strip
+  value.empty? ? nil : value
+end
+
+def apply_release_version_if_requested(options = {})
+  current_version = get_version_number(
+    xcodeproj: PROJECT,
+    target: "CortexOS-iOS",
+  )
+  requested_version = resolve_release_version(options)
+
+  if requested_version.nil?
+    UI.important("Using existing MARKETING_VERSION #{current_version}. Pass `version:x.y.z` when shipping a new version.")
+    return current_version
+  end
+
+  unless requested_version.match?(/^\d+\.\d+\.\d+$/)
+    UI.user_error!("Invalid version '#{requested_version}'. Use semantic version format x.y.z.")
+  end
+
+  if requested_version == current_version
+    UI.message("MARKETING_VERSION already set to #{requested_version}.")
+    return requested_version
+  end
+
+  increment_version_number(
+    xcodeproj: PROJECT,
+    version_number: requested_version,
+  )
+  UI.success("Set MARKETING_VERSION to #{requested_version}.")
+  requested_version
+end
+
+def next_build_number
+  Time.now.utc.strftime("%Y%m%d%H%M%S")
+end
+
 # ── iOS TestFlight ──────────────────────────────────────────
 
 platform :ios do
   desc "Build iOS and upload to TestFlight"
-  lane :testflight_release do
+  lane :testflight_release do |options|
+    apply_release_version_if_requested(options)
+
     increment_build_number(
       xcodeproj: PROJECT,
-      build_number: Time.now.strftime("%Y%m%d%H%M"),
+      build_number: next_build_number,
     )
 
     build_app(
@@ -81,10 +124,12 @@ end
 
 platform :mac do
   desc "Build macOS and upload to TestFlight"
-  lane :testflight_release do
+  lane :testflight_release do |options|
+    apply_release_version_if_requested(options)
+
     increment_build_number(
       xcodeproj: PROJECT,
-      build_number: Time.now.strftime("%Y%m%d%H%M"),
+      build_number: next_build_number,
     )
 
     build_app(
@@ -108,17 +153,17 @@ end
 # ── Convenience aliases ─────────────────────────────────────
 
 desc "iOS TestFlight (alias)"
-lane :ios_testflight do
-  Fastlane::LaneManager.cruise_lane("ios", "testflight_release")
+lane :ios_testflight do |options|
+  Fastlane::LaneManager.cruise_lane("ios", "testflight_release", options)
 end
 
 desc "macOS TestFlight (alias)"
-lane :mac_testflight do
-  Fastlane::LaneManager.cruise_lane("mac", "testflight_release")
+lane :mac_testflight do |options|
+  Fastlane::LaneManager.cruise_lane("mac", "testflight_release", options)
 end
 
 desc "watchOS TestFlight"
-lane :watch_testflight do
+lane :watch_testflight do |options|
   destinations, status = Open3.capture2e(
     "xcodebuild",
     "-showdestinations",
@@ -137,9 +182,11 @@ lane :watch_testflight do
     next
   end
 
+  apply_release_version_if_requested(options)
+
   increment_build_number(
     xcodeproj: PROJECT,
-    build_number: Time.now.strftime("%Y%m%d%H%M"),
+    build_number: next_build_number,
   )
 
   build_app(
@@ -160,10 +207,10 @@ lane :watch_testflight do
 end
 
 desc "Build and upload BOTH platforms to TestFlight"
-lane :all_testflight do
-  Fastlane::LaneManager.cruise_lane("ios", "testflight_release")
-  Fastlane::LaneManager.cruise_lane("mac", "testflight_release")
-  watch_testflight
+lane :all_testflight do |options|
+  Fastlane::LaneManager.cruise_lane("ios", "testflight_release", options)
+  Fastlane::LaneManager.cruise_lane("mac", "testflight_release", options)
+  watch_testflight(options)
 end
 
 desc "Regenerate App Store provisioning profiles (iOS app + widget)"
