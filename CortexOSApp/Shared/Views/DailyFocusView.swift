@@ -55,30 +55,27 @@ struct DailyFocusView: View {
         .background(CortexColor.bgPrimary)
         .navigationTitle("Focus")
         .toolbar {
-            ToolbarItem(placement: .secondaryAction) {
-                if let shareText = todayShareText {
-                    ShareLink(item: shareText) {
-                        Image(systemName: "square.and.arrow.up")
-                    }
-                    .help("Share SimpliXio Today")
-                } else {
-                    Image(systemName: "square.and.arrow.up")
-                        .foregroundStyle(CortexColor.textTertiary)
-                }
-            }
-
             ToolbarItem(placement: .primaryAction) {
-                Button {
-                    Task { await engine.sync() }
-                } label: {
-                    if engine.isSyncing {
-                        ProgressView()
-                    } else {
-                        Image(systemName: "arrow.clockwise")
+                HStack(spacing: CortexSpacing.md) {
+                    if let shareText = todayShareText {
+                        ShareLink(item: shareText) {
+                            Image(systemName: "square.and.arrow.up")
+                        }
+                        .help("Share SimpliXio Today")
                     }
+
+                    Button {
+                        Task { await engine.sync() }
+                    } label: {
+                        if engine.isSyncing {
+                            ProgressView()
+                        } else {
+                            Image(systemName: "arrow.clockwise")
+                        }
+                    }
+                    .disabled(engine.isSyncing)
+                    .help("Sync now")
                 }
-                .disabled(engine.isSyncing)
-                .help("Sync now")
             }
         }
         .refreshable { await engine.sync() }
@@ -180,6 +177,10 @@ struct DailyFocusView: View {
 
             if let replay = engine.snapshot?.decisionReplay {
                 decisionReplaySummaryCard(replay)
+            }
+
+            if let newsletter = engine.snapshot?.newsletter {
+                newsletterSummaryCard(newsletter)
             }
 
             // Date — subtle
@@ -294,6 +295,54 @@ struct DailyFocusView: View {
         }
         .buttonStyle(.plain)
         .accessibilityLabel("Decision Replay")
+    }
+
+    @ViewBuilder
+    private func newsletterSummaryCard(_ newsletter: SyncNewsletter) -> some View {
+        VStack(alignment: .leading, spacing: CortexSpacing.xs) {
+            HStack(alignment: .firstTextBaseline) {
+                Text("Weekly Draft")
+                    .font(CortexFont.captionMedium)
+                    .foregroundStyle(CortexColor.textPrimary)
+                Spacer()
+                Text(newsletter.safeToPublish ? "Safe" : "Needs review")
+                    .font(CortexFont.caption)
+                    .foregroundStyle(newsletter.safeToPublish ? CortexColor.success : CortexColor.warning)
+            }
+
+            Text(newsletter.title.isEmpty ? "Newsletter draft ready" : newsletter.title)
+                .font(CortexFont.bodyMedium)
+                .foregroundStyle(CortexColor.textPrimary)
+
+            if !newsletter.preview.isEmpty {
+                Text(newsletter.preview)
+                    .font(CortexFont.caption)
+                    .foregroundStyle(CortexColor.textSecondary)
+                    .lineLimit(3)
+            }
+
+            if let share = newsletterShareText(newsletter) {
+                ShareLink(item: share) {
+                    Label("Copy Weekly Draft", systemImage: "square.and.arrow.up")
+                        .font(CortexFont.caption)
+                        .foregroundStyle(CortexColor.accent)
+                }
+            }
+        }
+        .padding(CortexSpacing.md)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(CortexColor.bgSurface)
+        .clipShape(RoundedRectangle(cornerRadius: CortexRadius.card, style: .continuous))
+    }
+
+    private func newsletterShareText(_ newsletter: SyncNewsletter) -> String? {
+        let lines = [newsletter.title, newsletter.subtitle, newsletter.preview]
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+        if lines.isEmpty {
+            return nil
+        }
+        return lines.joined(separator: "\n\n")
     }
 }
 
@@ -488,7 +537,7 @@ private struct PriorityDetailSheet: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: CortexSpacing.lg) {
                     Text(priority.title)
-                        .font(.system(size: 24, weight: .bold))
+                        .font(CortexFont.title)
                         .foregroundStyle(CortexColor.textPrimary)
                         .fixedSize(horizontal: false, vertical: true)
 
