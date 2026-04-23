@@ -78,6 +78,10 @@ def test_pipeline_step_order():
         "Run marketing quality gate",
         "Publish outputs",
     ]
+    newsletter = next(step for step in steps if step[0] == "Build public newsletter")
+    _name, cmd, _strict = newsletter
+    assert "--strict-safety" in cmd
+    assert "--strict-taste" in cmd
 
 
 def test_pipeline_strict_quality_flag():
@@ -425,6 +429,7 @@ def test_newsletter_generation_custom_range_and_source_ids_filter(tmp_path):
         mode="product-builder-notes",
         source_ids="target-note",
         strict_safety=True,
+        strict_taste=False,
         output=str(output_dir),
     )
 
@@ -434,3 +439,81 @@ def test_newsletter_generation_custom_range_and_source_ids_filter(tmp_path):
     assert payload["source_ids"] == ["target-note"]
     assert payload["selected_filters"]["source_ids"] == ["target-note"]
     assert payload["source_count_total"] == 1
+
+
+def test_newsletter_generation_applies_classification_labels(tmp_path):
+    data_dir = tmp_path / "data"
+    data_dir.mkdir(parents=True, exist_ok=True)
+
+    notes = [
+        {
+            "id": "private-note",
+            "title": "Private thread",
+            "insight": "Do not publish this private conversation.",
+            "created_at": "2026-04-21T10:00:00Z",
+            "archived": False,
+        },
+        {
+            "id": "safe-note",
+            "title": "Public lesson",
+            "insight": "Choose 3 priorities and act on one concrete next step.",
+            "created_at": "2026-04-21T11:00:00Z",
+            "archived": False,
+        },
+    ]
+    (data_dir / "knowledge_notes.json").write_text(json.dumps(notes, indent=2), encoding="utf-8")
+    newsletter_mod.pick_data_dir = lambda: data_dir
+
+    payload = newsletter_mod.run_generation(
+        period="weekly",
+        mode="weekly-lessons",
+        strict_safety=True,
+        strict_taste=False,
+        output=str(tmp_path / "out" / "newsletters"),
+    )
+    counts = payload["classification_summary"]["counts"]
+    assert counts["private"] >= 1
+    assert payload["classification_summary"]["items"]
+
+
+def test_newsletter_taste_gate_blocks_repeated_output(tmp_path):
+    data_dir = tmp_path / "data"
+    data_dir.mkdir(parents=True, exist_ok=True)
+    notes = [
+        {
+            "id": "n1",
+            "title": "Builder notes",
+            "insight": "Reduce noise into action with 3 priorities and clear why.",
+            "created_at": "2026-04-21T09:00:00Z",
+            "archived": False,
+        },
+        {
+            "id": "n2",
+            "title": "Decision loop",
+            "insight": "What matters is deciding what to ignore before adding more inputs.",
+            "created_at": "2026-04-21T09:30:00Z",
+            "archived": False,
+        },
+    ]
+    (data_dir / "knowledge_notes.json").write_text(json.dumps(notes, indent=2), encoding="utf-8")
+    newsletter_mod.pick_data_dir = lambda: data_dir
+
+    output_dir = tmp_path / "out" / "newsletters"
+    first = newsletter_mod.run_generation(
+        period="weekly",
+        mode="weekly-lessons",
+        strict_safety=True,
+        strict_taste=True,
+        output=str(output_dir),
+    )
+    second = newsletter_mod.run_generation(
+        period="weekly",
+        mode="weekly-lessons",
+        strict_safety=True,
+        strict_taste=True,
+        output=str(output_dir),
+    )
+
+    assert first["status"] == "draft"
+    assert second["status"] == "needs_review"
+    assert "too_similar_to_previous_output" in second["taste_gate"]["reasons"]
