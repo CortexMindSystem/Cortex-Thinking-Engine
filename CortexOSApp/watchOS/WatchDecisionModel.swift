@@ -10,6 +10,19 @@ final class WatchDecisionModel: ObservableObject {
     @Published var isOffline = false
 
     let api = APIService.shared
+    private let iso = ISO8601DateFormatter()
+
+    var topPriority: SyncTodayPriority? {
+        snapshot?.today?.priorities.first
+    }
+
+    var updatedStatus: String {
+        if isOffline { return "Offline" }
+        guard let raw = snapshot?.syncedAt, let date = iso.date(from: raw) else { return status }
+        let relative = RelativeDateTimeFormatter()
+        relative.unitsStyle = .short
+        return "Updated \(relative.localizedString(for: date, relativeTo: Date()))"
+    }
 
     func bootstrap() async {
         if let cached = await SnapshotCache.shared.load() {
@@ -69,11 +82,13 @@ final class WatchDecisionModel: ObservableObject {
         do {
             _ = try await api.createNote(request)
             captureText = ""
-            status = isOffline ? "Saved offline" : "Captured"
+            await refreshPending()
+            status = pendingCount > 0 ? "Saved, queued for sync" : "Captured"
         } catch {
             status = "Saved offline"
+            await refreshPending()
+            return
         }
-        await refreshPending()
     }
 
     func sendQuickFeedback(for priority: SyncTodayPriority, useful: Bool, acted: Bool?) async {
@@ -84,6 +99,7 @@ final class WatchDecisionModel: ObservableObject {
             // Feedback is best-effort; queue handles offline.
         }
         await refreshPending()
+        status = pendingCount > 0 ? "Feedback queued" : "Feedback saved"
     }
 
     private func refreshPending() async {
@@ -91,4 +107,3 @@ final class WatchDecisionModel: ObservableObject {
         pendingCount = counts.total
     }
 }
-
