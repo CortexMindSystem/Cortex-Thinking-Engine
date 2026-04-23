@@ -6,7 +6,7 @@ Install with: pip install -e .
 from setuptools import setup, find_packages
 
 setup(
-    name="cortex-os",
+    name="simplixio-thinking-engine",
     version="0.1.0",
     description="SimpliXio: A decision system that turns noise into 3 priorities",
     author="Pierre-Henry Soria",
@@ -28,6 +28,7 @@ setup(
     entry_points={
         "console_scripts": [
             "cortexos=cortex_core.api.server:app",
+            "simplixio-engine=cortex_core.api.server:app",
         ],
     },
     classifiers=[
