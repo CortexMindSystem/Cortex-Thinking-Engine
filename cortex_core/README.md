@@ -1,4 +1,4 @@
-# CortexOS Backend (Railway)
+# SimpliXio Backend (Railway)
 
 ## Quick Deploy
 
