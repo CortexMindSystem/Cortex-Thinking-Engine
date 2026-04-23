@@ -6,15 +6,20 @@ a clean interface that agents can query to gain awareness of the
 user's situation.
 
 Methods:
-  GET  /context/goals        → active goals
-  GET  /context/projects/:id → per-project context
-  GET  /context/decisions    → recent decisions
-  GET  /context/priorities   → today's priority brief
-  GET  /context/signals      → emerging signals
-  GET  /context/memory       → full memory state
-  POST /context/insight      → store a new insight
-  POST /context/decision     → record a decision
-  POST /context/outcome      → record decision outcome
+  GET  /context/goals             → active goals
+  GET  /context/projects/:id      → per-project context
+  GET  /context/decisions         → recent decisions
+  GET  /context/priorities        → today's priority brief
+  GET  /context/signals/emerging  → legacy aggregated signals
+  GET  /context/signals           → captured + normalized signals
+  GET  /context/memory            → full memory state
+  POST /context/insight           → store a new insight
+  POST /context/decision          → record a decision
+  POST /context/outcome           → record decision outcome
+  POST /context/signals/capture   → capture one raw signal
+  GET  /context/signals/queues    → ranked queues and explainability
+  POST /context/signals/feedback  → feedback loop updates
+  POST /context/signals/override  → manual override
 """
 
 from __future__ import annotations
@@ -95,9 +100,9 @@ async def get_priority_brief() -> dict:
     return brief
 
 
-@router.get("/signals")
-async def get_signals() -> list[dict]:
-    """Return current emerging signals."""
+@router.get("/signals/emerging")
+async def get_emerging_signals() -> list[dict]:
+    """Return current legacy aggregated signals."""
     engine = get_engine()
     return engine.get_signals()
 
@@ -171,3 +176,96 @@ async def record_feedback(body: FeedbackCreate) -> None:
     """Record user feedback on a focus item (was this useful?)."""
     engine = get_engine()
     engine.record_feedback(item=body.item, useful=body.useful, acted=body.acted)
+
+
+# ── Deterministic signal matching core ──────────────────────
+
+
+class SignalCaptureCreate(BaseModel):
+    text: str
+    source: str = "capture"
+    source_id: str = ""
+    context: str = ""
+    project: str = ""
+    tags: list[str] = Field(default_factory=list)
+    signal_type_hint: str = ""
+
+
+class SignalFeedbackCreate(BaseModel):
+    signal_id: str
+    action_type: str
+    note: str = ""
+
+
+class SignalOverrideCreate(BaseModel):
+    signal_id: str
+    override_type: str
+    note: str = ""
+    expires_at: str = ""
+
+
+@router.post("/signals/capture")
+async def capture_signal(body: SignalCaptureCreate) -> dict:
+    """Capture one raw signal for deterministic enrichment and ranking."""
+    engine = get_engine()
+    payload = engine.capture_signal(
+        text=body.text,
+        source=body.source,
+        source_id=body.source_id,
+        context=body.context,
+        project=body.project,
+        tags=body.tags,
+        signal_type_hint=body.signal_type_hint,
+    )
+    if payload is None:
+        raise HTTPException(status_code=400, detail="Signal text cannot be empty.")
+    return payload
+
+
+@router.get("/signals")
+async def list_signals(limit: int = 200) -> list[dict]:
+    """List captured signals with normalized metadata and scores."""
+    engine = get_engine()
+    return engine.list_captured_signals(limit=max(1, min(limit, 500)))
+
+
+@router.get("/signals/queues")
+async def get_signal_queues() -> dict:
+    """Return ranked outputs and explainability for all signal surfaces."""
+    engine = get_engine()
+    return engine.build_signal_matching_output()
+
+
+@router.post("/signals/feedback")
+async def signal_feedback(body: SignalFeedbackCreate) -> dict:
+    """Apply explicit feedback action to one captured signal."""
+    engine = get_engine()
+    try:
+        payload = engine.feedback_signal(
+            signal_id=body.signal_id,
+            action_type=body.action_type,
+            note=body.note,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    if payload is None:
+        raise HTTPException(status_code=404, detail="Signal not found.")
+    return payload
+
+
+@router.post("/signals/override")
+async def signal_override(body: SignalOverrideCreate) -> dict:
+    """Apply manual override to one signal (pin, snooze, convert, etc.)."""
+    engine = get_engine()
+    try:
+        payload = engine.override_signal(
+            signal_id=body.signal_id,
+            override_type=body.override_type,
+            note=body.note,
+            expires_at=body.expires_at,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    if payload is None:
+        raise HTTPException(status_code=404, detail="Signal not found.")
+    return payload
