@@ -1,18 +1,11 @@
-# SimpliXio
+# SimpliXio — Your Thinking Engine
 
-Decide what matters.
+*Decide what matters. Most tools add information. SimpliXio removes noise.*
 
-Most tools add information.  
-SimpliXio removes noise:
+![SimpliXio Context Layer System](logo.png)
 
-- what matters
-- why
-- what to do
-
-3 priorities. Clear action.
-
-Not another AI app.  
-A layer between information, decision, and execution.
+> [!Note]
+> SimpliXio turns scattered inputs (RSS feeds, notes, digests) into grounded daily actions — answering **"What should I focus on today?"** using your personal goals, projects, and reading history as context. Works fully offline; LLM is optional.
 
 ---
 
