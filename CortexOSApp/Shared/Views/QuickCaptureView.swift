@@ -31,15 +31,33 @@ struct QuickCaptureView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: CortexSpacing.lg) {
-                Picker("", selection: $mode) {
-                    Text("Thought").tag(CaptureMode.thought)
-                    Text("Decision").tag(CaptureMode.decision)
+                VStack(alignment: .leading, spacing: CortexSpacing.xs) {
+                    Text("Capture without sorting first")
+                        .font(CortexFont.title)
+                        .foregroundStyle(CortexColor.textPrimary)
+                    Text("Drop the messy input here. SimpliXio filters it later into priorities, why, and action.")
+                        .font(CortexFont.body)
+                        .foregroundStyle(CortexColor.textSecondary)
                 }
-                .pickerStyle(.segmented)
+
+                VStack(alignment: .leading, spacing: CortexSpacing.xs) {
+                    Text("Kind")
+                        .cortexFieldLabel()
+                    Picker("Kind", selection: $mode) {
+                        ForEach(CaptureMode.allCases) { mode in
+                            Label(mode.label, systemImage: mode.systemImage).tag(mode)
+                        }
+                    }
+                    #if os(iOS)
+                    .pickerStyle(.menu)
+                    #else
+                    .pickerStyle(.segmented)
+                    #endif
+                }
 
                 CaptureEditorCard(
-                    title: mode == .thought ? "Thought" : "Decision",
-                    placeholder: mode == .thought ? "What matters right now?" : "What did you decide?",
+                    title: mode.editorTitle,
+                    placeholder: mode.placeholder,
                     text: $text,
                     minHeight: 190,
                     focused: _focusedField,
@@ -71,13 +89,20 @@ struct QuickCaptureView: View {
 
                 if saved {
                     Label(
-                        engine.isConnected ? "Saved" : "Saved offline",
+                        engine.isConnected ? "Captured" : "Captured offline",
                         systemImage: engine.isConnected ? "checkmark.circle.fill" : "arrow.clockwise.circle"
                     )
                     .font(CortexFont.caption)
                     .foregroundStyle(CortexColor.success)
                     .transition(.opacity)
                 }
+
+                Label(
+                    engine.isConnected ? "Capture syncs automatically." : "Offline capture is queued safely.",
+                    systemImage: engine.isConnected ? "arrow.triangle.2.circlepath" : "tray.and.arrow.up"
+                )
+                .font(CortexFont.caption)
+                .foregroundStyle(CortexColor.textTertiary)
             }
             .padding(CortexSpacing.xl)
         }
@@ -110,7 +135,7 @@ struct QuickCaptureView: View {
                 } label: {
                     HStack {
                         Spacer()
-                        Text("Save")
+                        Text("Capture")
                             .font(CortexFont.bodyMedium)
                         Spacer()
                     }
@@ -147,21 +172,21 @@ struct QuickCaptureView: View {
         let success: Bool
 
         switch mode {
-        case .thought:
-            let note = NoteCreateRequest(
-                title: trimmed,
-                insight: "",
-                sourceURL: detectedURL ?? "",
-                tags: []
-            )
-            success = await engine.createNote(note)
-
         case .decision:
             let request = DecisionCreateRequest(
                 decision: trimmed,
                 reason: reason.trimmingCharacters(in: .whitespacesAndNewlines)
             )
             success = await engine.recordDecision(request)
+
+        default:
+            let note = NoteCreateRequest(
+                title: trimmed,
+                insight: "",
+                sourceURL: detectedURL ?? "",
+                tags: [mode.noteTag]
+            )
+            success = await engine.createNote(note)
         }
 
         guard success else { return }
@@ -221,9 +246,70 @@ private struct CaptureEditorCard: View {
     }
 }
 
-private enum CaptureMode {
+private enum CaptureMode: String, CaseIterable, Identifiable {
     case thought
+    case question
+    case tension
+    case link
+    case reflection
     case decision
+
+    var id: String { rawValue }
+
+    var label: String {
+        switch self {
+        case .thought: "Thought"
+        case .question: "Question"
+        case .tension: "Tension"
+        case .link: "Link"
+        case .reflection: "Reflection"
+        case .decision: "Decision"
+        }
+    }
+
+    var editorTitle: String {
+        switch self {
+        case .thought: "Thought"
+        case .question: "Question"
+        case .tension: "Tension"
+        case .link: "Link"
+        case .reflection: "Reflection"
+        case .decision: "Decision"
+        }
+    }
+
+    var placeholder: String {
+        switch self {
+        case .thought: "What is taking mental space?"
+        case .question: "What question keeps coming back?"
+        case .tension: "What feels unresolved or blocked?"
+        case .link: "Paste the link and why it matters."
+        case .reflection: "What did you notice?"
+        case .decision: "What did you decide?"
+        }
+    }
+
+    var systemImage: String {
+        switch self {
+        case .thought: "text.bubble"
+        case .question: "questionmark.circle"
+        case .tension: "exclamationmark.triangle"
+        case .link: "link"
+        case .reflection: "sparkle.magnifyingglass"
+        case .decision: "checkmark.seal"
+        }
+    }
+
+    var noteTag: String {
+        switch self {
+        case .thought: "thought"
+        case .question: "question"
+        case .tension: "tension"
+        case .link: "link"
+        case .reflection: "reflection"
+        case .decision: "decision"
+        }
+    }
 }
 
 private enum FocusField: Hashable {
