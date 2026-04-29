@@ -219,15 +219,15 @@ struct SettingsView: View {
                 await engine.populateDemoContent()
                 isPreparingDemo = false
             }
-            } label: {
-                HStack(spacing: CortexSpacing.xs) {
-                    Text("Populate Demo Content")
-                    if isPreparingDemo {
+        } label: {
+            HStack(spacing: CortexSpacing.xs) {
+                Text("Populate Demo Content")
+                if isPreparingDemo {
                     ProgressView()
                         .controlSize(.small)
-                        }
                 }
             }
+        }
         .buttonStyle(CortexSecondaryButtonStyle())
         .disabled(isPreparingDemo)
 
@@ -297,7 +297,7 @@ struct SettingsView: View {
                     .font(CortexFont.bodyMedium)
                     .foregroundStyle(CortexColor.textPrimary)
 
-                Text("I build context-aware AI systems that help ambitious people think clearly and act decisively.")
+                Text("I build calm tools that turn noise into clearer decisions and action.")
                     .font(CortexFont.caption)
                     .foregroundStyle(CortexColor.textSecondary)
                     .fixedSize(horizontal: false, vertical: true)
