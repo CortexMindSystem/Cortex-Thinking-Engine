@@ -27,9 +27,17 @@ struct DailyFocusView: View {
                     EmptyStateView(
                         icon: "target",
                         title: "No priorities yet",
-                        message: "Your top priorities will appear here after syncing.",
-                        actionTitle: "Sync",
-                        action: { Task { await engine.sync() } },
+                        message: onRequestCapture == nil
+                            ? "Your top priorities will appear here after syncing."
+                            : "Capture what is taking mental space. SimpliXio will filter it into what matters now.",
+                        actionTitle: onRequestCapture == nil ? "Sync" : "Capture a thought",
+                        action: {
+                            if let onRequestCapture {
+                                onRequestCapture()
+                            } else {
+                                Task { await engine.sync() }
+                            }
+                        },
                         isActionLoading: engine.isSyncing
                     )
 
@@ -149,52 +157,20 @@ struct DailyFocusView: View {
         let visible = brief.priorities.filter { !dismissedTitles.contains($0.title) }
 
         VStack(alignment: .leading, spacing: CortexSpacing.lg) {
-            VStack(alignment: .leading, spacing: CortexSpacing.xxs) {
-                Text("What matters now")
+            VStack(alignment: .leading, spacing: CortexSpacing.xs) {
+                Text("Today’s 3 priorities")
                     .font(CortexFont.title)
                     .foregroundStyle(CortexColor.textPrimary)
-                Text("3 priorities. Why they matter. One next action.")
+                Text("Why they matter. One next action. Everything else stays quiet.")
                     .font(CortexFont.caption)
                     .foregroundStyle(CortexColor.textSecondary)
             }
 
-            VStack(alignment: .leading, spacing: CortexSpacing.xxs) {
-                if let status = engine.lastSyncStatus {
-                    Text(status)
-                        .font(CortexFont.caption)
-                        .foregroundStyle(CortexColor.textTertiary)
-                }
-                if let updated = lastUpdatedLabel {
-                    Text(updated)
-                        .font(CortexFont.caption)
-                        .foregroundStyle(CortexColor.textTertiary)
-                }
-            }
+            focusStatusStrip
 
             #if os(iOS)
             if let onRequestCapture {
-                Button(action: onRequestCapture) {
-                    HStack(spacing: CortexSpacing.sm) {
-                        Image(systemName: "square.and.pencil")
-                            .font(CortexFont.captionMedium)
-                        Text("Capture a thought")
-                            .font(CortexFont.bodyMedium)
-                        Spacer(minLength: 0)
-                        Image(systemName: "chevron.right")
-                            .font(.caption2)
-                            .foregroundStyle(CortexColor.textTertiary)
-                    }
-                    .padding(.horizontal, CortexSpacing.md)
-                    .padding(.vertical, CortexSpacing.sm)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(CortexColor.bgSurface)
-                    .clipShape(RoundedRectangle(cornerRadius: CortexRadius.card, style: .continuous))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: CortexRadius.card, style: .continuous)
-                            .stroke(CortexColor.accent.opacity(0.12), lineWidth: 1)
-                    )
-                }
-                .buttonStyle(CortexSecondaryButtonStyle(fullWidth: true))
+                captureEntryCard(onRequestCapture)
             }
             #endif
 
@@ -265,15 +241,68 @@ struct DailyFocusView: View {
                 decisionReplaySummaryCard(replay)
             }
 
+            #if os(macOS)
             if let newsletter = engine.snapshot?.newsletter {
                 newsletterSummaryCard(newsletter)
             }
+            #endif
 
             if let resurfaced = engine.snapshot?.resurfacedNow, !resurfaced.isEmpty {
                 resurfacedSummaryCard(resurfaced)
             }
         }
         .padding(CortexSpacing.xl)
+    }
+
+    @ViewBuilder
+    private var focusStatusStrip: some View {
+        HStack(spacing: CortexSpacing.sm) {
+            if let status = engine.lastSyncStatus {
+                Label(status, systemImage: engine.isConnected ? "checkmark.circle" : "wifi.slash")
+                    .font(CortexFont.caption)
+                    .foregroundStyle(CortexColor.textTertiary)
+            }
+            if let updated = lastUpdatedLabel {
+                Text(updated)
+                    .font(CortexFont.caption)
+                    .foregroundStyle(CortexColor.textTertiary)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func captureEntryCard(_ action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack(alignment: .center, spacing: CortexSpacing.md) {
+                Image(systemName: "plus.circle.fill")
+                    .font(.title3)
+                    .foregroundStyle(CortexColor.accent)
+
+                VStack(alignment: .leading, spacing: CortexSpacing.xxs) {
+                    Text("Capture what is noisy")
+                        .font(CortexFont.bodyMedium)
+                        .foregroundStyle(CortexColor.textPrimary)
+                    Text("Thought, link, question, tension, or decision.")
+                        .font(CortexFont.caption)
+                        .foregroundStyle(CortexColor.textSecondary)
+                }
+
+                Spacer(minLength: 0)
+
+                Image(systemName: "chevron.right")
+                    .font(.caption2)
+                    .foregroundStyle(CortexColor.textTertiary)
+            }
+            .padding(CortexSpacing.md)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(CortexColor.bgSurface)
+            .clipShape(RoundedRectangle(cornerRadius: CortexRadius.large, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: CortexRadius.large, style: .continuous)
+                    .stroke(CortexColor.accent.opacity(0.14), lineWidth: 1)
+            )
+        }
+        .buttonStyle(.plain)
     }
 
     @ViewBuilder
@@ -284,7 +313,7 @@ struct DailyFocusView: View {
                 Button(action: onRequestCapture) {
                     HStack(spacing: CortexSpacing.sm) {
                         Image(systemName: "plus.circle.fill")
-                        Text("Quick Capture")
+                        Text("Capture")
                             .font(CortexFont.bodyMedium.weight(.semibold))
                     }
                     .frame(maxWidth: .infinity)
@@ -367,7 +396,7 @@ struct DailyFocusView: View {
     @ViewBuilder
     private func nextActionCard(_ action: String) -> some View {
         HStack(alignment: .firstTextBaseline, spacing: CortexSpacing.sm) {
-            Text("Next Action")
+            Text("One next action")
                 .font(CortexFont.captionMedium)
                 .foregroundStyle(CortexColor.textTertiary)
             Text(action)
