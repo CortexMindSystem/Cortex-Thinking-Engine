@@ -138,10 +138,10 @@ struct ContentView: View {
     private var macOSRoot: some View {
         NavigationSplitView(columnVisibility: $columnVisibility) {
             List(selection: $selection) {
-                sidebarGroup("Core", items: MacSection.coreSidebar)
+                sidebarGroup("Now", items: MacSection.coreSidebar)
                 sidebarGroup("Review", items: MacSection.reviewSidebar)
-                sidebarGroup("Publish", items: MacSection.publishSidebar)
-                sidebarGroup("System", items: MacSection.systemSidebar)
+                sidebarGroup("Create", items: MacSection.publishSidebar)
+                sidebarGroup("Control", items: MacSection.systemSidebar)
             }
             .navigationTitle("SimpliXio")
             .listStyle(.sidebar)
@@ -236,7 +236,7 @@ struct ContentView: View {
             case .memory: "Memory"
             case .weeklyReview: "Weekly Review"
             case .decisionReplay: "Decision Replay"
-            case .signalQueues: "Queues"
+            case .signalQueues: "Review Queue"
             case .recurringPatterns: "Recurring Patterns"
             case .unresolvedTensions: "Unresolved Tensions"
             case .contentCandidates: "Content Candidates"
@@ -285,7 +285,7 @@ private struct SimpliXioOnboardingView: View {
                             .font(CortexFont.largeTitle)
                             .foregroundStyle(CortexColor.textPrimary)
 
-                        Text("Turn scattered thoughts and project noise into 3 priorities and one next action.")
+                        Text("Turn scattered thoughts, project noise, and open loops into 3 priorities and one next action.")
                             .font(CortexFont.title)
                             .foregroundStyle(CortexColor.textSecondary)
                     }
@@ -293,13 +293,13 @@ private struct SimpliXioOnboardingView: View {
                     VStack(alignment: .leading, spacing: CortexSpacing.md) {
                         onboardingRow(
                             icon: "square.and.pencil",
-                            title: "Capture signals",
-                            message: "Capture notes, links, and thoughts in seconds, even offline."
+                            title: "Capture anything",
+                            message: "Save thoughts, links, decisions, questions, and tensions in seconds, even offline."
                         )
                         onboardingRow(
                             icon: "target",
                             title: "Get 3 priorities",
-                            message: "SimpliXio filters scattered thoughts and project noise into what matters now."
+                            message: "SimpliXio filters the noise into what matters now."
                         )
                         onboardingRow(
                             icon: "lightbulb",
@@ -321,7 +321,7 @@ private struct SimpliXioOnboardingView: View {
                     Text("You can stay fully offline, or connect a server later in Settings.")
                         .font(CortexFont.caption)
                         .foregroundStyle(CortexColor.textTertiary)
-                    Text("Private by default. You stay in control.")
+                    Text("Private by default. Public output is redacted, and you stay in control.")
                         .font(CortexFont.caption)
                         .foregroundStyle(CortexColor.textTertiary)
                 }
@@ -367,7 +367,7 @@ private struct SimpliXioOnboardingView: View {
                             }
                             Image(systemName: "sparkles")
                                 .imageScale(.medium)
-                            Text("Start with Demo Data")
+                            Text("Preview with Demo Data")
                                 .font(CortexFont.bodyMedium.weight(.semibold))
                             Spacer(minLength: 0)
                         }
