@@ -91,19 +91,21 @@ struct CortexWidgetEntryView: View {
     private let focusURL = URL(string: "simplixio://focus")!
 
     var body: some View {
-        switch family {
-        case .accessoryCircular:
-            CircularView(entry: entry)
-        case .accessoryRectangular:
-            RectangularView(entry: entry)
-        case .accessoryInline:
-            InlineView(entry: entry)
-        case .systemSmall:
-            SmallView(entry: entry)
-        case .systemMedium:
-            MediumView(entry: entry)
-        default:
-            SmallView(entry: entry)
+        Group {
+            switch family {
+            case .accessoryCircular:
+                CircularView(entry: entry)
+            case .accessoryRectangular:
+                RectangularView(entry: entry)
+            case .accessoryInline:
+                InlineView(entry: entry)
+            case .systemSmall:
+                SmallView(entry: entry)
+            case .systemMedium:
+                MediumView(entry: entry)
+            default:
+                SmallView(entry: entry)
+            }
         }
         .widgetURL(focusURL)
     }
@@ -371,6 +373,7 @@ struct CortexWidgetBundle: WidgetBundle {
 
 // MARK: - Previews
 
+#if WIDGET_PREVIEWS
 #Preview("Lock Screen Circular", as: .accessoryCircular) {
     CortexFocusWidget()
 } timeline: {
@@ -412,7 +415,6 @@ struct CortexWidgetBundle: WidgetBundle {
         )
     )
 }
-
 #Preview("Home Medium", as: .systemMedium) {
     CortexFocusWidget()
 } timeline: {
@@ -430,3 +432,4 @@ struct CortexWidgetBundle: WidgetBundle {
         )
     )
 }
+#endif
