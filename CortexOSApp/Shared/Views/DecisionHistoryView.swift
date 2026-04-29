@@ -90,7 +90,7 @@ private struct RecordDecisionSheet: View {
                                     .foregroundStyle(CortexColor.textPrimary)
                             }
                         }
-                        .buttonStyle(.plain)
+                        .buttonStyle(CortexSecondaryButtonStyle(fullWidth: true))
                     }
                     TextField("Project name", text: $project)
                         .textFieldStyle(.plain)

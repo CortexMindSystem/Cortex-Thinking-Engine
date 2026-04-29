@@ -1,7 +1,19 @@
 import SwiftUI
 
 struct SignalWorkbenchView: View {
+    enum Focus {
+        case overview
+        case recurringPatterns
+        case unresolvedTensions
+        case contentCandidates
+    }
+
     @EnvironmentObject private var engine: CortexEngine
+    let focus: Focus
+
+    init(focus: Focus = .overview) {
+        self.focus = focus
+    }
 
     var body: some View {
         Group {
@@ -18,9 +30,18 @@ struct SignalWorkbenchView: View {
                 )
             }
         }
-        .navigationTitle("Queues")
+        .navigationTitle(screenTitle)
         .background(CortexColor.bgPrimary)
         .refreshable { await engine.sync() }
+    }
+
+    private var screenTitle: String {
+        switch focus {
+        case .overview: "Queues"
+        case .recurringPatterns: "Recurring Patterns"
+        case .unresolvedTensions: "Unresolved Tensions"
+        case .contentCandidates: "Content Candidates"
+        }
     }
 
     @ViewBuilder
@@ -29,47 +50,110 @@ struct SignalWorkbenchView: View {
             VStack(alignment: .leading, spacing: CortexSpacing.lg) {
                 metrics(snapshot.signalMatchingCounts)
 
-                queueCard(
-                    title: "What Matters Now",
-                    icon: "target",
-                    items: snapshot.whatMattersNow ?? [],
-                    emptyText: "No immediate items right now.",
-                    maxVisible: 3
-                )
+                switch focus {
+                case .overview:
+                    queueCard(
+                        title: "What Matters Now",
+                        icon: "target",
+                        items: snapshot.whatMattersNow ?? [],
+                        emptyText: "No immediate items right now.",
+                        maxVisible: 3
+                    )
 
-                queueCard(
-                    title: "Decision Queue",
-                    icon: "checkmark.seal",
-                    items: snapshot.decisionQueue ?? [],
-                    emptyText: "No decision-ready items yet.",
-                    maxVisible: 5
-                )
+                    queueCard(
+                        title: "Decision Queue",
+                        icon: "checkmark.seal",
+                        items: snapshot.decisionQueue ?? [],
+                        emptyText: "No decision-ready items yet.",
+                        maxVisible: 5
+                    )
 
-                queueCard(
-                    title: "Action-Ready Queue",
-                    icon: "bolt.fill",
-                    items: snapshot.actionReadyQueue ?? [],
-                    emptyText: "No action-ready items yet.",
-                    maxVisible: 5
-                )
+                    queueCard(
+                        title: "Action-Ready Queue",
+                        icon: "bolt.fill",
+                        items: snapshot.actionReadyQueue ?? [],
+                        emptyText: "No action-ready items yet.",
+                        maxVisible: 5
+                    )
 
-                queueCard(
-                    title: "Unresolved Tensions",
-                    icon: "exclamationmark.triangle",
-                    items: snapshot.unresolvedTensions ?? [],
-                    emptyText: "No unresolved tensions detected.",
-                    maxVisible: 5
-                )
+                    queueCard(
+                        title: "Unresolved Tensions",
+                        icon: "exclamationmark.triangle",
+                        items: snapshot.unresolvedTensions ?? [],
+                        emptyText: "No unresolved tensions detected.",
+                        maxVisible: 5
+                    )
 
-                queueCard(
-                    title: "Content Candidates",
-                    icon: "doc.text",
-                    items: snapshot.contentCandidates ?? [],
-                    emptyText: "No safe content candidates right now.",
-                    maxVisible: 5
-                )
+                    queueCard(
+                        title: "Content Candidates",
+                        icon: "doc.text",
+                        items: snapshot.contentCandidates ?? [],
+                        emptyText: "No safe content candidates right now.",
+                        maxVisible: 5
+                    )
 
-                recurringPatternsCard(snapshot.recurringPatterns ?? [], maxVisible: 5)
+                    queueCard(
+                        title: "Resurfaced Now",
+                        icon: "arrow.triangle.2.circlepath",
+                        items: snapshot.resurfacedNow ?? [],
+                        emptyText: "No resurfaced items right now.",
+                        maxVisible: 3,
+                        showResurfacingActions: true
+                    )
+
+                    queueCard(
+                        title: "Weekly Review Resurfacing",
+                        icon: "calendar.badge.clock",
+                        items: snapshot.resurfacingWeeklyReviewCandidates ?? [],
+                        emptyText: "No weekly resurfacing candidates yet.",
+                        maxVisible: 5
+                    )
+
+                    recurringPatternsCard(snapshot.recurringPatterns ?? [], maxVisible: 5)
+
+                case .recurringPatterns:
+                    recurringPatternsCard(snapshot.recurringPatterns ?? [], maxVisible: 5)
+                    queueCard(
+                        title: "Resurfacing Recurring Tensions",
+                        icon: "arrow.triangle.2.circlepath",
+                        items: snapshot.resurfacingRecurringTensions ?? [],
+                        emptyText: "No recurring resurfacing items right now.",
+                        maxVisible: 5
+                    )
+
+                case .unresolvedTensions:
+                    queueCard(
+                        title: "Unresolved Tensions",
+                        icon: "exclamationmark.triangle",
+                        items: snapshot.unresolvedTensions ?? [],
+                        emptyText: "No unresolved tensions detected.",
+                        maxVisible: 5
+                    )
+                    queueCard(
+                        title: "Resurfaced Now",
+                        icon: "arrow.triangle.2.circlepath",
+                        items: snapshot.resurfacedNow ?? [],
+                        emptyText: "No resurfaced blockers right now.",
+                        maxVisible: 3,
+                        showResurfacingActions: true
+                    )
+
+                case .contentCandidates:
+                    queueCard(
+                        title: "Content Candidates",
+                        icon: "doc.text",
+                        items: snapshot.contentCandidates ?? [],
+                        emptyText: "No safe content candidates right now.",
+                        maxVisible: 5
+                    )
+                    queueCard(
+                        title: "Content Resurfacing",
+                        icon: "newspaper",
+                        items: snapshot.resurfacingContentCandidates ?? [],
+                        emptyText: "No resurfaced content candidates right now.",
+                        maxVisible: 5
+                    )
+                }
             }
             .padding(CortexSpacing.xl)
         }
@@ -99,7 +183,8 @@ struct SignalWorkbenchView: View {
         icon: String,
         items: [SyncRankedSignal],
         emptyText: String,
-        maxVisible: Int
+        maxVisible: Int,
+        showResurfacingActions: Bool = false
     ) -> some View {
         VStack(alignment: .leading, spacing: CortexSpacing.md) {
             Label(title, systemImage: icon)
@@ -132,6 +217,32 @@ struct SignalWorkbenchView: View {
                         }
                         .font(CortexFont.caption)
                         .foregroundStyle(CortexColor.textTertiary)
+
+                        if showResurfacingActions {
+                            HStack(spacing: CortexSpacing.sm) {
+                                Button("Act now") {
+                                    Task { await engine.applyResurfacingAction(signalID: item.signalID, actionType: "acted_on") }
+                                }
+                                .buttonStyle(CortexPrimaryButtonStyle())
+
+                                Button("Snooze") {
+                                    Task { await engine.applyResurfacingAction(signalID: item.signalID, actionType: "snoozed") }
+                                }
+                                .buttonStyle(CortexSecondaryButtonStyle())
+
+                                Button("Dismiss") {
+                                    Task { await engine.applyResurfacingAction(signalID: item.signalID, actionType: "dismissed") }
+                                }
+                                .buttonStyle(CortexSecondaryButtonStyle())
+                            }
+                        }
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.vertical, CortexSpacing.xs)
+
+                    if item.signalID != items.prefix(maxVisible).last?.signalID {
+                        Divider()
+                            .opacity(0.3)
                     }
                 }
             }

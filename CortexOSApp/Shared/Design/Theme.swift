@@ -24,6 +24,9 @@ enum CortexColor {
     // Accent — quiet blue-violet, not flashy
     static let accent    = Color(red: 0.38, green: 0.42, blue: 1.0) // #616BFF
     static let accentDim = Color(red: 0.38, green: 0.42, blue: 1.0).opacity(0.15)
+    static let accentForeground = Color.white
+    static let strokeSubtle = Color(light: Color.black.opacity(0.08), dark: Color.white.opacity(0.12))
+    static let strokeStrong = Color(light: Color.black.opacity(0.16), dark: Color.white.opacity(0.24))
 
     // Semantic
     static let success = Color.green.opacity(0.85)
@@ -112,6 +115,12 @@ enum CortexInput {
     static let multiLineMinHeight: CGFloat = 120
 }
 
+enum CortexControl {
+    static let buttonMinHeight: CGFloat = 46
+    static let chipButtonMinHeight: CGFloat = 34
+    static let labelMinHeight: CGFloat = 22
+}
+
 // MARK: - Shadow modifier
 
 struct CortexShadowModifier: ViewModifier {
@@ -141,5 +150,87 @@ extension View {
             )
             .clipShape(RoundedRectangle(cornerRadius: CortexRadius.large, style: .continuous))
             .cortexShadow()
+    }
+
+    /// Unified field label styling across forms/cards.
+    func cortexFieldLabel() -> some View {
+        self
+            .font(CortexFont.captionMedium)
+            .foregroundStyle(CortexColor.textSecondary)
+            .frame(minHeight: CortexControl.labelMinHeight, alignment: .leading)
+    }
+}
+
+// MARK: - Button styles
+
+struct CortexPrimaryButtonStyle: ButtonStyle {
+    var fullWidth: Bool = false
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(CortexFont.bodyMedium)
+            .foregroundStyle(CortexColor.accentForeground)
+            .padding(.horizontal, CortexSpacing.md)
+            .frame(minHeight: CortexControl.buttonMinHeight)
+            .frame(maxWidth: fullWidth ? .infinity : nil)
+            .background(
+                RoundedRectangle(cornerRadius: CortexRadius.large, style: .continuous)
+                    .fill(CortexColor.accent)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: CortexRadius.large, style: .continuous)
+                    .stroke(CortexColor.accent.opacity(0.35), lineWidth: 1)
+            )
+            .opacity(configuration.isPressed ? 0.9 : 1)
+            .scaleEffect(configuration.isPressed ? 0.99 : 1)
+            .animation(.easeOut(duration: 0.12), value: configuration.isPressed)
+    }
+}
+
+struct CortexSecondaryButtonStyle: ButtonStyle {
+    var fullWidth: Bool = false
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(CortexFont.bodyMedium)
+            .foregroundStyle(CortexColor.textPrimary)
+            .padding(.horizontal, CortexSpacing.md)
+            .frame(minHeight: CortexControl.buttonMinHeight)
+            .frame(maxWidth: fullWidth ? .infinity : nil)
+            .background(
+                RoundedRectangle(cornerRadius: CortexRadius.large, style: .continuous)
+                    .fill(CortexColor.bgSurface)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: CortexRadius.large, style: .continuous)
+                    .stroke(CortexColor.strokeSubtle, lineWidth: 1)
+            )
+            .cortexShadow()
+            .opacity(configuration.isPressed ? 0.94 : 1)
+            .scaleEffect(configuration.isPressed ? 0.99 : 1)
+            .animation(.easeOut(duration: 0.12), value: configuration.isPressed)
+    }
+}
+
+struct CortexChipButtonStyle: ButtonStyle {
+    var prominent: Bool = false
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(CortexFont.captionMedium)
+            .foregroundStyle(prominent ? CortexColor.accent : CortexColor.textSecondary)
+            .padding(.horizontal, CortexSpacing.md)
+            .frame(minHeight: CortexControl.chipButtonMinHeight)
+            .background(
+                Capsule(style: .continuous)
+                    .fill(prominent ? CortexColor.accentDim : CortexColor.bgSecondary)
+            )
+            .overlay(
+                Capsule(style: .continuous)
+                    .stroke(prominent ? CortexColor.accent.opacity(0.2) : CortexColor.strokeSubtle, lineWidth: 1)
+            )
+            .opacity(configuration.isPressed ? 0.92 : 1)
+            .scaleEffect(configuration.isPressed ? 0.98 : 1)
+            .animation(.easeOut(duration: 0.12), value: configuration.isPressed)
     }
 }

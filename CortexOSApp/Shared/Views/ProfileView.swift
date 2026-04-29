@@ -109,8 +109,9 @@ struct ProfileView: View {
                 hasChanges = true
             } label: {
                 Label("Add", systemImage: "plus.circle")
-                    .font(.subheadline)
+                    .font(CortexFont.captionMedium)
             }
+            .buttonStyle(CortexSecondaryButtonStyle())
         } header: {
             Text(title)
         }

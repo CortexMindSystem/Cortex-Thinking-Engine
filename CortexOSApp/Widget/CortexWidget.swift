@@ -88,6 +88,8 @@ struct CortexWidgetEntryView: View {
     @Environment(\.widgetFamily) var family
     let entry: CortexEntry
 
+    private let focusURL = URL(string: "simplixio://focus")!
+
     var body: some View {
         switch family {
         case .accessoryCircular:
@@ -103,6 +105,7 @@ struct CortexWidgetEntryView: View {
         default:
             SmallView(entry: entry)
         }
+        .widgetURL(focusURL)
     }
 }
 
@@ -275,6 +278,7 @@ private struct SmallView: View {
 
 private struct MediumView: View {
     let entry: CortexEntry
+    private let captureURL = URL(string: "simplixio://capture")!
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
@@ -330,6 +334,15 @@ private struct MediumView: View {
                         }
 
                         Spacer(minLength: 0)
+                    }
+                }
+
+                HStack {
+                    Spacer()
+                    Link(destination: captureURL) {
+                        Label("Capture", systemImage: "square.and.pencil")
+                            .font(.caption2)
+                            .foregroundStyle(.blue.opacity(0.8))
                     }
                 }
             }

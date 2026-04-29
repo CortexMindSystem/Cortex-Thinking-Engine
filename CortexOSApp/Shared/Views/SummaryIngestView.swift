@@ -27,8 +27,7 @@ struct SummaryIngestView: View {
             // Summary input
             VStack(alignment: .leading, spacing: CortexSpacing.xs) {
                 Text("Paste your summary")
-                    .font(CortexFont.captionMedium)
-                    .foregroundStyle(CortexColor.textSecondary)
+                    .cortexFieldLabel()
 
                 TextEditor(text: $content)
                     .scrollContentBackground(.hidden)
@@ -57,8 +56,7 @@ struct SummaryIngestView: View {
                 }
                 .padding(.vertical, CortexSpacing.md)
             }
-            .buttonStyle(.borderedProminent)
-            .tint(CortexColor.accent)
+            .buttonStyle(CortexPrimaryButtonStyle(fullWidth: true))
             .disabled(!canSubmit || engine.isLoading)
 
             // Result

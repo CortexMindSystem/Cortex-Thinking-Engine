@@ -38,8 +38,7 @@ struct NewsletterWorkbenchView: View {
         VStack(alignment: .leading, spacing: CortexSpacing.md) {
             VStack(alignment: .leading, spacing: CortexSpacing.xs) {
                 Text("Source")
-                    .font(CortexFont.captionMedium)
-                    .foregroundStyle(CortexColor.textTertiary)
+                    .cortexFieldLabel()
                 Picker("Source", selection: $selectedSource) {
                     ForEach(SourcePreset.allCases) { source in
                         Text(source.label).tag(source)
@@ -50,8 +49,7 @@ struct NewsletterWorkbenchView: View {
 
             VStack(alignment: .leading, spacing: CortexSpacing.xs) {
                 Text("Mode")
-                    .font(CortexFont.captionMedium)
-                    .foregroundStyle(CortexColor.textTertiary)
+                    .cortexFieldLabel()
                 Picker("Mode", selection: $selectedMode) {
                     ForEach(DraftMode.allCases) { mode in
                         Text(mode.label).tag(mode)
@@ -147,7 +145,7 @@ struct NewsletterWorkbenchView: View {
             } label: {
                 Label("Generate Draft", systemImage: "wand.and.stars")
             }
-            .buttonStyle(.borderedProminent)
+            .buttonStyle(CortexPrimaryButtonStyle())
             .disabled(!canGenerate)
 
             if let newsletter = engine.snapshot?.newsletter,
@@ -156,7 +154,7 @@ struct NewsletterWorkbenchView: View {
                 ShareLink(item: url) {
                     Label("Share", systemImage: "square.and.arrow.up")
                 }
-                .buttonStyle(.bordered)
+                .buttonStyle(CortexSecondaryButtonStyle())
             }
 
             if let status = engine.newsletterStatus, !status.isEmpty {

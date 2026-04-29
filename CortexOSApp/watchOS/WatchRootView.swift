@@ -5,62 +5,25 @@ struct WatchRootView: View {
     @Environment(\.scenePhase) private var scenePhase
 
     var body: some View {
-        TabView {
-            NavigationStack {
-                ScrollView {
-                    VStack(alignment: .leading, spacing: 10) {
-                        statusRow
+        NavigationStack {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 10) {
+                    statusRow
 
-                        if let priority = model.topPriority {
-                            Text(priority.title)
-                                .font(.headline)
-                                .lineLimit(2)
-                                .multilineTextAlignment(.leading)
-
-                            Text(priority.action)
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                                .lineLimit(2)
-
-                            NavigationLink {
-                                WatchFeedbackView(priority: priority)
-                            } label: {
-                                Label("Feedback", systemImage: "hand.thumbsup")
-                            }
-                            .buttonStyle(.borderedProminent)
-                        } else {
-                            Text("No priority yet")
-                                .font(.headline)
-                            Text("Sync to pull your latest action.")
-                                .font(.caption2)
-                                .foregroundStyle(.secondary)
-                            Button {
-                                Task { await model.sync() }
-                            } label: {
-                                Label(model.isSyncing ? "Syncing..." : "Sync", systemImage: "arrow.clockwise")
-                            }
-                            .disabled(model.isSyncing)
-                            .buttonStyle(.borderedProminent)
-                        }
+                    if let priority = model.topPriority {
+                        priorityCard(priority)
+                        feedbackCard(priority)
+                    } else {
+                        emptyStateCard
                     }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.horizontal, 8)
+
+                    captureCard
                 }
-                .navigationTitle("Next")
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, 8)
             }
-            .tag(0)
-
-            NavigationStack {
-                WatchFeedbackView(priority: model.topPriority)
-            }
-            .tag(1)
-
-            NavigationStack {
-                WatchCaptureView()
-            }
-            .tag(2)
+            .navigationTitle("Next")
         }
-        .tabViewStyle(.page)
         .onChange(of: scenePhase) { _, phase in
             guard phase == .active else { return }
             Task { await model.sync() }
@@ -83,73 +46,124 @@ struct WatchRootView: View {
             }
         }
     }
-}
 
-private struct WatchFeedbackView: View {
-    @EnvironmentObject private var model: WatchDecisionModel
-    let priority: SyncTodayPriority?
+    @ViewBuilder
+    private func priorityCard(_ priority: SyncTodayPriority) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("Top Priority")
+                .font(.caption2)
+                .foregroundStyle(.secondary)
 
-    var body: some View {
-        List {
-            if let priority {
-                Section {
-                    Text(priority.title)
-                        .font(.caption)
-                        .lineLimit(2)
-                        .foregroundStyle(.secondary)
-                }
+            Text(priority.title)
+                .font(.headline)
+                .lineLimit(2)
+                .multilineTextAlignment(.leading)
 
-                Section("Useful?") {
-                    Button("Useful") {
-                        Task { await model.sendQuickFeedback(for: priority, useful: true, acted: nil) }
-                    }
-                    Button("Not useful") {
-                        Task { await model.sendQuickFeedback(for: priority, useful: false, acted: nil) }
-                    }
-                }
-
-                Section("Done?") {
-                    Button("Done") {
-                        Task { await model.sendQuickFeedback(for: priority, useful: true, acted: true) }
-                    }
-                    Button("Not done") {
-                        Task { await model.sendQuickFeedback(for: priority, useful: true, acted: false) }
-                    }
-                }
-            } else {
-                Text("No priority to rate yet.")
+            if !priority.action.isEmpty {
+                Label(priority.action, systemImage: "arrow.right.circle.fill")
                     .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(CortexColor.accent)
+                    .lineLimit(2)
             }
         }
-        .navigationTitle("Feedback")
+        .padding(10)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(CortexColor.bgSecondary)
+        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
     }
-}
 
-private struct WatchCaptureView: View {
-    @EnvironmentObject private var model: WatchDecisionModel
+    @ViewBuilder
+    private func feedbackCard(_ priority: SyncTodayPriority) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("Feedback")
+                .font(.caption2)
+                .foregroundStyle(.secondary)
 
-    var body: some View {
-        List {
-            Section {
-                TextField("Dictate or type a note", text: $model.captureText, axis: .vertical)
-                    .lineLimit(2...4)
-                    .textFieldStyle(.plain)
-                    .padding(8)
-                    .background(CortexColor.bgSecondary)
-                    .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-
-                Button {
-                    Task { await model.captureByVoice() }
-                } label: {
-                    Label("Save note", systemImage: "mic.fill")
+            HStack(spacing: 6) {
+                feedbackButton("Useful", icon: "hand.thumbsup.fill") {
+                    Task { await model.sendQuickFeedback(for: priority, useful: true, acted: nil) }
                 }
-                .disabled(model.captureText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-            } footer: {
-                Text(model.isOffline ? "Offline: captured items queue automatically." : "Captured items sync automatically.")
-                    .font(.caption2)
+                feedbackButton("Not useful", icon: "hand.thumbsdown.fill") {
+                    Task { await model.sendQuickFeedback(for: priority, useful: false, acted: nil) }
+                }
+            }
+
+            HStack(spacing: 6) {
+                feedbackButton("Done", icon: "checkmark.circle.fill") {
+                    Task { await model.sendQuickFeedback(for: priority, useful: true, acted: true) }
+                }
+                feedbackButton("Not done", icon: "xmark.circle.fill") {
+                    Task { await model.sendQuickFeedback(for: priority, useful: true, acted: false) }
+                }
             }
         }
-        .navigationTitle("Capture")
+        .padding(10)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(CortexColor.bgSecondary)
+        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+    }
+
+    @ViewBuilder
+    private func feedbackButton(_ title: String, icon: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Label(title, systemImage: icon)
+                .font(.caption2)
+                .frame(maxWidth: .infinity)
+        }
+        .buttonStyle(.bordered)
+    }
+
+    private var captureCard: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("Capture")
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+
+            TextField("Dictate or type a note", text: $model.captureText, axis: .vertical)
+                .lineLimit(2...4)
+                .textFieldStyle(.plain)
+                .padding(8)
+                .background(CortexColor.bgSecondary)
+                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+
+            Button {
+                Task { await model.captureByVoice() }
+            } label: {
+                Label("Save capture", systemImage: "mic.fill")
+                    .frame(maxWidth: .infinity)
+            }
+            .disabled(model.captureText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            .buttonStyle(.borderedProminent)
+
+            Text(model.isOffline ? "Offline: capture queues automatically." : "Capture syncs automatically.")
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+        }
+        .padding(10)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(CortexColor.bgSecondary)
+        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+    }
+
+    private var emptyStateCard: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("No priority yet")
+                .font(.headline)
+            Text("Sync to pull your latest next action.")
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+            Button {
+                Task { await model.sync() }
+            } label: {
+                Label(model.isSyncing ? "Syncing..." : "Sync", systemImage: "arrow.clockwise")
+                    .frame(maxWidth: .infinity)
+            }
+            .disabled(model.isSyncing)
+            .buttonStyle(.borderedProminent)
+        }
+        .padding(10)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(CortexColor.bgSecondary)
+        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
     }
 }

@@ -42,11 +42,15 @@ struct ContentView: View {
     #if os(iOS)
     @State private var showSettings = false
     @State private var showReview = false
+    @State private var selectedTab: IOSTab = .focus
+    @StateObject private var routeCenter = SimpliXioRouteCenter.shared
 
     private var iOSRoot: some View {
-        TabView {
+        TabView(selection: $selectedTab) {
             NavigationStack {
-                DailyFocusView()
+                DailyFocusView(onRequestCapture: {
+                    selectedTab = .capture
+                })
                     .toolbar {
                         ToolbarItem(placement: .topBarLeading) {
                             Button { showReview = true } label: {
@@ -54,23 +58,46 @@ struct ContentView: View {
                                     .foregroundStyle(CortexColor.textTertiary)
                             }
                         }
-                        ToolbarItem(placement: .topBarTrailing) {
-                            Button { showSettings = true } label: {
+                        ToolbarItemGroup(placement: .topBarTrailing) {
+                            Button {
+                                selectedTab = .capture
+                            } label: {
+                                Image(systemName: "square.and.pencil")
+                                    .foregroundStyle(CortexColor.accent)
+                            }
+
+                            Button {
+                                showSettings = true
+                            } label: {
                                 Image(systemName: "gearshape")
                                     .foregroundStyle(CortexColor.textTertiary)
                             }
                         }
                     }
             }
+            .tag(IOSTab.focus)
             .tabItem { Label("Focus", systemImage: "target") }
 
             NavigationStack { QuickCaptureView() }
+                .tag(IOSTab.capture)
                 .tabItem { Label("Capture", systemImage: "square.and.pencil") }
         }
         .tint(CortexColor.accent)
         .environmentObject(engine)
         .task {
             await engine.sync()
+        }
+        .onOpenURL { url in
+            routeCenter.handle(url: url)
+        }
+        .onReceive(routeCenter.$pendingRoute.compactMap { $0 }) { route in
+            switch route {
+            case .focus:
+                selectedTab = .focus
+            case .capture:
+                selectedTab = .capture
+            }
+            routeCenter.pendingRoute = nil
         }
         .sheet(isPresented: $showSettings) {
             NavigationStack {
@@ -95,55 +122,58 @@ struct ContentView: View {
             }
         }
     }
+
+    enum IOSTab: Hashable {
+        case focus
+        case capture
+    }
     #endif
 
     // MARK: - macOS (Focus / Notes / Insights / Decisions / Memory / Weekly Review)
 
     #if os(macOS)
     @State private var selection: MacSection? = .focus
+    @State private var columnVisibility: NavigationSplitViewVisibility = .all
 
     private var macOSRoot: some View {
-        NavigationSplitView {
+        NavigationSplitView(columnVisibility: $columnVisibility) {
             List(selection: $selection) {
-                Label("Focus", systemImage: "target")
-                    .tag(MacSection.focus)
-                Label("Notes", systemImage: "doc.text")
-                    .tag(MacSection.notes)
-                Label("Insights", systemImage: "lightbulb")
-                    .tag(MacSection.insights)
-                Label("Decisions", systemImage: "checkmark.seal")
-                    .tag(MacSection.decisions)
-                Label("Memory", systemImage: "brain.head.profile")
-                    .tag(MacSection.memory)
-                Label("Weekly Review", systemImage: "calendar.badge.clock")
-                    .tag(MacSection.weeklyReview)
-                Label("Decision Replay", systemImage: "arrow.triangle.branch")
-                    .tag(MacSection.decisionReplay)
-                Label("Queues", systemImage: "list.bullet.rectangle")
-                    .tag(MacSection.signalQueues)
-                Label("Newsletter", systemImage: "newspaper")
-                    .tag(MacSection.newsletter)
-                Label("Settings", systemImage: "gearshape")
-                    .tag(MacSection.settings)
+                sidebarGroup("Core", items: MacSection.coreSidebar)
+                sidebarGroup("Review", items: MacSection.reviewSidebar)
+                sidebarGroup("Publish", items: MacSection.publishSidebar)
+                sidebarGroup("System", items: MacSection.systemSidebar)
             }
             .navigationTitle("SimpliXio")
             .listStyle(.sidebar)
+            .foregroundStyle(CortexColor.textPrimary)
+            .navigationSplitViewColumnWidth(min: 220, ideal: 240, max: 300)
         } detail: {
-            NavigationStack {
-                switch selection {
-                case .focus:       DailyFocusView()
-                case .notes:       KnowledgeListView()
-                case .insights:    InsightFeedView()
-                case .decisions:   DecisionHistoryView()
-                case .memory:      MemoryExplorerView()
-                case .weeklyReview: WeeklyReviewView()
-                case .decisionReplay: DecisionReplayView()
-                case .signalQueues: SignalWorkbenchView()
-                case .newsletter: NewsletterWorkbenchView()
-                case .settings:    SettingsView()
-                case nil:          DailyFocusView()
-                }
+            switch selection {
+            case .focus:       DailyFocusView()
+            case .notes:       KnowledgeListView()
+            case .insights:    InsightFeedView()
+            case .decisions:   DecisionHistoryView()
+            case .memory:      MemoryExplorerView()
+            case .weeklyReview: WeeklyReviewView()
+            case .decisionReplay: DecisionReplayView()
+            case .signalQueues: SignalWorkbenchView()
+            case .recurringPatterns: SignalWorkbenchView(focus: .recurringPatterns)
+            case .unresolvedTensions: SignalWorkbenchView(focus: .unresolvedTensions)
+            case .contentCandidates: SignalWorkbenchView(focus: .contentCandidates)
+            case .newsletter: NewsletterWorkbenchView()
+            case .settings:    SettingsView()
+            case nil:          DailyFocusView()
             }
+        }
+        .onChange(of: selection) { _, _ in
+            // Keep the workbench navigation stable when switching sections.
+            columnVisibility = .all
+        }
+        .onAppear {
+            if selection == nil {
+                selection = .focus
+            }
+            columnVisibility = .all
         }
         .environmentObject(engine)
         .frame(minWidth: 800, minHeight: 500)
@@ -152,8 +182,86 @@ struct ContentView: View {
         }
     }
 
-    enum MacSection: Hashable {
-        case focus, notes, insights, decisions, memory, weeklyReview, decisionReplay, signalQueues, newsletter, settings
+    @ViewBuilder
+    private func sidebarGroup(_ title: String, items: [MacSection]) -> some View {
+        Text(title.uppercased())
+            .font(CortexFont.captionMedium)
+            .foregroundStyle(CortexColor.textTertiary)
+            .padding(.top, CortexSpacing.xs)
+            .padding(.bottom, CortexSpacing.xxs)
+            .textCase(nil)
+            .listRowInsets(EdgeInsets(top: 6, leading: 14, bottom: 2, trailing: 10))
+            .listRowSeparator(.hidden)
+
+        ForEach(items, id: \.self) { section in
+            Label(section.title, systemImage: section.systemImage)
+                .tag(section)
+        }
+    }
+
+    enum MacSection: Hashable, CaseIterable {
+        case focus, notes, insights, decisions, memory, weeklyReview, decisionReplay, signalQueues, recurringPatterns, unresolvedTensions, contentCandidates, newsletter, settings
+
+        static let coreSidebar: [MacSection] = [
+            .focus,
+            .notes,
+            .insights,
+            .decisions,
+            .memory,
+        ]
+
+        static let reviewSidebar: [MacSection] = [
+            .weeklyReview,
+            .decisionReplay,
+            .signalQueues,
+            .recurringPatterns,
+            .unresolvedTensions,
+            .contentCandidates,
+        ]
+
+        static let publishSidebar: [MacSection] = [
+            .newsletter,
+        ]
+
+        static let systemSidebar: [MacSection] = [
+            .settings,
+        ]
+
+        var title: String {
+            switch self {
+            case .focus: "Focus"
+            case .notes: "Notes"
+            case .insights: "Insights"
+            case .decisions: "Decisions"
+            case .memory: "Memory"
+            case .weeklyReview: "Weekly Review"
+            case .decisionReplay: "Decision Replay"
+            case .signalQueues: "Queues"
+            case .recurringPatterns: "Recurring Patterns"
+            case .unresolvedTensions: "Unresolved Tensions"
+            case .contentCandidates: "Content Candidates"
+            case .newsletter: "Newsletter"
+            case .settings: "Settings"
+            }
+        }
+
+        var systemImage: String {
+            switch self {
+            case .focus: "target"
+            case .notes: "doc.text"
+            case .insights: "lightbulb"
+            case .decisions: "checkmark.seal"
+            case .memory: "brain.head.profile"
+            case .weeklyReview: "calendar.badge.clock"
+            case .decisionReplay: "arrow.triangle.branch"
+            case .signalQueues: "list.bullet.rectangle"
+            case .recurringPatterns: "waveform.path.ecg"
+            case .unresolvedTensions: "exclamationmark.triangle"
+            case .contentCandidates: "doc.text"
+            case .newsletter: "newspaper"
+            case .settings: "gearshape"
+            }
+        }
     }
     #endif
 }
@@ -177,7 +285,7 @@ private struct SimpliXioOnboardingView: View {
                             .font(CortexFont.largeTitle)
                             .foregroundStyle(CortexColor.textPrimary)
 
-                        Text("Decide what matters.")
+                        Text("Turn scattered thoughts and project noise into 3 priorities and one next action.")
                             .font(CortexFont.title)
                             .foregroundStyle(CortexColor.textSecondary)
                     }
@@ -191,7 +299,7 @@ private struct SimpliXioOnboardingView: View {
                         onboardingRow(
                             icon: "target",
                             title: "Get 3 priorities",
-                            message: "SimpliXio app filters noise into the three things that matter now."
+                            message: "SimpliXio filters scattered thoughts and project noise into what matters now."
                         )
                         onboardingRow(
                             icon: "lightbulb",
@@ -211,6 +319,9 @@ private struct SimpliXioOnboardingView: View {
                     }
 
                     Text("You can stay fully offline, or connect a server later in Settings.")
+                        .font(CortexFont.caption)
+                        .foregroundStyle(CortexColor.textTertiary)
+                    Text("Private by default. You stay in control.")
                         .font(CortexFont.caption)
                         .foregroundStyle(CortexColor.textTertiary)
                 }
@@ -235,13 +346,9 @@ private struct SimpliXioOnboardingView: View {
                                 .font(CortexFont.bodyMedium.weight(.semibold))
                             Spacer(minLength: 0)
                         }
-                        .foregroundStyle(Color.white)
-                        .padding(.horizontal, CortexSpacing.lg)
-                        .frame(maxWidth: .infinity, minHeight: 52, alignment: .center)
-                        .background(CortexColor.accent)
-                        .clipShape(RoundedRectangle(cornerRadius: CortexRadius.large, style: .continuous))
+                        .frame(maxWidth: .infinity, alignment: .center)
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(CortexPrimaryButtonStyle(fullWidth: true))
                     .accessibilityHint("Continue with your own data")
 
                     Button {
@@ -264,17 +371,9 @@ private struct SimpliXioOnboardingView: View {
                                 .font(CortexFont.bodyMedium.weight(.semibold))
                             Spacer(minLength: 0)
                         }
-                        .foregroundStyle(CortexColor.textPrimary)
-                        .padding(.horizontal, CortexSpacing.lg)
-                        .frame(maxWidth: .infinity, minHeight: 52, alignment: .center)
-                        .background(CortexColor.bgSurface)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: CortexRadius.large, style: .continuous)
-                                .stroke(Color.primary.opacity(0.12), lineWidth: 1)
-                        )
-                        .clipShape(RoundedRectangle(cornerRadius: CortexRadius.large, style: .continuous))
+                        .frame(maxWidth: .infinity, alignment: .center)
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(CortexSecondaryButtonStyle(fullWidth: true))
                     .disabled(isPreparingDemo)
                     .opacity(isPreparingDemo ? 0.7 : 1.0)
                     .accessibilityHint("Preview SimpliXio with example priorities and notes")

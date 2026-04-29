@@ -41,11 +41,8 @@ struct EmptyStateView: View {
                         Text(actionTitle)
                             .font(CortexFont.captionMedium)
                     }
-                    .padding(.horizontal, CortexSpacing.lg)
-                    .padding(.vertical, CortexSpacing.sm)
                 }
-                .buttonStyle(.borderedProminent)
-                .tint(CortexColor.accent)
+                .buttonStyle(CortexPrimaryButtonStyle())
                 .disabled(isActionLoading)
             }
         }

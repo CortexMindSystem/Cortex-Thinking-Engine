@@ -93,7 +93,7 @@ struct QuickCaptureView: View {
                         Label("Done", systemImage: "keyboard.chevron.compact.down")
                             .font(CortexFont.captionMedium)
                     }
-                    .buttonStyle(.bordered)
+                    .buttonStyle(CortexSecondaryButtonStyle())
                 } else if canSave {
                     Button {
                         text = ""
@@ -102,7 +102,7 @@ struct QuickCaptureView: View {
                         Label("Clear", systemImage: "xmark.circle")
                             .font(CortexFont.captionMedium)
                     }
-                    .buttonStyle(.bordered)
+                    .buttonStyle(CortexSecondaryButtonStyle())
                 }
 
                 Button {
@@ -115,8 +115,7 @@ struct QuickCaptureView: View {
                         Spacer()
                     }
                 }
-                .buttonStyle(.borderedProminent)
-                .tint(CortexColor.accent)
+                .buttonStyle(CortexPrimaryButtonStyle(fullWidth: true))
                 .disabled(!canSave)
             }
             .padding(.horizontal, CortexSpacing.xl)
@@ -189,8 +188,7 @@ private struct CaptureEditorCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: CortexSpacing.xs) {
             Text(title)
-                .font(CortexFont.captionMedium)
-                .foregroundStyle(CortexColor.textSecondary)
+                .cortexFieldLabel()
 
             ZStack(alignment: .topLeading) {
                 TextEditor(text: $text)

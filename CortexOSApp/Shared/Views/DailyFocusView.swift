@@ -11,6 +11,7 @@ import SwiftUI
 
 struct DailyFocusView: View {
     @EnvironmentObject private var engine: CortexEngine
+    var onRequestCapture: (() -> Void)? = nil
 
     /// Priorities the user has swiped away this session (not persisted — resets on next sync)
     @State private var dismissedTitles: Set<String> = []
@@ -38,42 +39,28 @@ struct DailyFocusView: View {
                 }
             }
         }
-        .safeAreaInset(edge: .bottom) {
-            if !engine.isConnected {
-                HStack(spacing: CortexSpacing.sm) {
-                    Image(systemName: "arrow.clockwise.circle")
-                        .font(.caption2)
-                    Text("Offline — will sync when connected")
-                        .font(CortexFont.mono)
-                }
-                .foregroundStyle(CortexColor.textTertiary)
-                .padding(.vertical, CortexSpacing.sm)
-                .frame(maxWidth: .infinity)
-                .background(.ultraThinMaterial)
-            }
-        }
+        .safeAreaInset(edge: .bottom) { bottomBar }
         .background(CortexColor.bgPrimary)
         .navigationTitle("Focus")
         .toolbar {
-            ToolbarItem(placement: .primaryAction) {
-                HStack(spacing: CortexSpacing.md) {
-                    if let shareText = todayShareText {
-                        ShareLink(item: shareText) {
-                            Image(systemName: "square.and.arrow.up")
-                        }
-                        .help("Share SimpliXio Today")
+            ToolbarItemGroup(placement: .primaryAction) {
+                if let shareText = todayShareText {
+                    ShareLink(item: shareText) {
+                        Label("Share SimpliXio Today", systemImage: "square.and.arrow.up")
+                            .labelStyle(.iconOnly)
                     }
+                    .help("Share SimpliXio Today")
+                }
 
-                    Button {
-                        Task { await engine.sync() }
-                    } label: {
-                        if engine.isSyncing {
-                            ProgressView()
-                        } else {
-                            Image(systemName: "arrow.clockwise")
-                        }
+                if engine.isSyncing {
+                    ProgressView()
+                        .controlSize(.small)
+                        .help("Syncing…")
+                } else {
+                    Button(action: triggerSync) {
+                        Label("Sync now", systemImage: "arrow.clockwise")
+                            .labelStyle(.iconOnly)
                     }
-                    .disabled(engine.isSyncing)
                     .help("Sync now")
                 }
             }
@@ -163,6 +150,15 @@ struct DailyFocusView: View {
 
         VStack(alignment: .leading, spacing: CortexSpacing.lg) {
             VStack(alignment: .leading, spacing: CortexSpacing.xxs) {
+                Text("What matters now")
+                    .font(CortexFont.title)
+                    .foregroundStyle(CortexColor.textPrimary)
+                Text("3 priorities. Why they matter. One next action.")
+                    .font(CortexFont.caption)
+                    .foregroundStyle(CortexColor.textSecondary)
+            }
+
+            VStack(alignment: .leading, spacing: CortexSpacing.xxs) {
                 if let status = engine.lastSyncStatus {
                     Text(status)
                         .font(CortexFont.caption)
@@ -175,19 +171,41 @@ struct DailyFocusView: View {
                 }
             }
 
-            if let replay = engine.snapshot?.decisionReplay {
-                decisionReplaySummaryCard(replay)
+            #if os(iOS)
+            if let onRequestCapture {
+                Button(action: onRequestCapture) {
+                    HStack(spacing: CortexSpacing.sm) {
+                        Image(systemName: "square.and.pencil")
+                            .font(CortexFont.captionMedium)
+                        Text("Capture a thought")
+                            .font(CortexFont.bodyMedium)
+                        Spacer(minLength: 0)
+                        Image(systemName: "chevron.right")
+                            .font(.caption2)
+                            .foregroundStyle(CortexColor.textTertiary)
+                    }
+                    .padding(.horizontal, CortexSpacing.md)
+                    .padding(.vertical, CortexSpacing.sm)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(CortexColor.bgSurface)
+                    .clipShape(RoundedRectangle(cornerRadius: CortexRadius.card, style: .continuous))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: CortexRadius.card, style: .continuous)
+                            .stroke(CortexColor.accent.opacity(0.12), lineWidth: 1)
+                    )
+                }
+                .buttonStyle(CortexSecondaryButtonStyle(fullWidth: true))
             }
-
-            if let newsletter = engine.snapshot?.newsletter {
-                newsletterSummaryCard(newsletter)
-            }
+            #endif
 
             // Date — subtle
             Text(brief.date)
                 .font(CortexFont.caption)
                 .foregroundStyle(CortexColor.textTertiary)
-                .padding(.bottom, CortexSpacing.xs)
+
+            if let top = visible.first, !top.nextStep.isEmpty {
+                nextActionCard(top.nextStep)
+            }
 
             // #1 Priority — hero card
             if let top = visible.first {
@@ -242,8 +260,53 @@ struct DailyFocusView: View {
                     .padding(.top, CortexSpacing.xs)
             }
             #endif
+
+            if let replay = engine.snapshot?.decisionReplay {
+                decisionReplaySummaryCard(replay)
+            }
+
+            if let newsletter = engine.snapshot?.newsletter {
+                newsletterSummaryCard(newsletter)
+            }
+
+            if let resurfaced = engine.snapshot?.resurfacedNow, !resurfaced.isEmpty {
+                resurfacedSummaryCard(resurfaced)
+            }
         }
         .padding(CortexSpacing.xl)
+    }
+
+    @ViewBuilder
+    private var bottomBar: some View {
+        VStack(spacing: CortexSpacing.xs) {
+            #if os(iOS)
+            if let onRequestCapture {
+                Button(action: onRequestCapture) {
+                    HStack(spacing: CortexSpacing.sm) {
+                        Image(systemName: "plus.circle.fill")
+                        Text("Quick Capture")
+                            .font(CortexFont.bodyMedium.weight(.semibold))
+                    }
+                    .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(CortexPrimaryButtonStyle(fullWidth: true))
+            }
+            #endif
+
+            if !engine.isConnected {
+                HStack(spacing: CortexSpacing.sm) {
+                    Image(systemName: "arrow.clockwise.circle")
+                        .font(.caption2)
+                    Text("Offline — will sync when connected")
+                        .font(CortexFont.mono)
+                }
+                .foregroundStyle(CortexColor.textTertiary)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+        }
+        .padding(.horizontal, CortexSpacing.lg)
+        .padding(.vertical, CortexSpacing.sm)
+        .background(.ultraThinMaterial)
     }
 
     private func dismiss(_ priority: SyncPriority) {
@@ -252,6 +315,10 @@ struct DailyFocusView: View {
         }
         // Send "not useful" feedback — best-effort, never blocks
         Task { await engine.sendFeedback(item: priority.title, useful: false) }
+    }
+
+    private func triggerSync() {
+        Task { await engine.sync() }
     }
 
     private var todayShareText: String? {
@@ -295,6 +362,23 @@ struct DailyFocusView: View {
         }
         .buttonStyle(.plain)
         .accessibilityLabel("Decision Replay")
+    }
+
+    @ViewBuilder
+    private func nextActionCard(_ action: String) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: CortexSpacing.sm) {
+            Text("Next Action")
+                .font(CortexFont.captionMedium)
+                .foregroundStyle(CortexColor.textTertiary)
+            Text(action)
+                .font(CortexFont.bodyMedium)
+                .foregroundStyle(CortexColor.textPrimary)
+                .lineLimit(2)
+        }
+        .padding(CortexSpacing.md)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(CortexColor.bgSurface)
+        .clipShape(RoundedRectangle(cornerRadius: CortexRadius.card, style: .continuous))
     }
 
     @ViewBuilder
@@ -343,6 +427,51 @@ struct DailyFocusView: View {
             return nil
         }
         return lines.joined(separator: "\n\n")
+    }
+
+    @ViewBuilder
+    private func resurfacedSummaryCard(_ items: [SyncRankedSignal]) -> some View {
+        if let item = items.first {
+            VStack(alignment: .leading, spacing: CortexSpacing.xs) {
+                Text("Resurfaced")
+                    .font(CortexFont.captionMedium)
+                    .foregroundStyle(CortexColor.textTertiary)
+
+                Text(item.title)
+                    .font(CortexFont.bodyMedium)
+                    .foregroundStyle(CortexColor.textPrimary)
+
+                Text(item.resurfacingExplanation ?? item.explainability.whyItSurfaced)
+                    .font(CortexFont.caption)
+                    .foregroundStyle(CortexColor.textSecondary)
+                    .lineLimit(2)
+
+                Text("Next: \(item.nextAction)")
+                    .font(CortexFont.caption)
+                    .foregroundStyle(CortexColor.accent)
+
+                HStack(spacing: CortexSpacing.sm) {
+                    Button("Act now") {
+                        Task { await engine.applyResurfacingAction(signalID: item.signalID, actionType: "acted_on") }
+                    }
+                    .buttonStyle(CortexPrimaryButtonStyle())
+
+                    Button("Snooze") {
+                        Task { await engine.applyResurfacingAction(signalID: item.signalID, actionType: "snoozed") }
+                    }
+                    .buttonStyle(CortexSecondaryButtonStyle())
+
+                    Button("Dismiss") {
+                        Task { await engine.applyResurfacingAction(signalID: item.signalID, actionType: "dismissed") }
+                    }
+                    .buttonStyle(CortexSecondaryButtonStyle())
+                }
+            }
+            .padding(CortexSpacing.md)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(CortexColor.bgSurface)
+            .clipShape(RoundedRectangle(cornerRadius: CortexRadius.card, style: .continuous))
+        }
     }
 }
 
@@ -488,19 +617,8 @@ private struct FeedbackRow: View {
             if feedbackGiven == nil {
                 HStack(spacing: CortexSpacing.md) {
                     Spacer()
-                    Button { submit(true) } label: {
-                        Label("Useful", systemImage: "hand.thumbsup")
-                            .font(CortexFont.caption)
-                    }
-                    .buttonStyle(.plain)
-                    .foregroundStyle(CortexColor.textTertiary)
-
-                    Button { submit(false) } label: {
-                        Label("Not useful", systemImage: "hand.thumbsdown")
-                            .font(CortexFont.caption)
-                    }
-                    .buttonStyle(.plain)
-                    .foregroundStyle(CortexColor.textTertiary)
+                    feedbackButton(title: "Useful", icon: "hand.thumbsup", value: true)
+                    feedbackButton(title: "Not useful", icon: "hand.thumbsdown", value: false)
                 }
             } else {
                 HStack {
@@ -513,6 +631,15 @@ private struct FeedbackRow: View {
             }
         }
         .padding(.top, CortexSpacing.xs)
+    }
+
+    @ViewBuilder
+    private func feedbackButton(title: String, icon: String, value: Bool) -> some View {
+        Button { submit(value) } label: {
+            Label(title, systemImage: icon)
+                .font(CortexFont.captionMedium)
+        }
+        .buttonStyle(CortexChipButtonStyle(prominent: value))
     }
 
     private func submit(_ useful: Bool) {
@@ -579,8 +706,7 @@ private struct PriorityDetailSheet: View {
                             Label("Mark as acted", systemImage: "checkmark.circle.fill")
                                 .frame(maxWidth: .infinity)
                         }
-                        .buttonStyle(.borderedProminent)
-                        .tint(CortexColor.accent)
+                        .buttonStyle(CortexPrimaryButtonStyle(fullWidth: true))
 
                         Button {
                             onFeedback(false, false)
@@ -589,7 +715,7 @@ private struct PriorityDetailSheet: View {
                             Label("Mark not useful", systemImage: "hand.thumbsdown")
                                 .frame(maxWidth: .infinity)
                         }
-                        .buttonStyle(.bordered)
+                        .buttonStyle(CortexSecondaryButtonStyle(fullWidth: true))
 
                         Button(role: .destructive) {
                             onIgnore()
@@ -598,7 +724,7 @@ private struct PriorityDetailSheet: View {
                             Label("Ignore today", systemImage: "eye.slash")
                                 .frame(maxWidth: .infinity)
                         }
-                        .buttonStyle(.bordered)
+                        .buttonStyle(CortexSecondaryButtonStyle(fullWidth: true))
                     }
                     .padding(.top, CortexSpacing.sm)
                 }
