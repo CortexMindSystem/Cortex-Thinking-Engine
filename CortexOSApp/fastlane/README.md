@@ -43,7 +43,7 @@ watchOS TestFlight
 [bundle exec] fastlane all_testflight
 ```
 
-Build and upload BOTH platforms to TestFlight
+Build and upload iOS, macOS, and watchOS to TestFlight
 
 ### refresh_profiles
 
