@@ -15,6 +15,7 @@ enum APIError: LocalizedError {
     case httpError(statusCode: Int, body: String)
     case decodingError(Error)
     case networkError(Error)
+    case timeout(seconds: Double)
 
     var errorDescription: String? {
         switch self {
@@ -26,6 +27,8 @@ enum APIError: LocalizedError {
             return "Decoding error: \(err.localizedDescription)"
         case .networkError(let err):
             return "Network error: \(err.localizedDescription)"
+        case .timeout(let seconds):
+            return "Request timed out after \(Int(seconds))s."
         }
     }
 }
@@ -50,6 +53,7 @@ final class APIService: ObservableObject {
     private let session: URLSession
     private let decoder: JSONDecoder
     private let encoder: JSONEncoder
+    private let requestTimeoutSeconds: Double = 10
 
     init(baseURL: String? = nil) {
         let saved = UserDefaults.standard.string(forKey: APIService.serverURLDefaultsKey)
@@ -87,7 +91,9 @@ final class APIService: ObservableObject {
         }
         let (data, response): (Data, URLResponse)
         do {
-            (data, response) = try await session.data(for: req)
+            (data, response) = try await dataWithTimeout(for: req)
+        } catch let apiError as APIError {
+            throw apiError
         } catch {
             throw APIError.networkError(error)
         }
@@ -119,10 +125,29 @@ final class APIService: ObservableObject {
         if let body {
             req.httpBody = try encoder.encode(AnyEncodable(body))
         }
-        let (data, response) = try await session.data(for: req)
+        let (data, response) = try await dataWithTimeout(for: req)
         if let http = response as? HTTPURLResponse, !(200..<300).contains(http.statusCode) {
             let body = String(data: data, encoding: .utf8) ?? ""
             throw APIError.httpError(statusCode: http.statusCode, body: body)
+        }
+    }
+
+    private func dataWithTimeout(for request: URLRequest) async throws -> (Data, URLResponse) {
+        try await withThrowingTaskGroup(of: (Data, URLResponse).self) { group in
+            group.addTask { [session] in
+                try await session.data(for: request)
+            }
+            group.addTask { [requestTimeoutSeconds] in
+                let nanos = UInt64(requestTimeoutSeconds * 1_000_000_000)
+                try await Task.sleep(nanoseconds: nanos)
+                throw APIError.timeout(seconds: requestTimeoutSeconds)
+            }
+
+            defer { group.cancelAll() }
+            guard let result = try await group.next() else {
+                throw APIError.timeout(seconds: requestTimeoutSeconds)
+            }
+            return result
         }
     }
 
@@ -343,6 +368,32 @@ final class APIService: ObservableObject {
             await CaptureQueue.shared.enqueueFeedback(item: body.item, useful: body.useful, acted: body.acted)
             throw error
         }
+    }
+
+    func sendSignalFeedback(_ body: SignalFeedbackRequest) async throws {
+        if isOffline {
+            throw APIError.networkError(
+                NSError(
+                    domain: NSURLErrorDomain,
+                    code: -1009,
+                    userInfo: [NSLocalizedDescriptionKey: "Signal resurfacing actions require server connection."]
+                )
+            )
+        }
+        try await requestNoContent("POST", path: "/context/signals/feedback", body: body)
+    }
+
+    func sendSignalOverride(_ body: SignalOverrideRequest) async throws {
+        if isOffline {
+            throw APIError.networkError(
+                NSError(
+                    domain: NSURLErrorDomain,
+                    code: -1009,
+                    userInfo: [NSLocalizedDescriptionKey: "Signal resurfacing overrides require server connection."]
+                )
+            )
+        }
+        try await requestNoContent("POST", path: "/context/signals/override", body: body)
     }
 
     // MARK: - Summary Ingestion

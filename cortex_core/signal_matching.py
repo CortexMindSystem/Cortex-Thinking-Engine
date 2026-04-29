@@ -20,9 +20,11 @@ import re
 import uuid
 from collections import Counter, defaultdict
 from dataclasses import asdict, dataclass, field
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
+
+from cortex_core.cocoindex_pipeline import CocoIndexSignalPipeline
 
 VALID_TYPES = {
     "thought",
@@ -134,6 +136,44 @@ TONE_KEYWORDS = {
 
 TIME_HORIZONS = ("now", "today", "this_week", "later")
 
+# Intelligent resurfacing enums (deterministic, backend-first).
+RESURFACING_STATUS = {
+    "none",
+    "scheduled",
+    "waiting_for_context",
+    "recurring_candidate",
+    "resurfaced",
+    "dismissed",
+    "archived",
+}
+
+RESURFACING_TIME_HORIZONS = {
+    "later_today",
+    "tomorrow",
+    "this_week",
+    "next_week",
+    "when_relevant",
+    "weekly_review",
+}
+
+RESURFACING_REASONS = {
+    "recurring",
+    "unresolved_tension",
+    "decision_blocker",
+    "action_ready",
+    "linked_context_active",
+    "ignored_but_important",
+    "content_candidate",
+    "weekly_review_candidate",
+}
+
+RESURFACE_HORIZON_DELTA_HOURS = {
+    "later_today": 6,
+    "tomorrow": 24,
+    "this_week": 72,
+    "next_week": 24 * 7,
+}
+
 # Calm defaults for surfaced queues (backend-enforced).
 QUEUE_LIMITS = {
     "top_priorities": 3,
@@ -143,6 +183,10 @@ QUEUE_LIMITS = {
     "recurring_patterns": 5,
     "unresolved_tensions": 5,
     "content_candidates": 5,
+    "resurfaced_now": 3,
+    "resurfacing_recurring_tensions": 5,
+    "resurfacing_weekly_review_candidates": 5,
+    "resurfacing_content_candidates": 5,
 }
 
 
@@ -207,8 +251,22 @@ class SignalRecord:
     contradiction: bool = False
     sensitivity: str = "sensitive"
     status: str = "active"  # active, snoozed, pinned, irrelevant
+    resurfacing_status: str = "none"
+    resurfacing_reason: str = ""
+    resurfacing_time_horizon: str = "when_relevant"
+    resurfacing_at: str = ""
+    resurfacing_conditions: list[str] = field(default_factory=list)
+    resurfacing_count: int = 0
+    first_resurfaced_at: str = ""
+    last_resurfaced_at: str = ""
+    last_dismissed_at: str = ""
+    last_snoozed_at: str = ""
+    last_action_taken_at: str = ""
+    suppressed_until: str = ""
+    resurfacing_confidence: float = 0.0
     last_feedback_at: str = ""
     feedback_counts: dict[str, int] = field(default_factory=dict)
+    trace_metadata: dict[str, Any] = field(default_factory=dict)
     scores: SignalScores = field(default_factory=SignalScores)
 
     def to_dict(self) -> dict[str, Any]:
@@ -285,6 +343,7 @@ class SignalMatcher:
         self._records: list[SignalRecord] = []
         self._feedback: list[FeedbackEvent] = []
         self._overrides: list[OverrideEvent] = []
+        self.cocoindex_pipeline = CocoIndexSignalPipeline(data_dir)
 
         self._load()
 
@@ -347,14 +406,92 @@ class SignalMatcher:
         )
         self._events.append(event)
 
-        rec = self._normalize(event, signal_type_hint=signal_type_hint)
+        cocoindex_result: dict[str, Any] = {}
+        try:
+            raw_upsert = self.cocoindex_pipeline.upsert_raw_signal(event.to_dict())
+            existing = self._find_signal_by_source(source=event.source, source_id=event.source_id)
+            existing_enriched = self.cocoindex_pipeline.get_enriched_signal(raw_upsert.raw_signal_id)
+
+            reuse_existing = bool(
+                existing is not None
+                and raw_upsert.changed is False
+                and existing_enriched is not None
+            )
+
+            if reuse_existing:
+                rec = existing
+                rec.trace_metadata = dict(existing_enriched.get("trace_metadata_json", {}))
+                cocoindex_result = {
+                    "raw": raw_upsert.to_dict(),
+                    "enriched": {
+                        "status": "unchanged",
+                        "changed": False,
+                        "recomputed": False,
+                        "trace_metadata": dict(existing_enriched.get("trace_metadata_json", {})),
+                    },
+                }
+            else:
+                rec = self._normalize(event, signal_type_hint=signal_type_hint)
+                enriched_payload = {
+                    "id": rec.id,
+                    "captured_at": rec.captured_at,
+                    "source_type": rec.source,
+                    "raw_text": rec.text,
+                    "normalised_text": cleaned,
+                    "signal_type": rec.signal_type,
+                    "linked_project": rec.linked_projects[0] if rec.linked_projects else "",
+                    "tags": rec.tags,
+                    "emotional_tone": rec.emotional_tone,
+                    "clarity_level": rec.clarity_level,
+                    "ambiguity_level": rec.ambiguity_level,
+                    "actionability": rec.actionability,
+                    "decision_readiness": rec.decision_readiness,
+                    "recurrence_likelihood": rec.recurrence_likelihood,
+                    "sensitivity_level": rec.sensitivity,
+                    "dependencies": rec.dependencies,
+                    "contradiction": rec.contradiction,
+                }
+                enriched_upsert = self.cocoindex_pipeline.upsert_enriched_signal(
+                    raw_signal_id=raw_upsert.raw_signal_id,
+                    enriched=enriched_payload,
+                )
+                trace_metadata = dict(enriched_upsert.get("trace_metadata", {}))
+                rec.trace_metadata = trace_metadata
+                cocoindex_result = {
+                    "raw": raw_upsert.to_dict(),
+                    "enriched": {
+                        "status": str(enriched_upsert.get("status", "unknown")),
+                        "changed": bool(enriched_upsert.get("changed", False)),
+                        "recomputed": bool(enriched_upsert.get("recomputed", False)),
+                        "trace_metadata": trace_metadata,
+                    },
+                }
+
+                if existing is None:
+                    self._records.append(rec)
+                else:
+                    self._update_signal_from_fresh(existing=existing, fresh=rec)
+                    rec = existing
+        except Exception as exc:
+            rec = self._normalize(event, signal_type_hint=signal_type_hint)
+            rec.trace_metadata = {
+                "pipeline": "cocoindex_signals",
+                "status": "fallback",
+                "error": str(exc),
+            }
+            self._records.append(rec)
+            cocoindex_result = {
+                "status": "fallback",
+                "error": str(exc),
+            }
+
         rec.scores = self._compute_scores(rec)
-        self._records.append(rec)
         self._save()
 
         return {
             "event": event.to_dict(),
             "signal": rec.to_dict(),
+            "cocoindex": cocoindex_result,
         }
 
     def _normalize(self, event: SignalEvent, *, signal_type_hint: str = "") -> SignalRecord:
@@ -629,12 +766,216 @@ class SignalMatcher:
             return "this_week"
         return "later"
 
+    def _is_suppressed(self, rec: SignalRecord, now: datetime) -> bool:
+        if rec.status == "irrelevant":
+            return True
+        if rec.suppressed_until:
+            until = self._parse_dt(rec.suppressed_until)
+            if until > now:
+                return True
+        return False
+
+    def _resurfacing_eligibility(self, rec: SignalRecord, now: datetime) -> bool:
+        if rec.status == "irrelevant":
+            return False
+        if rec.resurfacing_status == "archived":
+            return False
+        if self._is_suppressed(rec, now):
+            return False
+        if rec.feedback_counts.get("marked_irrelevant", 0) > 0:
+            return False
+        return True
+
+    def _resurfacing_score(self, rec: SignalRecord, rank_score: float) -> float:
+        acted = rec.feedback_counts.get("acted_on", 0)
+        ignored = rec.feedback_counts.get("ignored", 0)
+        snoozed = rec.feedback_counts.get("snoozed", 0)
+        dismissed = rec.feedback_counts.get("dismissed", 0)
+        reopened = rec.feedback_counts.get("reopened", 0)
+        staleness = rec.scores.staleness / 100.0
+        importance = rec.scores.importance / 100.0
+        recurrence = rec.scores.recurrence / 100.0
+        action_ready = rec.scores.action_readiness / 100.0
+        decision_ready = rec.scores.decision_readiness / 100.0
+        emotional = rec.scores.emotional_intensity / 100.0
+        linked_context = 1.0 if rec.linked_projects else 0.0
+
+        base = (
+            0.24 * importance
+            + 0.18 * recurrence
+            + 0.16 * action_ready
+            + 0.14 * decision_ready
+            + 0.10 * linked_context
+            + 0.08 * emotional
+            + 0.10 * clamp01(rank_score / 100.0)
+        )
+        penalty = (
+            0.16 * staleness
+            + 0.05 * min(ignored, 5)
+            + 0.04 * min(snoozed, 5)
+            + 0.06 * min(dismissed, 5)
+            + 0.08 * min(acted, 5)
+        )
+        boost = 0.06 * min(reopened, 4)
+        return score100(clamp01(base - penalty + boost))
+
+    def _suggest_resurfacing_reason(self, rec: SignalRecord, *, rank_score: float) -> str:
+        if rec.feedback_counts.get("ignored", 0) >= 2 and rec.scores.importance >= 65:
+            return "ignored_but_important"
+        if rec.signal_type == "tension" and rec.scores.recurrence >= 55 and rec.feedback_counts.get("acted_on", 0) == 0:
+            return "unresolved_tension"
+        if rec.signal_type in {"question", "decision"} and rec.scores.decision_readiness >= 58:
+            return "decision_blocker"
+        if rec.scores.action_readiness >= 70 and rec.scores.importance >= 60:
+            return "action_ready"
+        if rec.linked_projects and rank_score >= 55:
+            return "linked_context_active"
+        if rec.signal_type in {"idea", "reflection", "content_seed", "thought"} and rec.scores.publishability >= 60:
+            return "content_candidate"
+        if rec.scores.recurrence >= 55:
+            return "recurring"
+        return "weekly_review_candidate"
+
+    def _resurfacing_explanation(self, reason: str) -> str:
+        mapping = {
+            "linked_context_active": "This came back because it relates to your active project.",
+            "recurring": "This keeps recurring and is still unresolved.",
+            "action_ready": "This now looks ready for action.",
+            "ignored_but_important": "This was ignored repeatedly but still ranks highly.",
+            "weekly_review_candidate": "This is relevant for this week’s review.",
+            "unresolved_tension": "This recurring tension is still blocking progress.",
+            "decision_blocker": "This is holding a decision that still needs closure.",
+            "content_candidate": "This can become a useful content candidate if kept safe.",
+        }
+        return mapping.get(reason, "This resurfaced because it is still relevant now.")
+
+    def _resurfacing_mode_from_horizon(self, horizon: str) -> str:
+        if horizon in {"later_today", "tomorrow", "this_week", "next_week"}:
+            return "time_based"
+        if horizon == "when_relevant":
+            return "context_based"
+        return "review_based"
+
+    def _set_resurfacing_schedule(self, rec: SignalRecord, *, horizon: str, reason: str, now: datetime) -> None:
+        safe_horizon = horizon if horizon in RESURFACING_TIME_HORIZONS else "when_relevant"
+        safe_reason = reason if reason in RESURFACING_REASONS else "recurring"
+        rec.resurfacing_time_horizon = safe_horizon
+        rec.resurfacing_reason = safe_reason
+        rec.resurfacing_status = "scheduled" if safe_horizon != "when_relevant" else "waiting_for_context"
+        rec.resurfacing_conditions = [safe_reason]
+        if safe_horizon in RESURFACE_HORIZON_DELTA_HOURS:
+            due = now + timedelta(hours=RESURFACE_HORIZON_DELTA_HOURS[safe_horizon])
+            rec.resurfacing_at = due.replace(microsecond=0).isoformat()
+            rec.suppressed_until = rec.resurfacing_at
+        elif safe_horizon == "weekly_review":
+            due = now + timedelta(days=6)
+            rec.resurfacing_at = due.replace(microsecond=0).isoformat()
+            rec.suppressed_until = rec.resurfacing_at
+        else:
+            rec.resurfacing_at = ""
+            rec.suppressed_until = ""
+
+    def _build_resurfacing_candidates(
+        self,
+        *,
+        ranked_items: list[dict[str, Any]],
+        records: list[SignalRecord],
+    ) -> dict[str, list[dict[str, Any]]]:
+        now = datetime.now(UTC)
+        by_id = {row["signal_id"]: row for row in ranked_items}
+        resurfaced_now: list[dict[str, Any]] = []
+        recurring_tensions: list[dict[str, Any]] = []
+        weekly_review_candidates: list[dict[str, Any]] = []
+        content_candidates: list[dict[str, Any]] = []
+
+        for rec in records:
+            item = by_id.get(rec.id)
+            if item is None:
+                continue
+            if not self._resurfacing_eligibility(rec, now):
+                continue
+
+            reason = rec.resurfacing_reason or self._suggest_resurfacing_reason(rec, rank_score=item["rank_score"])
+            resurfacing_score = self._resurfacing_score(rec, rank_score=item["rank_score"])
+            rec.resurfacing_reason = reason
+            rec.resurfacing_confidence = round(resurfacing_score, 2)
+
+            due = True
+            if rec.resurfacing_at:
+                due = self._parse_dt(rec.resurfacing_at) <= now
+
+            if reason == "content_candidate":
+                rec.resurfacing_time_horizon = rec.resurfacing_time_horizon or "weekly_review"
+            elif reason in {"recurring", "unresolved_tension"}:
+                rec.resurfacing_time_horizon = rec.resurfacing_time_horizon or "this_week"
+            elif reason in {"decision_blocker", "action_ready", "linked_context_active"}:
+                rec.resurfacing_time_horizon = rec.resurfacing_time_horizon or "when_relevant"
+            else:
+                rec.resurfacing_time_horizon = rec.resurfacing_time_horizon or "weekly_review"
+
+            should_surface = due and resurfacing_score >= 58 and item["rank_score"] >= 35
+            if should_surface:
+                rec.resurfacing_status = "resurfaced"
+                rec.resurfacing_count = max(0, rec.resurfacing_count) + 1
+                if not rec.first_resurfaced_at:
+                    rec.first_resurfaced_at = now.replace(microsecond=0).isoformat()
+                rec.last_resurfaced_at = now.replace(microsecond=0).isoformat()
+            elif rec.resurfacing_status == "none":
+                rec.resurfacing_status = "recurring_candidate" if reason == "recurring" else "waiting_for_context"
+
+            payload = {
+                **item,
+                "resurfacing_status": rec.resurfacing_status,
+                "resurfacing_reason": reason,
+                "resurfacing_time_horizon": rec.resurfacing_time_horizon or "when_relevant",
+                "resurfacing_at": rec.resurfacing_at,
+                "resurfacing_conditions": list(rec.resurfacing_conditions),
+                "resurfacing_count": rec.resurfacing_count,
+                "last_resurfaced_at": rec.last_resurfaced_at,
+                "last_dismissed_at": rec.last_dismissed_at,
+                "last_snoozed_at": rec.last_snoozed_at,
+                "suppressed_until": rec.suppressed_until,
+                "resurfacing_confidence": rec.resurfacing_confidence,
+                "resurfacing_mode": self._resurfacing_mode_from_horizon(rec.resurfacing_time_horizon or "when_relevant"),
+                "resurfacing_explanation": self._resurfacing_explanation(reason),
+            }
+
+            if should_surface:
+                resurfaced_now.append(payload)
+
+            if reason in {"recurring", "unresolved_tension"} and rec.signal_type in {"tension", "question", "thought"}:
+                recurring_tensions.append(payload)
+
+            if reason in {"weekly_review_candidate", "ignored_but_important", "recurring", "unresolved_tension"}:
+                weekly_review_candidates.append(payload)
+
+            if reason == "content_candidate" and rec.sensitivity in {"public_safe", "public_ready"}:
+                content_candidates.append(payload)
+
+        resurfaced_now.sort(key=lambda row: (row.get("resurfacing_confidence", 0.0), row["rank_score"]), reverse=True)
+        recurring_tensions.sort(key=lambda row: (row.get("resurfacing_confidence", 0.0), row["rank_score"]), reverse=True)
+        weekly_review_candidates.sort(key=lambda row: (row.get("resurfacing_confidence", 0.0), row["rank_score"]), reverse=True)
+        content_candidates.sort(key=lambda row: (row.get("resurfacing_confidence", 0.0), row["rank_score"]), reverse=True)
+
+        return {
+            "resurfaced_now": resurfaced_now[: QUEUE_LIMITS["resurfaced_now"]],
+            "resurfacing_recurring_tensions": recurring_tensions[: QUEUE_LIMITS["resurfacing_recurring_tensions"]],
+            "resurfacing_weekly_review_candidates": weekly_review_candidates[
+                : QUEUE_LIMITS["resurfacing_weekly_review_candidates"]
+            ],
+            "resurfacing_content_candidates": content_candidates[: QUEUE_LIMITS["resurfacing_content_candidates"]],
+        }
+
     def build_ranked_output(self) -> dict[str, Any]:
         self._refresh_scores()
 
         active = [rec for rec in self._records if rec.status != "irrelevant"]
+        now = datetime.now(UTC)
         ranked_items: list[dict[str, Any]] = []
         for rec in active:
+            if self._is_suppressed(rec, now):
+                # Keep suppressed items out of immediate ranked surfaces.
+                continue
             rank_score = self._rank_score(rec)
             horizon = self._time_horizon(rec, rank_score)
             ranked_items.append(
@@ -650,6 +991,15 @@ class SignalMatcher:
                     "explainability": self._explain(rec, rank_score=rank_score),
                     "next_action": self._next_action(rec),
                     "captured_at": rec.captured_at,
+                    "resurfacing_status": rec.resurfacing_status,
+                    "resurfacing_reason": rec.resurfacing_reason,
+                    "resurfacing_time_horizon": rec.resurfacing_time_horizon,
+                    "resurfacing_at": rec.resurfacing_at,
+                    "resurfacing_count": rec.resurfacing_count,
+                    "last_resurfaced_at": rec.last_resurfaced_at,
+                    "last_dismissed_at": rec.last_dismissed_at,
+                    "last_snoozed_at": rec.last_snoozed_at,
+                    "suppressed_until": rec.suppressed_until,
                 }
             )
 
@@ -678,7 +1028,9 @@ class SignalMatcher:
             and item["scores"]["publishability"] >= 55
         ][: QUEUE_LIMITS["content_candidates"]]
 
+        resurfacing = self._build_resurfacing_candidates(ranked_items=ranked_items, records=active)
         graph = self._build_graph(active)
+        self._save()
 
         return {
             "generated_at": utc_now(),
@@ -691,12 +1043,21 @@ class SignalMatcher:
             "recurring_patterns": recurring_patterns,
             "unresolved_tensions": unresolved_tensions,
             "content_candidates": content_candidates,
+            "resurfaced_now": resurfacing["resurfaced_now"],
+            "resurfacing_recurring_tensions": resurfacing["resurfacing_recurring_tensions"],
+            "resurfacing_weekly_review_candidates": resurfacing["resurfacing_weekly_review_candidates"],
+            "resurfacing_content_candidates": resurfacing["resurfacing_content_candidates"],
             "signal_graph": graph,
             "limits": dict(QUEUE_LIMITS),
+            "notifications": {
+                "allow_push": False,
+                "policy": "in_app_only_by_default",
+            },
             "counts": {
                 "signals_total": len(self._records),
                 "signals_active": len(active),
                 "ignored": len([rec for rec in self._records if rec.status == "irrelevant"]),
+                "resurfaced_now": len(resurfacing["resurfaced_now"]),
             },
         }
 
@@ -856,10 +1217,13 @@ class SignalMatcher:
             "acted_on",
             "ignored",
             "snoozed",
+            "dismissed",
             "reopened",
             "converted_to_decision",
             "converted_to_action",
             "converted_to_content",
+            "save_for_weekly_review",
+            "save_as_content_candidate",
             "marked_irrelevant",
         }
         if action not in allowed:
@@ -877,12 +1241,47 @@ class SignalMatcher:
         record.feedback_counts[action] = record.feedback_counts.get(action, 0) + 1
         record.last_feedback_at = event.created_at
 
+        event_dt = self._parse_dt(event.created_at)
+
         if action == "marked_irrelevant":
             record.status = "irrelevant"
+            record.resurfacing_status = "archived"
+            record.suppressed_until = ""
+        elif action == "acted_on":
+            record.last_action_taken_at = event.created_at
+            record.resurfacing_status = "archived"
+            record.suppressed_until = ""
         elif action == "snoozed":
             record.status = "snoozed"
+            record.last_snoozed_at = event.created_at
+            self._set_resurfacing_schedule(
+                record,
+                horizon=record.resurfacing_time_horizon or "this_week",
+                reason=record.resurfacing_reason or "recurring",
+                now=event_dt,
+            )
+        elif action == "dismissed":
+            record.resurfacing_status = "dismissed"
+            record.last_dismissed_at = event.created_at
+            record.suppressed_until = (event_dt + timedelta(days=3)).replace(microsecond=0).isoformat()
         elif action == "reopened" and record.status == "snoozed":
             record.status = "active"
+            record.resurfacing_status = "resurfaced"
+            record.suppressed_until = ""
+        elif action == "save_for_weekly_review":
+            self._set_resurfacing_schedule(
+                record,
+                horizon="weekly_review",
+                reason="weekly_review_candidate",
+                now=event_dt,
+            )
+        elif action == "save_as_content_candidate":
+            self._set_resurfacing_schedule(
+                record,
+                horizon="weekly_review",
+                reason="content_candidate",
+                now=event_dt,
+            )
 
         self._save()
         return {
@@ -908,6 +1307,11 @@ class SignalMatcher:
             "snooze",
             "mark_irrelevant",
             "mark_important",
+            "resurface_later",
+            "bring_back_this_week",
+            "bring_back_when_relevant",
+            "save_for_weekly_review",
+            "save_as_content_candidate",
             "convert_to_decision",
             "convert_to_action",
             "convert_to_content",
@@ -918,12 +1322,56 @@ class SignalMatcher:
 
         if action == "pin":
             record.status = "pinned"
+            record.resurfacing_status = "resurfaced"
+            record.suppressed_until = ""
         elif action == "snooze":
             record.status = "snoozed"
+            self._set_resurfacing_schedule(
+                record,
+                horizon="this_week",
+                reason=record.resurfacing_reason or "recurring",
+                now=datetime.now(UTC),
+            )
         elif action == "mark_irrelevant":
             record.status = "irrelevant"
+            record.resurfacing_status = "archived"
         elif action == "mark_important":
             record.feedback_counts["manual_important"] = record.feedback_counts.get("manual_important", 0) + 1
+        elif action == "resurface_later":
+            self._set_resurfacing_schedule(
+                record,
+                horizon="tomorrow",
+                reason=record.resurfacing_reason or "recurring",
+                now=datetime.now(UTC),
+            )
+        elif action == "bring_back_this_week":
+            self._set_resurfacing_schedule(
+                record,
+                horizon="this_week",
+                reason=record.resurfacing_reason or "weekly_review_candidate",
+                now=datetime.now(UTC),
+            )
+        elif action == "bring_back_when_relevant":
+            self._set_resurfacing_schedule(
+                record,
+                horizon="when_relevant",
+                reason=record.resurfacing_reason or "linked_context_active",
+                now=datetime.now(UTC),
+            )
+        elif action == "save_for_weekly_review":
+            self._set_resurfacing_schedule(
+                record,
+                horizon="weekly_review",
+                reason="weekly_review_candidate",
+                now=datetime.now(UTC),
+            )
+        elif action == "save_as_content_candidate":
+            self._set_resurfacing_schedule(
+                record,
+                horizon="weekly_review",
+                reason="content_candidate",
+                now=datetime.now(UTC),
+            )
         elif action == "convert_to_decision":
             record.signal_type = "decision"
         elif action == "convert_to_action":
@@ -977,6 +1425,39 @@ class SignalMatcher:
             if rec.id == signal_id:
                 return rec
         return None
+
+    def _find_signal_by_source(self, *, source: str, source_id: str) -> SignalRecord | None:
+        clean_source = source.strip()
+        clean_source_id = source_id.strip()
+        if not clean_source_id:
+            return None
+        for rec in self._records:
+            if rec.source == clean_source and rec.source_id == clean_source_id:
+                return rec
+        return None
+
+    @staticmethod
+    def _update_signal_from_fresh(*, existing: SignalRecord, fresh: SignalRecord) -> None:
+        existing.event_id = fresh.event_id
+        existing.captured_at = fresh.captured_at
+        existing.text = fresh.text
+        existing.signal_type = fresh.signal_type
+        existing.topics = list(fresh.topics)
+        existing.tags = list(fresh.tags)
+        existing.linked_projects = list(fresh.linked_projects)
+        existing.emotional_tone = fresh.emotional_tone
+        existing.clarity_level = fresh.clarity_level
+        existing.ambiguity_level = fresh.ambiguity_level
+        existing.actionability = fresh.actionability
+        existing.decision_readiness = fresh.decision_readiness
+        existing.recurrence_likelihood = fresh.recurrence_likelihood
+        existing.dependencies = list(fresh.dependencies)
+        existing.contradiction = fresh.contradiction
+        existing.sensitivity = fresh.sensitivity
+        existing.trace_metadata = dict(fresh.trace_metadata)
+
+    def cocoindex_stats(self) -> dict[str, Any]:
+        return self.cocoindex_pipeline.stats()
 
     # ----------------------------- formatting helpers
 

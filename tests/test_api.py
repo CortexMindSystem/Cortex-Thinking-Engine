@@ -171,6 +171,8 @@ class TestSyncEndpoints:
                      "what_matters_now", "signal_top_priorities",
                      "decision_queue", "action_ready_queue",
                      "recurring_patterns", "unresolved_tensions",
+                     "resurfaced_now", "resurfacing_recurring_tensions",
+                     "resurfacing_weekly_review_candidates", "resurfacing_content_candidates",
                      "content_candidates", "signal_graph", "signal_matching_counts",
                      "recent_decisions", "insights", "signals",
                      "working_memory", "synced_at"):
@@ -331,6 +333,31 @@ class TestSyncEndpoints:
         assert len(payload["recurring_patterns"]) <= 5
         assert len(payload["unresolved_tensions"]) <= 5
         assert len(payload["content_candidates"]) <= 5
+        assert len(payload["resurfaced_now"]) <= 3
+        assert len(payload["resurfacing_recurring_tensions"]) <= 5
+        assert len(payload["resurfacing_weekly_review_candidates"]) <= 5
+        assert len(payload["resurfacing_content_candidates"]) <= 5
+
+    def test_signal_resurfacing_actions_update_state(self, client):
+        capture = client.post(
+            "/context/signals/capture",
+            json={"text": "Recurring unresolved tension in weekly planning.", "source": "capture"},
+        )
+        signal_id = capture.json()["signal"]["id"]
+
+        snooze = client.post(
+            "/context/signals/feedback",
+            json={"signal_id": signal_id, "action_type": "snoozed", "note": "this week"},
+        )
+        assert snooze.status_code == 200
+        assert snooze.json()["signal"]["resurfacing_status"] in {"scheduled", "waiting_for_context"}
+
+        dismiss = client.post(
+            "/context/signals/feedback",
+            json={"signal_id": signal_id, "action_type": "dismissed"},
+        )
+        assert dismiss.status_code == 200
+        assert dismiss.json()["signal"]["resurfacing_status"] == "dismissed"
 
     def test_snapshot_weekly_review_aggregates_recent_decision_artifacts(self, client, tmp_data_dir):
         payloads = {

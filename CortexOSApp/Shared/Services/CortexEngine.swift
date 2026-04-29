@@ -290,6 +290,21 @@ final class CortexEngine: ObservableObject {
         await refreshPendingSyncActions()
     }
 
+    func applyResurfacingAction(signalID: String, actionType: String, note: String = "") async {
+        do {
+            try await api.sendSignalFeedback(
+                SignalFeedbackRequest(
+                    signalID: signalID,
+                    actionType: actionType,
+                    note: note
+                )
+            )
+            await sync()
+        } catch {
+            lastSyncStatus = "Resurface action needs server connection"
+        }
+    }
+
     // MARK: - Summary Ingestion
 
     @Published var lastIngestResult: IngestResult?

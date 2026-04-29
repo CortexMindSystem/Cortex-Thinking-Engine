@@ -25,6 +25,10 @@ struct SyncSnapshot: Codable {
     let recurringPatterns: [SyncRecurringPattern]?
     let unresolvedTensions: [SyncRankedSignal]?
     let contentCandidates: [SyncRankedSignal]?
+    let resurfacedNow: [SyncRankedSignal]?
+    let resurfacingRecurringTensions: [SyncRankedSignal]?
+    let resurfacingWeeklyReviewCandidates: [SyncRankedSignal]?
+    let resurfacingContentCandidates: [SyncRankedSignal]?
     let signalGraph: SyncSignalGraph?
     let signalMatchingCounts: SyncSignalMatchingCounts?
     let recentDecisions: [SyncDecision]
@@ -45,6 +49,10 @@ struct SyncSnapshot: Codable {
         case recurringPatterns = "recurring_patterns"
         case unresolvedTensions = "unresolved_tensions"
         case contentCandidates = "content_candidates"
+        case resurfacedNow = "resurfaced_now"
+        case resurfacingRecurringTensions = "resurfacing_recurring_tensions"
+        case resurfacingWeeklyReviewCandidates = "resurfacing_weekly_review_candidates"
+        case resurfacingContentCandidates = "resurfacing_content_candidates"
         case signalGraph = "signal_graph"
         case signalMatchingCounts = "signal_matching_counts"
         case activeProject = "active_project"
@@ -103,6 +111,14 @@ struct SyncRankedSignal: Codable, Identifiable {
     let explainability: SyncSignalExplainability
     let nextAction: String
     let capturedAt: String
+    let resurfacingStatus: String?
+    let resurfacingReason: String?
+    let resurfacingTimeHorizon: String?
+    let resurfacingAt: String?
+    let resurfacingCount: Int?
+    let resurfacingConfidence: Double?
+    let resurfacingMode: String?
+    let resurfacingExplanation: String?
 
     var id: String { signalID }
 
@@ -113,6 +129,14 @@ struct SyncRankedSignal: Codable, Identifiable {
         case rankScore = "rank_score"
         case nextAction = "next_action"
         case capturedAt = "captured_at"
+        case resurfacingStatus = "resurfacing_status"
+        case resurfacingReason = "resurfacing_reason"
+        case resurfacingTimeHorizon = "resurfacing_time_horizon"
+        case resurfacingAt = "resurfacing_at"
+        case resurfacingCount = "resurfacing_count"
+        case resurfacingConfidence = "resurfacing_confidence"
+        case resurfacingMode = "resurfacing_mode"
+        case resurfacingExplanation = "resurfacing_explanation"
     }
 }
 

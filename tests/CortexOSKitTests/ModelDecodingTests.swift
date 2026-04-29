@@ -245,6 +245,47 @@ final class SyncSnapshotDecodingTests: XCTestCase {
             },
             "markdown_path": "/tmp/newsletter.md"
           },
+          "resurfaced_now": [
+            {
+              "signal_id": "sig_1",
+              "title": "Revisit offline sync edge case",
+              "signal_type": "tension",
+              "horizon": "today",
+              "rank_score": 78.0,
+              "scores": {
+                "importance": 82,
+                "clarity": 61,
+                "decision_readiness": 72,
+                "action_readiness": 64,
+                "recurrence": 69,
+                "emotional_intensity": 55,
+                "publishability": 40,
+                "staleness": 21
+              },
+              "topics": ["offline", "sync"],
+              "sensitivity": "internal",
+              "explainability": {
+                "why_it_surfaced": "Surfaced because unresolved tension.",
+                "top_contributors": ["recurring signal"],
+                "lowered_confidence": [],
+                "missing_for_readiness": [],
+                "rank_score": 78.0
+              },
+              "next_action": "Resolve the main blocker behind offline sync.",
+              "captured_at": "2026-04-19T00:00:00Z",
+              "resurfacing_status": "resurfaced",
+              "resurfacing_reason": "unresolved_tension",
+              "resurfacing_time_horizon": "this_week",
+              "resurfacing_at": "2026-04-20T00:00:00Z",
+              "resurfacing_count": 2,
+              "resurfacing_confidence": 81.0,
+              "resurfacing_mode": "recurrence_based",
+              "resurfacing_explanation": "This recurring tension is still blocking progress."
+            }
+          ],
+          "resurfacing_recurring_tensions": [],
+          "resurfacing_weekly_review_candidates": [],
+          "resurfacing_content_candidates": [],
           "recent_decisions": [],
           "insights": [],
           "signals": [],
@@ -277,6 +318,8 @@ final class SyncSnapshotDecodingTests: XCTestCase {
         XCTAssertEqual(snapshot.newsletter?.status, "draft")
         XCTAssertEqual(snapshot.newsletter?.mode, "weekly-lessons")
         XCTAssertEqual(snapshot.newsletter?.sourceCountUsable, 4)
+        XCTAssertEqual(snapshot.resurfacedNow?.first?.signalID, "sig_1")
+        XCTAssertEqual(snapshot.resurfacedNow?.first?.resurfacingReason, "unresolved_tension")
     }
 
     func testDecodeSnapshotWithNullWeeklyReview() throws {

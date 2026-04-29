@@ -55,6 +55,32 @@ struct FeedbackRequest: Codable {
     var acted: Bool? = nil
 }
 
+struct SignalFeedbackRequest: Codable {
+    let signalID: String
+    let actionType: String
+    var note: String = ""
+
+    enum CodingKeys: String, CodingKey {
+        case note
+        case signalID = "signal_id"
+        case actionType = "action_type"
+    }
+}
+
+struct SignalOverrideRequest: Codable {
+    let signalID: String
+    let overrideType: String
+    var note: String = ""
+    var expiresAt: String = ""
+
+    enum CodingKeys: String, CodingKey {
+        case note
+        case signalID = "signal_id"
+        case overrideType = "override_type"
+        case expiresAt = "expires_at"
+    }
+}
+
 // MARK: - Summary Ingestion
 
 struct SummaryIngestRequest: Codable {

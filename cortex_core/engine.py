@@ -169,6 +169,7 @@ class CortexEngine:
             "decisions_count": len(self.decision_engine.all_decisions),
             "llm_provider": self.config.llm.provider,
             "llm_model": self.config.llm.model,
+            "cocoindex": self.signal_matcher.cocoindex_stats(),
             "profile_loaded": self.memory.profile.name != "",
             "memory_layers": {
                 "identity": True,
@@ -659,11 +660,11 @@ class CortexEngine:
             active_project = pm.to_dict()
 
         # Priority brief (may not exist yet)
+        signal_matching = self.build_signal_matching_output()
         priorities = self.decision_engine.get_previous_brief()
-        weekly_review = self.build_weekly_review_output()
+        weekly_review = self.build_weekly_review_output(signal_matching=signal_matching)
         decision_replay = self.build_decision_replay_output()
         newsletter = self.build_newsletter_output()
-        signal_matching = self.build_signal_matching_output()
         today_output = self.build_today_output()
 
         return {
@@ -692,6 +693,10 @@ class CortexEngine:
             "recurring_patterns": signal_matching.get("recurring_patterns", []),
             "unresolved_tensions": signal_matching.get("unresolved_tensions", []),
             "content_candidates": signal_matching.get("content_candidates", []),
+            "resurfaced_now": signal_matching.get("resurfaced_now", []),
+            "resurfacing_recurring_tensions": signal_matching.get("resurfacing_recurring_tensions", []),
+            "resurfacing_weekly_review_candidates": signal_matching.get("resurfacing_weekly_review_candidates", []),
+            "resurfacing_content_candidates": signal_matching.get("resurfacing_content_candidates", []),
             "signal_graph": signal_matching.get("signal_graph", {}),
             "signal_matching_counts": signal_matching.get("counts", {}),
             "synced_at": datetime.now(UTC).isoformat(),
@@ -756,7 +761,7 @@ class CortexEngine:
             "generated_at": datetime.now(UTC).isoformat(),
         }
 
-    def build_weekly_review_output(self) -> dict | None:
+    def build_weekly_review_output(self, signal_matching: dict | None = None) -> dict | None:
         """Return a compact weekly review from recent decision brief artifacts.
 
         Source of truth: backend decision artifacts (decision_*.json).
@@ -873,6 +878,11 @@ class CortexEngine:
                 "Collect more daily outputs before changing prioritisation strategy."
             )
 
+        surfaced = signal_matching or self.build_signal_matching_output()
+        resurfaced = surfaced.get("resurfaced_now", [])
+        recurring_tensions = surfaced.get("resurfacing_recurring_tensions", [])
+        weekly_candidates = surfaced.get("resurfacing_weekly_review_candidates", [])
+
         return {
             "week_start": week_start,
             "week_end": week_end,
@@ -885,6 +895,13 @@ class CortexEngine:
             "total_ignored_signals": total_ignored_signals,
             "summary": " ".join(summary_parts),
             "recommendations": recommendations,
+            "resurfaced_thoughts": resurfaced[:5],
+            "resurfacing_recurring_tensions": recurring_tensions[:5],
+            "ignored_but_important_items": [
+                item for item in weekly_candidates
+                if str(item.get("resurfacing_reason", "")).strip() == "ignored_but_important"
+            ][:5],
+            "resurfaced_content_candidates": surfaced.get("resurfacing_content_candidates", [])[:5],
             "generated_at": datetime.now(UTC).isoformat(),
         }
 

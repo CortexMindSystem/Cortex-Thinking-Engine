@@ -276,3 +276,53 @@ class TestEngineSignalMatching:
         assert len(ranked["recurring_patterns"]) <= 5
         assert len(ranked["unresolved_tensions"]) <= 5
         assert len(ranked["content_candidates"]) <= 5
+        assert len(ranked["resurfaced_now"]) <= 3
+        assert len(ranked["resurfacing_recurring_tensions"]) <= 5
+        assert len(ranked["resurfacing_weekly_review_candidates"]) <= 5
+        assert len(ranked["resurfacing_content_candidates"]) <= 5
+
+    def test_resurfacing_snoozed_items_are_suppressed_until_due(self, tmp_data_dir):
+        engine = _make_engine(tmp_data_dir)
+        payload = engine.capture_signal(
+            text="Recurring release tension: offline sync strategy still unresolved.",
+            source="capture",
+            project="SimpliXio",
+            tags=["offline", "release"],
+        )
+        signal_id = payload["signal"]["id"]
+
+        engine.feedback_signal(signal_id=signal_id, action_type="snoozed", note="this week")
+        ranked = engine.build_signal_matching_output()
+
+        assert all(item["signal_id"] != signal_id for item in ranked["resurfaced_now"])
+        assert all(item["signal_id"] != signal_id for item in ranked["what_matters_now"])
+
+    def test_resurfacing_dismissed_items_receive_suppression_window(self, tmp_data_dir):
+        engine = _make_engine(tmp_data_dir)
+        payload = engine.capture_signal(
+            text="Decision blocker keeps returning in launch planning.",
+            source="capture",
+            tags=["launch"],
+        )
+        signal_id = payload["signal"]["id"]
+
+        engine.feedback_signal(signal_id=signal_id, action_type="dismissed")
+        signal = engine.signal_matcher.get_signal(signal_id)
+        assert signal is not None
+        assert signal["resurfacing_status"] == "dismissed"
+        assert signal["suppressed_until"]
+
+    def test_resurfacing_acted_on_items_drop_from_resurfacing(self, tmp_data_dir):
+        engine = _make_engine(tmp_data_dir)
+        payload = engine.capture_signal(
+            text="Action-ready item: ship TestFlight notes cleanup now.",
+            source="capture",
+            tags=["release"],
+        )
+        signal_id = payload["signal"]["id"]
+        engine.feedback_signal(signal_id=signal_id, action_type="acted_on")
+
+        ranked = engine.build_signal_matching_output()
+        assert all(item["signal_id"] != signal_id for item in ranked["resurfaced_now"])
+        signal = engine.signal_matcher.get_signal(signal_id)
+        assert signal["resurfacing_status"] == "archived"
