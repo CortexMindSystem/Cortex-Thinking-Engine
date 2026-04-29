@@ -22,7 +22,7 @@ struct WatchRootView: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.horizontal, 8)
             }
-            .navigationTitle("Next")
+            .navigationTitle("Now")
         }
         .onChange(of: scenePhase) { _, phase in
             guard phase == .active else { return }
@@ -50,7 +50,7 @@ struct WatchRootView: View {
     @ViewBuilder
     private func priorityCard(_ priority: SyncTodayPriority) -> some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text("Top Priority")
+            Text("Top priority")
                 .font(.caption2)
                 .foregroundStyle(.secondary)
 
@@ -75,7 +75,7 @@ struct WatchRootView: View {
     @ViewBuilder
     private func feedbackCard(_ priority: SyncTodayPriority) -> some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text("Feedback")
+            Text("One-tap feedback")
                 .font(.caption2)
                 .foregroundStyle(.secondary)
 
@@ -115,11 +115,11 @@ struct WatchRootView: View {
 
     private var captureCard: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text("Capture")
+            Text("Quick capture")
                 .font(.caption2)
                 .foregroundStyle(.secondary)
 
-            TextField("Dictate or type a note", text: $model.captureText, axis: .vertical)
+            TextField("Thought, question, or tension", text: $model.captureText, axis: .vertical)
                 .lineLimit(2...4)
                 .textFieldStyle(.plain)
                 .padding(8)
@@ -129,7 +129,7 @@ struct WatchRootView: View {
             Button {
                 Task { await model.captureByVoice() }
             } label: {
-                Label("Save capture", systemImage: "mic.fill")
+                Label("Capture", systemImage: "mic.fill")
                     .frame(maxWidth: .infinity)
             }
             .disabled(model.captureText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
@@ -147,9 +147,9 @@ struct WatchRootView: View {
 
     private var emptyStateCard: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text("No priority yet")
+            Text("No next action yet")
                 .font(.headline)
-            Text("Sync to pull your latest next action.")
+            Text("Sync to pull what matters now.")
                 .font(.caption2)
                 .foregroundStyle(.secondary)
             Button {
