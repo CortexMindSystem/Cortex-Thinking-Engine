@@ -68,6 +68,7 @@ def build_steps(strict_quality: bool) -> list[tuple[str, list[str], bool]]:
         ),
         ("Generate marketing content", [python_bin, "marketing_automation.py"], True),
         ("Run marketing quality gate", quality_cmd, strict_quality),
+        ("Generate Discord proof drafts", [python_bin, "scripts/build_discord_proof_drafts.py"], False),
         ("Publish outputs", [python_bin, "scripts/publish_outputs.py"], False),
     ]
 

@@ -45,6 +45,7 @@ def load_config() -> dict[str, Any]:
         "github_token": os.getenv("GITHUB_TOKEN", "").strip(),
         "hn_enabled": os.getenv("HN_ENABLED", "true").lower() == "true",
         "max_per_source": int(os.getenv("ACQ_MAX_PER_SOURCE", "20")),
+        "include_internal_signals": os.getenv("ACQ_INCLUDE_INTERNAL_SIGNALS", "false").lower() == "true",
     }
 
 
@@ -299,7 +300,8 @@ def run() -> dict[str, Any]:
     signals.extend(collect_github(cfg["github_topics"], cfg["github_token"], cfg["max_per_source"]))
     if cfg["hn_enabled"]:
         signals.extend(collect_hn(cfg["max_per_source"]))
-    signals.extend(collect_simplixio_artifacts(10))
+    if cfg["include_internal_signals"]:
+        signals.extend(collect_simplixio_artifacts(10))
 
     deduped = dedupe_signals(signals)
     raw_path = write_raw_archive(deduped)
@@ -332,6 +334,7 @@ def run() -> dict[str, Any]:
         "upserted": upserted,
         "newly_inserted": newly_inserted,
         "raw_archive": str(raw_path),
+        "include_internal_signals": cfg["include_internal_signals"],
     }
 
 

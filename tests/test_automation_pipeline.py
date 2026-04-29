@@ -59,6 +59,10 @@ newsletter_mod = load_module(
     AUTOMATION_ROOT / "scripts" / "generate_newsletter.py",
     "generate_newsletter_module",
 )
+discord_mod = load_module(
+    AUTOMATION_ROOT / "scripts" / "build_discord_proof_drafts.py",
+    "build_discord_proof_drafts_module",
+)
 marketing_mod.CortexBrief.model_rebuild(_types_namespace={"Priority": marketing_mod.Priority})
 marketing_mod.WeeklyReview.model_rebuild(_types_namespace={"Any": Any})
 marketing_mod.DecisionReplay.model_rebuild(_types_namespace={"Any": Any})
@@ -76,6 +80,7 @@ def test_pipeline_step_order():
         "Build public newsletter",
         "Generate marketing content",
         "Run marketing quality gate",
+        "Generate Discord proof drafts",
         "Publish outputs",
     ]
     newsletter = next(step for step in steps if step[0] == "Build public newsletter")
@@ -517,3 +522,84 @@ def test_newsletter_taste_gate_blocks_repeated_output(tmp_path):
     assert first["status"] == "draft"
     assert second["status"] == "needs_review"
     assert "too_similar_to_previous_output" in second["taste_gate"]["reasons"]
+
+
+def test_discord_proof_drafts_are_generated_as_manual_only(tmp_path):
+    output_dir = tmp_path / "output"
+    (output_dir / "weekly_review").mkdir(parents=True, exist_ok=True)
+    (output_dir / "decision_replay").mkdir(parents=True, exist_ok=True)
+    (output_dir / "newsletters" / "drafts").mkdir(parents=True, exist_ok=True)
+
+    (output_dir / "weekly_review" / "latest.json").write_text(
+        json.dumps(
+            {
+                "summary": "SimpliXio reviewed 5 day(s) of output.",
+                "days_covered": 5,
+                "total_ignored_signals": 12,
+                "top_priorities": [{"title": "Stability before expansion", "count": 3}],
+                "recommendations": ["Keep queue outputs focused and explainable."],
+            }
+        ),
+        encoding="utf-8",
+    )
+    (output_dir / "decision_replay" / "latest.json").write_text(
+        json.dumps(
+            {
+                "summary": "SimpliXio reviewed 22 signals, ignored 15, and selected 3 priorities.",
+                "signals_reviewed": 22,
+                "signals_kept": 7,
+            }
+        ),
+        encoding="utf-8",
+    )
+    (output_dir / "newsletters" / "drafts" / "latest.json").write_text(
+        json.dumps({"status": "needs_review", "safe_to_publish": False}),
+        encoding="utf-8",
+    )
+
+    discord_mod.AUTOMATION_ROOT = tmp_path
+    discord_mod.OUTPUT_DIR = output_dir / "discord"
+    discord_mod.WEEKLY_REVIEW_PATH = output_dir / "weekly_review" / "latest.json"
+    discord_mod.DECISION_REPLAY_PATH = output_dir / "decision_replay" / "latest.json"
+    discord_mod.NEWSLETTER_DRAFT_PATH = output_dir / "newsletters" / "drafts" / "latest.json"
+
+    payload = discord_mod.run()
+    assert payload["status"] == "draft"
+    assert payload["draft_only"] is True
+    assert payload["requires_manual_post"] is True
+    assert Path(payload["manifest"]).exists()
+
+
+def test_discord_proof_drafts_apply_redaction(tmp_path):
+    output_dir = tmp_path / "output"
+    (output_dir / "weekly_review").mkdir(parents=True, exist_ok=True)
+    (output_dir / "decision_replay").mkdir(parents=True, exist_ok=True)
+
+    (output_dir / "weekly_review" / "latest.json").write_text(
+        json.dumps(
+            {
+                "summary": "Contact me at founder@example.com for the confidential plan.",
+                "days_covered": 4,
+                "total_ignored_signals": 8,
+                "top_priorities": [{"title": "Internal project launch", "count": 2}],
+                "recommendations": ["Do not publish this private detail."],
+            }
+        ),
+        encoding="utf-8",
+    )
+    (output_dir / "decision_replay" / "latest.json").write_text(
+        json.dumps({"summary": "Review happened at https://private.example.com/replay"}),
+        encoding="utf-8",
+    )
+
+    discord_mod.AUTOMATION_ROOT = tmp_path
+    discord_mod.OUTPUT_DIR = output_dir / "discord"
+    discord_mod.WEEKLY_REVIEW_PATH = output_dir / "weekly_review" / "latest.json"
+    discord_mod.DECISION_REPLAY_PATH = output_dir / "decision_replay" / "latest.json"
+    discord_mod.NEWSLETTER_DRAFT_PATH = output_dir / "newsletters" / "drafts" / "latest.json"
+
+    payload = discord_mod.run()
+    release_text = Path(payload["files"]["release_notes"]).read_text(encoding="utf-8").lower()
+    assert "founder@example.com" not in release_text
+    assert "private.example.com" not in release_text
+    assert "[confidential detail removed]" in release_text or "[personal detail removed]" in release_text

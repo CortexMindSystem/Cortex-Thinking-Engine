@@ -52,6 +52,14 @@ Manual approval required:
 - private outbound sending (DM/email/comment/reply)
 - any high-risk public posting choice
 
+## Trust Defaults
+
+- Private by default.
+- Public drafts must pass quality gates before queueing.
+- No LinkedIn scraping or automated LinkedIn activity.
+- No automatic cold outreach sends in this repo.
+- Human approval stays required for private outbound.
+
 ## Structure
 
 ```text
@@ -63,6 +71,7 @@ cortexos_automation_scripts/
     build_weekly_review.py
     build_decision_replay.py
     build_public_newsletter.py
+    build_discord_proof_drafts.py
     generate_newsletter.py
     marketing_quality_gate.py
     publish_outputs.py
@@ -97,6 +106,11 @@ cortexos_automation_scripts/
       rejected/
       logs/
       latest.json
+    discord/
+      release_notes_latest.md
+      build_in_public_latest.md
+      feedback_prompt_latest.md
+      latest.json
     drafts/
     quality_gate/
     logs/
@@ -122,6 +136,7 @@ python3 scripts/build_decision_replay.py
 python3 scripts/generate_newsletter.py --period weekly --mode weekly-lessons --strict-safety --strict-taste
 python3 marketing_automation.py
 python3 scripts/marketing_quality_gate.py --strict
+python3 scripts/build_discord_proof_drafts.py
 python3 scripts/publish_outputs.py
 ```
 
@@ -159,6 +174,7 @@ Canonical runbook:
 The pipeline writes:
 - JSON run log: `output/logs/weekly-pipeline-*.json`
 - Markdown summary: `output/summaries/weekly-pipeline-*.md`
+- Curated Discord drafts: `output/discord/latest.json` + `output/discord/*_latest.md`
 
 ## Acquisition automation
 
@@ -193,6 +209,7 @@ Safety defaults:
 - no LinkedIn scraping
 - no outbound sending in these scripts
 - public publish queue requires `PUBLISH_PUBLIC=true` and quality pass
+- Discord output is draft-only and requires manual posting.
 
 Single command outputs (daily):
 - JSON log: `output/acquisition/logs/acquisition-daily-*.json`

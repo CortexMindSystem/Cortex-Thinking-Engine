@@ -1,11 +1,26 @@
-# SimpliXio — Your Thinking Engine
+# SimpliXio
 
-*Decide what matters. Most tools add information. SimpliXio removes noise.*
+*SimpliXio turns scattered thoughts, project noise, and open loops into 3 priorities and one next action.*
 
 ![SimpliXio Context Layer System](logo.png)
 
 > [!Note]
-> SimpliXio turns scattered inputs (RSS feeds, notes, digests) into grounded daily actions — answering **"What should I focus on today?"** using your personal goals, projects, and reading history as context. Works fully offline; LLM is optional.
+> Built for founders and builders with too many inputs and not enough clarity.
+> SimpliXio answers one daily question: **"What matters now, and what should I do next?"**
+
+## Why SimpliXio
+
+- You capture messy thoughts quickly.
+- SimpliXio filters noise into 3 priorities.
+- Each priority includes why it matters.
+- You get one clear next action.
+
+## Trust
+
+- Private by default.
+- Public content runs through redaction and quality checks.
+- Private outreach stays `needs_approval` by default.
+- Human judgement stays in control.
 
 ---
 
@@ -54,7 +69,7 @@ Server runs on port `8420`.
 - `GET /context/signals/queues`: Ranked queues (`what_matters_now`, decision queue, action-ready queue)
 
 System architecture and scoring model:
-- [cortex_os_system.md](/Users/pierre/Code/CortexOSLLM/cortex_os_system.md)
+- [cortex_os_system.md](cortex_os_system.md)
 
 ## TestFlight
 
@@ -81,8 +96,13 @@ What these automation pipelines do:
 - Daily acquisition pipeline: collects public lead signals, scores fit, drafts outreach (approval-required), runs compliance checks, and writes CRM logs/summaries.
 
 Detailed runbook:
-- [cortexos_automation_scripts/README.md](/Users/pierre/Code/CortexOSLLM/cortexos_automation_scripts/README.md)
-- [cortexos_automation_scripts/AUTOMATION_RUNBOOK.md](/Users/pierre/Code/CortexOSLLM/cortexos_automation_scripts/AUTOMATION_RUNBOOK.md)
+- [cortexos_automation_scripts/README.md](cortexos_automation_scripts/README.md)
+- [cortexos_automation_scripts/AUTOMATION_RUNBOOK.md](cortexos_automation_scripts/AUTOMATION_RUNBOOK.md)
+
+Positioning + trust playbooks:
+- [docs/messaging-stack.md](docs/messaging-stack.md)
+- [docs/values-alignment-plan-2026-04-29.md](docs/values-alignment-plan-2026-04-29.md)
+- [docs/reorg-plan-2026-04-29.md](docs/reorg-plan-2026-04-29.md)
 
 ## Tests
 
