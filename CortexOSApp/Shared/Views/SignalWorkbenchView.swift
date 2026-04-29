@@ -37,7 +37,7 @@ struct SignalWorkbenchView: View {
 
     private var screenTitle: String {
         switch focus {
-        case .overview: "Queues"
+        case .overview: "Review Queue"
         case .recurringPatterns: "Recurring Patterns"
         case .unresolvedTensions: "Unresolved Tensions"
         case .contentCandidates: "Content Candidates"
@@ -53,7 +53,7 @@ struct SignalWorkbenchView: View {
                 switch focus {
                 case .overview:
                     queueCard(
-                        title: "What Matters Now",
+                        title: "What matters now",
                         icon: "target",
                         items: snapshot.whatMattersNow ?? [],
                         emptyText: "No immediate items right now.",
@@ -162,12 +162,12 @@ struct SignalWorkbenchView: View {
     @ViewBuilder
     private func metrics(_ counts: SyncSignalMatchingCounts?) -> some View {
         VStack(alignment: .leading, spacing: CortexSpacing.sm) {
-            Text("Signal Matching")
+            Text("Current filter")
                 .font(CortexFont.captionMedium)
                 .foregroundStyle(CortexColor.textTertiary)
 
             HStack(spacing: CortexSpacing.lg) {
-                metric("Total", "\(counts?.signalsTotal ?? 0)")
+                metric("Captured", "\(counts?.signalsTotal ?? 0)")
                 metric("Active", "\(counts?.signalsActive ?? 0)")
                 metric("Ignored", "\(counts?.ignored ?? 0)")
             }
@@ -210,13 +210,10 @@ struct SignalWorkbenchView: View {
                             .font(CortexFont.caption)
                             .foregroundStyle(CortexColor.accent)
 
-                        HStack(spacing: CortexSpacing.md) {
-                            Text("Rank \(Int(item.rankScore))")
-                            Text(item.horizon.capitalized)
-                            Text(item.signalType.replacingOccurrences(of: "_", with: " ").capitalized)
+                        HStack(spacing: CortexSpacing.xs) {
+                            queuePill(item.horizon.capitalized)
+                            queuePill(item.signalType.replacingOccurrences(of: "_", with: " ").capitalized)
                         }
-                        .font(CortexFont.caption)
-                        .foregroundStyle(CortexColor.textTertiary)
 
                         if showResurfacingActions {
                             HStack(spacing: CortexSpacing.sm) {
@@ -244,6 +241,12 @@ struct SignalWorkbenchView: View {
                         Divider()
                             .opacity(0.3)
                     }
+                }
+
+                if items.count > maxVisible {
+                    Text("Showing \(maxVisible) of \(items.count). Open the focused section for deeper review.")
+                        .font(CortexFont.caption)
+                        .foregroundStyle(CortexColor.textTertiary)
                 }
             }
         }
@@ -297,5 +300,16 @@ struct SignalWorkbenchView: View {
                 .font(CortexFont.captionMedium)
                 .foregroundStyle(CortexColor.textPrimary)
         }
+    }
+
+    @ViewBuilder
+    private func queuePill(_ text: String) -> some View {
+        Text(text)
+            .font(CortexFont.mono)
+            .foregroundStyle(CortexColor.textTertiary)
+            .padding(.horizontal, CortexSpacing.sm)
+            .padding(.vertical, CortexSpacing.xxs)
+            .background(CortexColor.bgSecondary)
+            .clipShape(Capsule(style: .continuous))
     }
 }
