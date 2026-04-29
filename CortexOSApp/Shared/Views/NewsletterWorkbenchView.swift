@@ -24,11 +24,11 @@ struct NewsletterWorkbenchView: View {
 
     private var header: some View {
         VStack(alignment: .leading, spacing: CortexSpacing.xs) {
-            Text("Newsletter")
+            Text("Public-safe draft")
                 .font(CortexFont.title)
                 .foregroundStyle(CortexColor.textPrimary)
 
-            Text("Turn selected thoughts and decisions into a public-safe draft.")
+            Text("Turn selected, redacted material into a draft. Nothing publishes automatically.")
                 .font(CortexFont.body)
                 .foregroundStyle(CortexColor.textSecondary)
         }
@@ -58,7 +58,7 @@ struct NewsletterWorkbenchView: View {
                 .pickerStyle(.menu)
             }
 
-            Label("Strict safety enabled", systemImage: "checkmark.shield")
+            Label("Strict safety enabled. Human approval required before publishing.", systemImage: "checkmark.shield")
                 .font(CortexFont.caption)
                 .foregroundStyle(CortexColor.textSecondary)
         }
@@ -100,7 +100,7 @@ struct NewsletterWorkbenchView: View {
                 Text("Not enough public-safe material yet")
                     .font(CortexFont.bodyMedium)
                     .foregroundStyle(CortexColor.textPrimary)
-                Text("Capture a thought, add a decision, then run Weekly Review.")
+                Text("Capture thoughts and decisions first. SimpliXio will only draft from material that passes safety checks.")
                     .font(CortexFont.caption)
                     .foregroundStyle(CortexColor.textSecondary)
             }
@@ -112,11 +112,11 @@ struct NewsletterWorkbenchView: View {
 
     @ViewBuilder
     private var safetyCard: some View {
-        if let newsletter = engine.snapshot?.newsletter {
-            VStack(alignment: .leading, spacing: CortexSpacing.xs) {
-                Text("Safety")
-                    .font(CortexFont.captionMedium)
-                    .foregroundStyle(CortexColor.textTertiary)
+        VStack(alignment: .leading, spacing: CortexSpacing.xs) {
+            Text("Trust")
+                .font(CortexFont.captionMedium)
+                .foregroundStyle(CortexColor.textTertiary)
+            if let newsletter = engine.snapshot?.newsletter {
                 Text(newsletter.safeToPublish ? "Safe to publish: yes" : "Safe to publish: no")
                     .font(CortexFont.caption)
                     .foregroundStyle(newsletter.safeToPublish ? CortexColor.success : CortexColor.warning)
@@ -126,11 +126,15 @@ struct NewsletterWorkbenchView: View {
                         .font(CortexFont.caption)
                         .foregroundStyle(CortexColor.textSecondary)
                 }
+            } else {
+                Text("Private by default. Public drafts require redaction, safety checks, and manual approval.")
+                    .font(CortexFont.caption)
+                    .foregroundStyle(CortexColor.textSecondary)
             }
-            .padding(CortexSpacing.lg)
-            .background(CortexColor.bgSurface)
-            .clipShape(RoundedRectangle(cornerRadius: CortexRadius.card, style: .continuous))
         }
+        .padding(CortexSpacing.lg)
+        .background(CortexColor.bgSurface)
+        .clipShape(RoundedRectangle(cornerRadius: CortexRadius.card, style: .continuous))
     }
 
     private var actions: some View {
@@ -143,7 +147,7 @@ struct NewsletterWorkbenchView: View {
                     )
                 }
             } label: {
-                Label("Generate Draft", systemImage: "wand.and.stars")
+                Label("Draft from safe material", systemImage: "wand.and.stars")
             }
             .buttonStyle(CortexPrimaryButtonStyle())
             .disabled(!canGenerate)
