@@ -9,6 +9,7 @@ scratch_*.py
 
 # Personal development scripts (ignore all except build tools)
 scripts/*
+!scripts/generate_store_assets.py
 !scripts/generate_marketing_screenshots.py
 !scripts/generate_app_icon.sh
 
