@@ -383,7 +383,9 @@ def test_newsletter_generation_strict_safety_marks_needs_review(tmp_path):
     output_dir = tmp_path / "out" / "newsletters"
 
     payload = newsletter_mod.run_generation(
-        period="weekly",
+        period="custom",
+        from_date="2026-04-20",
+        to_date="2026-04-22",
         mode="weekly-lessons",
         strict_safety=True,
         output=str(output_dir),
@@ -470,7 +472,9 @@ def test_newsletter_generation_applies_classification_labels(tmp_path):
     newsletter_mod.pick_data_dir = lambda: data_dir
 
     payload = newsletter_mod.run_generation(
-        period="weekly",
+        period="custom",
+        from_date="2026-04-20",
+        to_date="2026-04-22",
         mode="weekly-lessons",
         strict_safety=True,
         strict_taste=False,
@@ -505,14 +509,18 @@ def test_newsletter_taste_gate_blocks_repeated_output(tmp_path):
 
     output_dir = tmp_path / "out" / "newsletters"
     first = newsletter_mod.run_generation(
-        period="weekly",
+        period="custom",
+        from_date="2026-04-20",
+        to_date="2026-04-22",
         mode="weekly-lessons",
         strict_safety=True,
         strict_taste=True,
         output=str(output_dir),
     )
     second = newsletter_mod.run_generation(
-        period="weekly",
+        period="custom",
+        from_date="2026-04-20",
+        to_date="2026-04-22",
         mode="weekly-lessons",
         strict_safety=True,
         strict_taste=True,
