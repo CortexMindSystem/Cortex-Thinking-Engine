@@ -22,6 +22,7 @@ ROOT = Path(__file__).parent.parent
 ASSETS_DIR = ROOT / "CortexOSApp" / "store_assets"
 RAW_DIR = ROOT / "CortexOSApp" / "screenshot_results"
 OUTPUT_DIR = ASSETS_DIR / "marketing"
+ALLOW_SCREENSHOT_FALLBACK = os.getenv("ALLOW_SCREENSHOT_FALLBACK", "0").strip().lower() in {"1", "true", "yes"}
 
 # SimpliXio Brand Colors (vibrant, electric aesthetic)
 BRAND_GRADIENT_START = (15, 23, 42)  # Deep navy
@@ -34,24 +35,31 @@ BRAND_ACCENT_BLUE = (59, 130, 246)  # Electric blue
 BRAND_TEXT_PRIMARY = (255, 255, 255)  # White
 BRAND_TEXT_SECONDARY = (255, 255, 255, 200)  # White with alpha
 
-# Marketing copy for each screen
+# Marketing copy for each screen (conversion-first, concrete output language).
 IPHONE_MARKETING = {
-    "01_focus": {"headline": "Decide what\nmatters.", "subheadline": "Turn noise into action."},
-    "02_decide": {"headline": "3 priorities.\nClear action.", "subheadline": "A decision system that turns noise into 3 priorities."},
-    "03_capture": {"headline": "Capture fast.\nDecide faster.", "subheadline": "Understand what matters and what to do next."},
-    "04_settings": {"headline": "Not another\nAI app.", "subheadline": "A decision system for clearer action."},
+    "01_focus": {"headline": "Decide what\nmatters now.", "subheadline": "Scattered thoughts become 3 priorities."},
+    "02_decide": {"headline": "Know why.\nTake action.", "subheadline": "Each priority includes why it matters and what to do next."},
+    "03_capture": {"headline": "Capture in seconds.\nStay clear.", "subheadline": "Capture notes, links, and thoughts fast, even offline."},
+    "04_settings": {"headline": "Private by default.\nHuman in control.", "subheadline": "No autopublish. Approval required for private outreach."},
 }
 
-MAC_MARKETING = {
-    "01_focus": {"headline": "Your Command Center\nfor Clear Thinking", "subheadline": "See what matters today"},
-    "02_insights": {
-        "headline": "Insights That\nSurface Automatically",
-        "subheadline": "Patterns you didn't know you had",
-    },
-    "03_ingest": {"headline": "Feed Your\nSecond Brain", "subheadline": "Import knowledge effortlessly"},
-    "04_memory": {"headline": "Your Memory,\nOrganized", "subheadline": "Everything searchable, always ready"},
-    "05_decisions": {"headline": "Decisions That\nCompound", "subheadline": "Build on past wisdom"},
-}
+MAC_MARKETING = [
+    ("01_focus", {"headline": "Decide what matters now", "subheadline": "See your top 3 priorities and one next move."}),
+    (
+        "02_insights",
+        {"headline": "See what repeated", "subheadline": "Weekly Review surfaces recurring priorities and patterns."},
+    ),
+    (
+        "03_queues",
+        {"headline": "Review ranked queues", "subheadline": "Decisions, actions, tensions, and content candidates stay focused."},
+    ),
+    (
+        "04_memory",
+        {"headline": "Understand the why", "subheadline": "Decision Replay shows what was reviewed, kept, and ignored."},
+    ),
+    ("05_decisions", {"headline": "Act with confidence", "subheadline": "Feedback improves future prioritization over time."}),
+    ("06_settings", {"headline": "Private by default", "subheadline": "Human stays in control. No autopublish for sensitive content."}),
+]
 
 # App Store screenshot dimensions
 DIMENSIONS = {
@@ -486,10 +494,17 @@ def process_all_screenshots():
     print("═" * 55)
     print(" SimpliXio — Marketing Screenshot Generator")
     print("═" * 55)
+    if ALLOW_SCREENSHOT_FALLBACK:
+        print("⚠️  Fallback enabled: missing raw captures may reuse older store assets.")
+    else:
+        print("✅ Strict mode: only raw captures are used.")
 
-    # Create output directories
+    # Create output directories and clear old PNGs to avoid stale listing assets.
     for device in DIMENSIONS:
-        (OUTPUT_DIR / device).mkdir(parents=True, exist_ok=True)
+        device_dir = OUTPUT_DIR / device
+        device_dir.mkdir(parents=True, exist_ok=True)
+        for stale_png in device_dir.glob("*.png"):
+            stale_png.unlink()
 
     # Process iPhone screenshots
     print("\n📱 Processing iPhone screenshots...")
@@ -498,11 +513,10 @@ def process_all_screenshots():
         output_size = DIMENSIONS[device]
 
         for idx, (screen_name, marketing) in enumerate(IPHONE_MARKETING.items()):
-            raw_path = ASSETS_DIR / device / f"{screen_name}.png"
-
-            # Try raw folder first, then assets folder
-            if not raw_path.exists():
-                raw_path = RAW_DIR / "iphone_raw" / f"{screen_name}.png"
+            # Always prefer raw captures to avoid recursively styling already-marketing assets.
+            raw_path = RAW_DIR / "iphone_raw" / f"{screen_name}.png"
+            if not raw_path.exists() and ALLOW_SCREENSHOT_FALLBACK:
+                raw_path = ASSETS_DIR / device / f"{screen_name}.png"
 
             if raw_path.exists():
                 print(f"    → {screen_name}")
@@ -518,10 +532,9 @@ def process_all_screenshots():
         output_size = DIMENSIONS[device]
 
         for idx, (screen_name, marketing) in enumerate(IPHONE_MARKETING.items()):  # Same screens as iPhone
-            raw_path = ASSETS_DIR / device / f"{screen_name}.png"
-
-            if not raw_path.exists():
-                raw_path = RAW_DIR / "ipad_raw" / f"{screen_name}.png"
+            raw_path = RAW_DIR / "ipad_raw" / f"{screen_name}.png"
+            if not raw_path.exists() and ALLOW_SCREENSHOT_FALLBACK:
+                raw_path = ASSETS_DIR / device / f"{screen_name}.png"
 
             if raw_path.exists():
                 print(f"    → {screen_name}")
@@ -534,11 +547,14 @@ def process_all_screenshots():
     print("\n🖥️  Processing Mac screenshots...")
     output_size = DIMENSIONS["Mac"]
 
-    for idx, (screen_name, marketing) in enumerate(MAC_MARKETING.items()):
-        raw_path = ASSETS_DIR / "Mac" / f"{screen_name}.png"
-
-        if not raw_path.exists():
-            raw_path = RAW_DIR / "mac_raw" / f"{screen_name}.png"
+    for idx, (screen_name, marketing) in enumerate(MAC_MARKETING):
+        raw_path = RAW_DIR / "mac_raw" / f"{screen_name}.png"
+        if not raw_path.exists() and screen_name == "03_queues":
+            raw_path = RAW_DIR / "mac_raw" / "03_ingest.png"
+        if not raw_path.exists() and ALLOW_SCREENSHOT_FALLBACK:
+            raw_path = ASSETS_DIR / "Mac" / f"{screen_name}.png"
+        if not raw_path.exists() and screen_name == "03_queues" and ALLOW_SCREENSHOT_FALLBACK:
+            raw_path = ASSETS_DIR / "Mac" / "03_ingest.png"
 
         if raw_path.exists():
             print(f"    → {screen_name}")

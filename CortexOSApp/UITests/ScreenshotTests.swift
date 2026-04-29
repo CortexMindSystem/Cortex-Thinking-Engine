@@ -10,6 +10,19 @@ import XCTest
 
 final class ScreenshotTests: XCTestCase {
     let app = XCUIApplication()
+    private lazy var outputDirectory: URL = {
+        let override = ProcessInfo.processInfo.environment["SCREENSHOT_OUTPUT_DIR"]
+        let root = override?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false
+            ? URL(fileURLWithPath: override!, isDirectory: true)
+            : URL(fileURLWithPath: "/Users/pierre/Code/CortexOSLLM/CortexOSApp/screenshot_results", isDirectory: true)
+#if os(macOS)
+        return root.appendingPathComponent("mac_raw", isDirectory: true)
+#elseif os(iOS)
+        return root.appendingPathComponent("iphone_raw", isDirectory: true)
+#else
+        return root
+#endif
+    }()
 
     override func setUpWithError() throws {
         continueAfterFailure = false
@@ -17,6 +30,30 @@ final class ScreenshotTests: XCTestCase {
         app.launch()
         // Give the app time to fully render
         sleep(2)
+        try FileManager.default.createDirectory(at: outputDirectory, withIntermediateDirectories: true)
+    }
+
+    @discardableResult
+    private func captureWindow(_ name: String) -> XCUIScreenshot {
+        let screenshot: XCUIScreenshot
+#if os(macOS)
+        screenshot = app.windows.firstMatch.screenshot()
+#else
+        screenshot = app.screenshot()
+#endif
+
+        let attachment = XCTAttachment(screenshot: screenshot)
+        attachment.name = name
+        attachment.lifetime = .keepAlways
+        add(attachment)
+
+        let path = outputDirectory.appendingPathComponent("\(name).png")
+        do {
+            try screenshot.pngRepresentation.write(to: path)
+        } catch {
+            XCTFail("Failed to write screenshot \(name): \(error)")
+        }
+        return screenshot
     }
 
     // MARK: - iOS Screenshots
@@ -24,11 +61,7 @@ final class ScreenshotTests: XCTestCase {
     #if os(iOS)
     func testCaptureFocusTab() throws {
         // Focus tab is the default landing screen
-        let screenshot = app.screenshot()
-        let attachment = XCTAttachment(screenshot: screenshot)
-        attachment.name = "01_focus"
-        attachment.lifetime = .keepAlways
-        add(attachment)
+        captureWindow("01_focus")
     }
 
     func testCaptureDecideTab() throws {
@@ -38,11 +71,7 @@ final class ScreenshotTests: XCTestCase {
         decideTab.tap()
         sleep(1)
 
-        let screenshot = app.screenshot()
-        let attachment = XCTAttachment(screenshot: screenshot)
-        attachment.name = "02_decide"
-        attachment.lifetime = .keepAlways
-        add(attachment)
+        captureWindow("02_decide")
     }
 
     func testCaptureCaptureTab() throws {
@@ -52,11 +81,7 @@ final class ScreenshotTests: XCTestCase {
         captureTab.tap()
         sleep(1)
 
-        let screenshot = app.screenshot()
-        let attachment = XCTAttachment(screenshot: screenshot)
-        attachment.name = "03_capture"
-        attachment.lifetime = .keepAlways
-        add(attachment)
+        captureWindow("03_capture")
     }
 
     func testCaptureSettings() throws {
@@ -80,11 +105,7 @@ final class ScreenshotTests: XCTestCase {
         }
         sleep(1)
 
-        let screenshot = app.screenshot()
-        let attachment = XCTAttachment(screenshot: screenshot)
-        attachment.name = "04_settings"
-        attachment.lifetime = .keepAlways
-        add(attachment)
+        captureWindow("04_settings")
     }
     #endif
 
@@ -94,11 +115,7 @@ final class ScreenshotTests: XCTestCase {
     func testCaptureFocusSidebar() throws {
         // Focus is the default selection
         sleep(1)
-        let screenshot = app.screenshot()
-        let attachment = XCTAttachment(screenshot: screenshot)
-        attachment.name = "01_focus"
-        attachment.lifetime = .keepAlways
-        add(attachment)
+        captureWindow("01_focus")
     }
 
     func testCaptureInsightsSidebar() throws {
@@ -113,18 +130,14 @@ final class ScreenshotTests: XCTestCase {
         }
         sleep(1)
 
-        let screenshot = app.screenshot()
-        let attachment = XCTAttachment(screenshot: screenshot)
-        attachment.name = "02_insights"
-        attachment.lifetime = .keepAlways
-        add(attachment)
+        captureWindow("02_insights")
     }
 
-    func testCaptureIngestSidebar() throws {
+    func testCaptureQueuesSidebar() throws {
         let sidebar = app.outlines.firstMatch
         if sidebar.waitForExistence(timeout: 5) {
             let cell = sidebar.cells.containing(
-                NSPredicate(format: "label CONTAINS[c] 'Ingest'")
+                NSPredicate(format: "label CONTAINS[c] 'Queues'")
             ).firstMatch
             if cell.waitForExistence(timeout: 3) {
                 cell.click()
@@ -132,11 +145,7 @@ final class ScreenshotTests: XCTestCase {
         }
         sleep(1)
 
-        let screenshot = app.screenshot()
-        let attachment = XCTAttachment(screenshot: screenshot)
-        attachment.name = "03_ingest"
-        attachment.lifetime = .keepAlways
-        add(attachment)
+        captureWindow("03_queues")
     }
 
     func testCaptureMemorySidebar() throws {
@@ -151,11 +160,7 @@ final class ScreenshotTests: XCTestCase {
         }
         sleep(1)
 
-        let screenshot = app.screenshot()
-        let attachment = XCTAttachment(screenshot: screenshot)
-        attachment.name = "04_memory"
-        attachment.lifetime = .keepAlways
-        add(attachment)
+        captureWindow("04_memory")
     }
 
     func testCaptureDecisionsSidebar() throws {
@@ -170,11 +175,21 @@ final class ScreenshotTests: XCTestCase {
         }
         sleep(1)
 
-        let screenshot = app.screenshot()
-        let attachment = XCTAttachment(screenshot: screenshot)
-        attachment.name = "05_decisions"
-        attachment.lifetime = .keepAlways
-        add(attachment)
+        captureWindow("05_decisions")
+    }
+
+    func testCaptureSettingsSidebar() throws {
+        let sidebar = app.outlines.firstMatch
+        if sidebar.waitForExistence(timeout: 5) {
+            let cell = sidebar.cells.containing(
+                NSPredicate(format: "label CONTAINS[c] 'Settings'")
+            ).firstMatch
+            if cell.waitForExistence(timeout: 3) {
+                cell.click()
+            }
+        }
+        sleep(1)
+        captureWindow("06_settings")
     }
     #endif
 }
