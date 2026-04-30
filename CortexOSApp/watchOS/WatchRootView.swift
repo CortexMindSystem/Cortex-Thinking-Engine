@@ -7,7 +7,7 @@ struct WatchRootView: View {
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(alignment: .leading, spacing: 10) {
+                VStack(alignment: .leading, spacing: 8) {
                     statusRow
 
                     if let priority = model.topPriority {
@@ -21,8 +21,9 @@ struct WatchRootView: View {
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.horizontal, 8)
+                .padding(.bottom, 8)
             }
-            .navigationTitle("Now")
+            .navigationTitle("Next")
         }
         .onChange(of: scenePhase) { _, phase in
             guard phase == .active else { return }
@@ -50,7 +51,7 @@ struct WatchRootView: View {
     @ViewBuilder
     private func priorityCard(_ priority: SyncTodayPriority) -> some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text("Top priority")
+            Text("What matters now")
                 .font(.caption2)
                 .foregroundStyle(.secondary)
 
@@ -60,10 +61,15 @@ struct WatchRootView: View {
                 .multilineTextAlignment(.leading)
 
             if !priority.action.isEmpty {
-                Label(priority.action, systemImage: "arrow.right.circle.fill")
-                    .font(.caption)
-                    .foregroundStyle(CortexColor.accent)
-                    .lineLimit(2)
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("Next action")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                    Label(priority.action, systemImage: "arrow.right.circle.fill")
+                        .font(.caption)
+                        .foregroundStyle(CortexColor.accent)
+                        .lineLimit(2)
+                }
             }
         }
         .padding(10)
@@ -75,25 +81,25 @@ struct WatchRootView: View {
     @ViewBuilder
     private func feedbackCard(_ priority: SyncTodayPriority) -> some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text("One-tap feedback")
+            Text("Feedback")
                 .font(.caption2)
                 .foregroundStyle(.secondary)
 
-            HStack(spacing: 6) {
-                feedbackButton("Useful", icon: "hand.thumbsup.fill") {
-                    Task { await model.sendQuickFeedback(for: priority, useful: true, acted: nil) }
-                }
-                feedbackButton("Not useful", icon: "hand.thumbsdown.fill") {
-                    Task { await model.sendQuickFeedback(for: priority, useful: false, acted: nil) }
-                }
-            }
-
-            HStack(spacing: 6) {
+            HStack(spacing: 5) {
                 feedbackButton("Done", icon: "checkmark.circle.fill") {
                     Task { await model.sendQuickFeedback(for: priority, useful: true, acted: true) }
                 }
-                feedbackButton("Not done", icon: "xmark.circle.fill") {
+                feedbackButton("Useful", icon: "hand.thumbsup.fill") {
+                    Task { await model.sendQuickFeedback(for: priority, useful: true, acted: nil) }
+                }
+            }
+
+            HStack(spacing: 5) {
+                feedbackButton("Snooze", icon: "clock.fill") {
                     Task { await model.sendQuickFeedback(for: priority, useful: true, acted: false) }
+                }
+                feedbackButton("Skip", icon: "hand.thumbsdown.fill") {
+                    Task { await model.sendQuickFeedback(for: priority, useful: false, acted: nil) }
                 }
             }
         }
@@ -115,11 +121,11 @@ struct WatchRootView: View {
 
     private var captureCard: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text("Quick capture")
+            Text("Capture")
                 .font(.caption2)
                 .foregroundStyle(.secondary)
 
-            TextField("Thought, question, or tension", text: $model.captureText, axis: .vertical)
+            TextField("Thought or tension", text: $model.captureText, axis: .vertical)
                 .lineLimit(2...4)
                 .textFieldStyle(.plain)
                 .padding(8)
@@ -135,7 +141,7 @@ struct WatchRootView: View {
             .disabled(model.captureText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
             .buttonStyle(.borderedProminent)
 
-            Text(model.isOffline ? "Offline: capture queues automatically." : "Capture syncs automatically.")
+            Text(model.isOffline ? "Queues offline." : "Syncs automatically.")
                 .font(.caption2)
                 .foregroundStyle(.secondary)
         }
