@@ -66,7 +66,7 @@ final class SimpliXioRouteCenter: ObservableObject {
 
     func handleShortcut(type: String) {
         switch type {
-        case "com.simplixio.capture":
+        case "com.simplixio.capture", "com.simplixio.note":
             pendingRoute = .capture
         case "com.simplixio.today":
             pendingRoute = .focus

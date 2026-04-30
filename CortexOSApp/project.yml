@@ -36,6 +36,20 @@ targets:
         CFBundleShortVersionString: "$(MARKETING_VERSION)"
         CFBundleVersion: "$(CURRENT_PROJECT_VERSION)"
         ITSAppUsesNonExemptEncryption: false
+        CFBundleURLTypes:
+          - CFBundleURLName: SimpliXio
+            CFBundleURLSchemes:
+              - simplixio
+        UIApplicationShortcutItems:
+          - UIApplicationShortcutItemType: com.simplixio.capture
+            UIApplicationShortcutItemTitle: Capture Thought
+            UIApplicationShortcutItemIconType: UIApplicationShortcutIconTypeCompose
+          - UIApplicationShortcutItemType: com.simplixio.note
+            UIApplicationShortcutItemTitle: Quick Note
+            UIApplicationShortcutItemIconType: UIApplicationShortcutIconTypeEdit
+          - UIApplicationShortcutItemType: com.simplixio.today
+            UIApplicationShortcutItemTitle: Today's Priority
+            UIApplicationShortcutItemIconType: UIApplicationShortcutIconTypeSearch
         UILaunchScreen: {}
         UISupportedInterfaceOrientations:
           - UIInterfaceOrientationPortrait
