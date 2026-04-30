@@ -133,11 +133,11 @@ final class ScreenshotTests: XCTestCase {
         captureWindow("02_insights")
     }
 
-    func testCaptureQueuesSidebar() throws {
+    func testCaptureReviewQueueSidebar() throws {
         let sidebar = app.outlines.firstMatch
         if sidebar.waitForExistence(timeout: 5) {
             let cell = sidebar.cells.containing(
-                NSPredicate(format: "label CONTAINS[c] 'Queues'")
+                NSPredicate(format: "label CONTAINS[c] 'Review Queue'")
             ).firstMatch
             if cell.waitForExistence(timeout: 3) {
                 cell.click()
@@ -190,6 +190,34 @@ final class ScreenshotTests: XCTestCase {
         }
         sleep(1)
         captureWindow("06_settings")
+    }
+
+    func testSettingsSyncButtonKeepsAppResponsive() throws {
+        let sidebar = app.outlines.firstMatch
+        XCTAssertTrue(sidebar.waitForExistence(timeout: 5))
+
+        let settingsCell = sidebar.cells.containing(
+            NSPredicate(format: "label CONTAINS[c] 'Settings'")
+        ).firstMatch
+        XCTAssertTrue(settingsCell.waitForExistence(timeout: 5))
+        settingsCell.click()
+
+        let syncButton = app.buttons.containing(
+            NSPredicate(format: "label CONTAINS[c] 'Sync'")
+        ).firstMatch
+        XCTAssertTrue(syncButton.waitForExistence(timeout: 5))
+        syncButton.click()
+
+        let focusCell = sidebar.cells.containing(
+            NSPredicate(format: "label CONTAINS[c] 'Focus'")
+        ).firstMatch
+        XCTAssertTrue(focusCell.waitForExistence(timeout: 5))
+        focusCell.click()
+
+        let focusContent = app.staticTexts.containing(
+            NSPredicate(format: "label CONTAINS[c] 'priority' OR label CONTAINS[c] 'Focus'")
+        ).firstMatch
+        XCTAssertTrue(focusContent.waitForExistence(timeout: 5))
     }
     #endif
 }
