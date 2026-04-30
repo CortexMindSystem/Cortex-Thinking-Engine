@@ -66,9 +66,8 @@ struct MemoryExplorerView: View {
                     }
                 }
 
-                // Layer 3: Working
                 let wm = snapshot.workingMemory
-                MemoryLayer(title: "Working Memory", icon: "clock.arrow.circlepath") {
+                MemoryLayer(title: "Current Context", icon: "clock.arrow.circlepath") {
                     MemoryField(label: "Date", value: wm.date)
                     MemoryListField(label: "Priorities", items: wm.todaysPriorities)
                     MemoryListField(label: "Exploring", items: wm.currentlyExploring)
@@ -113,11 +112,8 @@ private struct MemoryLayer<Content: View>: View {
 
             content
         }
-        .padding(CortexSpacing.lg)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(CortexColor.bgSurface)
-        .clipShape(RoundedRectangle(cornerRadius: CortexRadius.card, style: .continuous))
-        .cortexShadow()
+        .cortexSurfaceCard()
     }
 }
 
@@ -153,7 +149,7 @@ private struct MemoryListField: View {
                     .font(CortexFont.captionMedium)
                     .foregroundStyle(CortexColor.textTertiary)
                 ForEach(items, id: \.self) { item in
-                    Text("  • \(item)")
+                    Text("• \(item)")
                         .font(CortexFont.body)
                         .foregroundStyle(CortexColor.textSecondary)
                 }

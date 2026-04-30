@@ -160,8 +160,6 @@ struct NoteDetailView: View {
                 Divider()
                 HStack {
                     Label(note.createdAt.prefix(10).description, systemImage: "calendar")
-                    Spacer()
-                    Text("ID: \(note.id)")
                 }
                 .font(CortexFont.mono)
                 .foregroundStyle(CortexColor.textTertiary)

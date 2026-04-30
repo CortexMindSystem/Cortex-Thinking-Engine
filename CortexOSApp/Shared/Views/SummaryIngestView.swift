@@ -24,7 +24,6 @@ struct SummaryIngestView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: CortexSpacing.lg) {
-            // Summary input
             VStack(alignment: .leading, spacing: CortexSpacing.xs) {
                 Text("Paste your summary")
                     .cortexFieldLabel()
@@ -34,12 +33,14 @@ struct SummaryIngestView: View {
                     .cortexInputSurface(minHeight: 170)
             }
 
-            // Source label (optional — where did this come from?)
-            TextField("Source (optional)", text: $source)
-                .textFieldStyle(.plain)
-                .cortexInputSurface()
+            VStack(alignment: .leading, spacing: CortexSpacing.xs) {
+                Text("Source")
+                    .cortexFieldLabel()
+                TextField("Optional source", text: $source)
+                    .textFieldStyle(.plain)
+                    .cortexInputSurface()
+            }
 
-            // Submit
             Button {
                 Task { await submit() }
             } label: {
@@ -49,7 +50,7 @@ struct SummaryIngestView: View {
                         ProgressView()
                             .controlSize(.small)
                     } else {
-                        Label("Process", systemImage: "square.and.arrow.down.fill")
+                        Label("Add to SimpliXio", systemImage: "square.and.arrow.down.fill")
                             .font(CortexFont.bodyMedium)
                     }
                     Spacer()
@@ -75,7 +76,7 @@ struct SummaryIngestView: View {
         }
         .padding(CortexSpacing.xl)
         .background(CortexColor.bgPrimary)
-        .navigationTitle("Process")
+        .navigationTitle("Import Summary")
     }
 
     private func submit() async {
