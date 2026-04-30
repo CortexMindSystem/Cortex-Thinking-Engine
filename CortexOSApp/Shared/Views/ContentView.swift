@@ -150,6 +150,7 @@ struct ContentView: View {
         } detail: {
             switch selection {
             case .focus:       DailyFocusView()
+            case .capture:     QuickCaptureView()
             case .notes:       KnowledgeListView()
             case .insights:    InsightFeedView()
             case .decisions:   DecisionHistoryView()
@@ -200,10 +201,11 @@ struct ContentView: View {
     }
 
     enum MacSection: Hashable, CaseIterable {
-        case focus, notes, insights, decisions, memory, weeklyReview, decisionReplay, signalQueues, recurringPatterns, unresolvedTensions, contentCandidates, newsletter, settings
+        case focus, capture, notes, insights, decisions, memory, weeklyReview, decisionReplay, signalQueues, recurringPatterns, unresolvedTensions, contentCandidates, newsletter, settings
 
         static let coreSidebar: [MacSection] = [
             .focus,
+            .capture,
             .notes,
             .insights,
             .decisions,
@@ -230,6 +232,7 @@ struct ContentView: View {
         var title: String {
             switch self {
             case .focus: "Focus"
+            case .capture: "Capture"
             case .notes: "Notes"
             case .insights: "Insights"
             case .decisions: "Decisions"
@@ -248,6 +251,7 @@ struct ContentView: View {
         var systemImage: String {
             switch self {
             case .focus: "target"
+            case .capture: "square.and.pencil"
             case .notes: "doc.text"
             case .insights: "lightbulb"
             case .decisions: "checkmark.seal"
