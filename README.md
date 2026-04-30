@@ -2,7 +2,7 @@
 
 *SimpliXio turns scattered thoughts, project noise, and open loops into 3 priorities and one next action.*
 
-![SimpliXio Context Layer System](logo.png)
+![SimpliXio product system](logo.png)
 
 > [!Note]
 > Built for founders and builders with too many inputs and not enough clarity.
@@ -15,12 +15,28 @@
 - Each priority includes why it matters.
 - You get one clear next action.
 
+SimpliXio is not a note backlog, task manager, CRM, ATS, or chatbot. It is the daily decision layer that reduces scattered inputs into what matters now.
+
+## Product Flow
+
+```text
+capture -> enrich -> rank -> surface -> act -> review -> learn
+```
+
+The visible product stays simple:
+- What matters now
+- 3 priorities
+- Why they matter
+- One next action
+- Feedback that improves future ranking
+
 ## Trust
 
 - Private by default.
 - Public content runs through redaction and quality checks.
 - Private outreach stays `needs_approval` by default.
 - Human judgement stays in control.
+- Discord, newsletter, and acquisition outputs are draft-first unless explicitly approved.
 
 ---
 
@@ -101,6 +117,7 @@ Detailed runbook:
 
 Positioning + trust playbooks:
 - [docs/messaging-stack.md](docs/messaging-stack.md)
+- [docs/integrated-product-system-2026-04-30.md](docs/integrated-product-system-2026-04-30.md)
 - [docs/values-alignment-plan-2026-04-29.md](docs/values-alignment-plan-2026-04-29.md)
 - [docs/reorg-plan-2026-04-29.md](docs/reorg-plan-2026-04-29.md)
 

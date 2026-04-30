@@ -8,7 +8,7 @@ For founders and builders drowning in inputs, SimpliXio shows what matters now, 
 
 ## App Store
 - Title: `SimpliXio`
-- Subtitle: `3 priorities. Why it matters. Next action.`
+- Subtitle: `3 priorities. Why they matter. What to do next.`
 - Opening description:
   `SimpliXio is a decision system for founders and builders.`
   `It turns scattered thoughts, project noise, and open loops into 3 priorities, explains why each matters, and gives one clear next action.`
@@ -21,7 +21,7 @@ For founders and builders drowning in inputs, SimpliXio shows what matters now, 
 5. See what was ignored.
 
 ## Onboarding Opening
-Turn scattered thoughts and project noise into 3 priorities and one next action.
+Capture the noise. SimpliXio gives you 3 priorities and one next action.
 
 ## Website / Hero
 From scattered inputs to one clear next move.
@@ -36,10 +36,10 @@ Built from real daily decision artefacts:
 - Decision Replay
 
 ## Acquisition One-Liner
-I saw your work around prioritisation overload. SimpliXio turns that noise into 3 priorities and one next action.
+I saw your work around project overload. SimpliXio turns scattered signals into 3 priorities and one next action.
 
 ## Newsletter Positioning
-Public-safe weekly lessons from real SimpliXio decisions, without exposing private context.
+Public-safe lessons from real SimpliXio decision runs, with private context redacted.
 
 ## Trust Framing
 - Private by default.
