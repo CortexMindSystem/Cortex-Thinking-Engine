@@ -85,14 +85,14 @@ class DigestProcessor:
             title=article.title,
             source_url=article.url,
             insight=f"{article.title} highlights a key shift in AI or technology.",
-            implication="Investigate how this affects CortexOS context ranking.",
-            action="Add note to research backlog.",
+            implication="Investigate whether this changes SimpliXio's priority ranking.",
+            action="Add this to the review queue if it affects today's decisions.",
             tags=tags,
         )
 
     def _llm_summarise(self, article: ExtractedArticle) -> KnowledgeNote:
         prompt = (
-            f"Summarise this article for a knowledge worker building an AI context engine.\n"
+            f"Summarise this article for a builder using SimpliXio to decide what matters now.\n"
             f"Title: {article.title}\nURL: {article.url}\nSection: {article.section}\n\n"
             "Return JSON with keys: insight, implication, action, tags (list)."
         )

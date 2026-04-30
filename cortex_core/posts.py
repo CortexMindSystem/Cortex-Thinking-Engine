@@ -27,23 +27,23 @@ class PostGenerator:
     """Generate social posts from knowledge notes."""
 
     TEMPLATE = (
-        "Insight from my CortexOS research:\n\n"
+        "SimpliXio lesson from a real decision run:\n\n"
         "{title}\n\n"
         "Key idea:\n{insight}\n\n"
         "Action:\n{action}\n\n"
-        "Building an AI context engine for developers."
+        "Building SimpliXio: scattered inputs -> 3 priorities -> one next action."
     )
 
-    TWITTER_TEMPLATE = "💡 {title}\n\n{insight}\n\n→ {action}\n\n#CortexOS #AI #BuildInPublic"
+    TWITTER_TEMPLATE = "{title}\n\n{insight}\n\nNext: {action}\n\n#SimpliXio #BuildInPublic"
 
     LINKEDIN_TEMPLATE = (
-        "🔬 Research insight from CortexOS:\n\n"
+        "Product lesson from SimpliXio:\n\n"
         "**{title}**\n\n"
         "{insight}\n\n"
         "Implication: {implication}\n\n"
         "Next step: {action}\n\n"
-        "Building an AI context engine for developers and knowledge workers.\n\n"
-        "#AI #ProductDevelopment #KnowledgeManagement"
+        "The product promise stays simple: scattered inputs -> 3 priorities -> one next action.\n\n"
+        "#ProductDevelopment #BuildInPublic #SimpliXio"
     )
 
     def __init__(

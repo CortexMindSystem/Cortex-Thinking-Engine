@@ -1,8 +1,9 @@
 """
 CortexOS Core Framework
 ========================
-A context engine for AI-native work. Turns scattered inputs
-into grounded, actionable knowledge and daily focus briefs.
+Backend primitives for SimpliXio, a decision system that turns
+scattered thoughts, project noise, and open loops into 3 priorities
+and one next action.
 
 Modules:
     engine      – Central orchestrator

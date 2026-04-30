@@ -337,7 +337,7 @@ class CortexEngine:
         3. Returns count of items and notes created
 
         This is how personal analysis and summaries become
-        part of the CortexOS context layer.
+        ranked SimpliXio signals.
         """
         raw_items = extract_items_from_summary(text, source=source, tags=tags)
         added_items = self.items.add_batch(raw_items)

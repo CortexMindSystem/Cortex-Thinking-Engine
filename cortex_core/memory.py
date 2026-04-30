@@ -42,7 +42,7 @@ class UserProfile:
     preferred_style: str = "concise, technical, action-oriented"
     goals: list[str] = field(
         default_factory=lambda: [
-            "Build CortexOS context engine",
+            "Build SimpliXio into a trusted decision system",
             "Improve AI systems design skills",
             "Publish weekly technical content",
         ]

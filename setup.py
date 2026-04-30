@@ -8,7 +8,7 @@ from setuptools import setup, find_packages
 setup(
     name="simplixio-thinking-engine",
     version="0.1.0",
-    description="SimpliXio: A decision system that turns noise into 3 priorities",
+    description="SimpliXio turns scattered thoughts and project noise into 3 priorities and one next action",
     author="Pierre-Henry Soria",
     author_email="hi@ph7.me",
     url="https://github.com/SimplixioMindSystem/Thinking-Engine",
