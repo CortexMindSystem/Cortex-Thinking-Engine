@@ -61,11 +61,11 @@ struct SettingsView: View {
     private var macSettingsBody: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: CortexSpacing.lg) {
-                settingsCard("Connection") { connectionSectionBody }
+                settingsCard("Sync") { connectionSectionBody }
                 settingsCard("Identity") { identitySectionBody }
                 settingsCard("Demo") { demoSectionBody }
                 settingsCard("About") { aboutSectionBody }
-                settingsCard("Trust") { trustSectionBody }
+                settingsCard("Privacy & Trust") { trustSectionBody }
                 settingsCard("Project") { projectSectionBody }
                 settingsCard("Author") { authorSectionBody }
             }
@@ -79,7 +79,7 @@ struct SettingsView: View {
     // MARK: - Shared sections
 
     private var connectionSection: some View {
-        Section { connectionSectionBody } header: { Text("Connection") }
+        Section { connectionSectionBody } header: { Text("Sync") }
     }
 
     @ViewBuilder
@@ -94,67 +94,27 @@ struct SettingsView: View {
             Spacer()
         }
 
-        DisclosureGroup("Server") {
-            TextField("Endpoint URL", text: $serverURL)
-                #if os(iOS)
-                .keyboardType(.URL)
-                .textInputAutocapitalization(.never)
-                #endif
-                .textFieldStyle(.plain)
-                .cortexInputSurface()
-                .onChange(of: serverURL) { _, newValue in
-                    engine.api.baseURL = newValue
-                }
+        DisclosureGroup("Server endpoint") {
+            VStack(alignment: .leading, spacing: CortexSpacing.xs) {
+                Text("Server URL")
+                    .cortexFieldLabel()
+                TextField("https://api.example.com", text: $serverURL)
+                    #if os(iOS)
+                    .keyboardType(.URL)
+                    .textInputAutocapitalization(.never)
+                    #endif
+                    .textFieldStyle(.plain)
+                    .cortexInputSurface()
+                    .onChange(of: serverURL) { _, newValue in
+                        engine.api.baseURL = newValue
+                    }
+            }
 
             Text("Leave empty to run fully offline on this device.")
                 .font(CortexFont.caption)
                 .foregroundStyle(CortexColor.textTertiary)
 
-            HStack {
-                Button {
-                    Task { await testConnection() }
-                } label: {
-                    HStack(spacing: CortexSpacing.xs) {
-                        Text("Test")
-                        if isTesting {
-                            ProgressView()
-                                .controlSize(.small)
-                            }
-                    }
-                }
-                .buttonStyle(CortexSecondaryButtonStyle())
-                .disabled(isTesting)
-
-                Button {
-                    Task { await engine.sync() }
-                } label: {
-                    if engine.isSyncing {
-                        ProgressView()
-                            .controlSize(.small)
-                    } else {
-                        Text("Sync now")
-                    }
-                }
-                .buttonStyle(CortexPrimaryButtonStyle())
-                .disabled(engine.isSyncing)
-                .onChange(of: engine.isSyncing) { _, syncing in
-                    if syncing {
-                        connectionFeedback = .syncing
-                    } else if engine.api.isOffline {
-                        connectionFeedback = .local
-                    } else {
-                        connectionFeedback = engine.isConnected ? .success : .failure
-                    }
-                }
-
-                Spacer()
-
-                if let feedback = connectionFeedback {
-                    Text(feedback.message)
-                        .font(CortexFont.caption)
-                        .foregroundStyle(feedback.color)
-                }
-            }
+            connectionActions
         }
 
         if engine.pendingSyncActions > 0 {
@@ -188,9 +148,13 @@ struct SettingsView: View {
 
     @ViewBuilder
     private var identitySectionBody: some View {
-        TextField("Name", text: $systemName)
-            .textFieldStyle(.plain)
-            .cortexInputSurface()
+        VStack(alignment: .leading, spacing: CortexSpacing.xs) {
+            Text("System Name")
+                .cortexFieldLabel()
+            TextField("Name", text: $systemName)
+                .textFieldStyle(.plain)
+                .cortexInputSurface()
+        }
     }
 
     private var demoSection: some View {
@@ -314,7 +278,7 @@ struct SettingsView: View {
     }
 
     private var trustSection: some View {
-        Section("Trust") { trustSectionBody }
+        Section("Privacy & Trust") { trustSectionBody }
     }
 
     @ViewBuilder
@@ -351,11 +315,8 @@ struct SettingsView: View {
                 .foregroundStyle(CortexColor.textPrimary)
             content()
         }
-        .padding(CortexSpacing.lg)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(CortexColor.bgSurface)
-        .clipShape(RoundedRectangle(cornerRadius: CortexRadius.card, style: .continuous))
-        .cortexShadow()
+        .cortexSurfaceCard()
     }
 
     @ViewBuilder
@@ -460,6 +421,104 @@ struct SettingsView: View {
                 await engine.refreshPendingSyncActions()
             }
         }
+    }
+
+    @ViewBuilder
+    private var connectionActions: some View {
+        #if os(iOS)
+        VStack(alignment: .leading, spacing: CortexSpacing.sm) {
+            Button {
+                Task { await testConnection() }
+            } label: {
+                HStack(spacing: CortexSpacing.xs) {
+                    Text("Test connection")
+                    if isTesting {
+                        ProgressView()
+                            .controlSize(.small)
+                    }
+                }
+                .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(CortexSecondaryButtonStyle(fullWidth: true))
+            .disabled(isTesting)
+
+            Button {
+                Task { await engine.sync() }
+            } label: {
+                HStack(spacing: CortexSpacing.xs) {
+                    if engine.isSyncing {
+                        ProgressView()
+                            .controlSize(.small)
+                    }
+                    Text(engine.isSyncing ? "Syncing…" : "Sync now")
+                }
+                .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(CortexPrimaryButtonStyle(fullWidth: true))
+            .disabled(engine.isSyncing)
+            .onChange(of: engine.isSyncing) { _, syncing in
+                if syncing {
+                    connectionFeedback = .syncing
+                } else if engine.api.isOffline {
+                    connectionFeedback = .local
+                } else {
+                    connectionFeedback = engine.isConnected ? .success : .failure
+                }
+            }
+
+            if let feedback = connectionFeedback {
+                Text(feedback.message)
+                    .font(CortexFont.caption)
+                    .foregroundStyle(feedback.color)
+            }
+        }
+        #else
+        HStack {
+            Button {
+                Task { await testConnection() }
+            } label: {
+                HStack(spacing: CortexSpacing.xs) {
+                    Text("Test")
+                    if isTesting {
+                        ProgressView()
+                            .controlSize(.small)
+                    }
+                }
+            }
+            .buttonStyle(CortexSecondaryButtonStyle())
+            .disabled(isTesting)
+
+            Button {
+                Task { await engine.sync() }
+            } label: {
+                if engine.isSyncing {
+                    ProgressView()
+                        .controlSize(.small)
+                } else {
+                    Text("Sync now")
+                }
+            }
+            .buttonStyle(CortexPrimaryButtonStyle())
+            .disabled(engine.isSyncing)
+            .onChange(of: engine.isSyncing) { _, syncing in
+                if syncing {
+                    connectionFeedback = .syncing
+                } else if engine.api.isOffline {
+                    connectionFeedback = .local
+                } else {
+                    connectionFeedback = engine.isConnected ? .success : .failure
+                }
+            }
+
+            Spacer()
+
+            if let feedback = connectionFeedback {
+                Text(feedback.message)
+                    .font(CortexFont.caption)
+                    .foregroundStyle(feedback.color)
+            }
+        }
+        #endif
     }
 }
 
