@@ -58,6 +58,7 @@ venv/
 *.dSYM.zip
 *.xcarchive
 DerivedData/
+DerivedData-*/
 xcuserdata/
 **/*.xcworkspace/xcshareddata/
 
