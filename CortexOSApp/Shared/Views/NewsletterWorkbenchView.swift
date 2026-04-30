@@ -5,13 +5,16 @@ struct NewsletterWorkbenchView: View {
 
     @State private var selectedSource: SourcePreset = .thisWeek
     @State private var selectedMode: DraftMode = .weeklyLessons
+    @State private var isGeneratingDraft = false
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: CortexSpacing.lg) {
                 header
+                statusStrip
                 sourceControls
                 safetyCard
+                sourceQualityCard
                 previewCard
                 actions
             }
@@ -31,6 +34,27 @@ struct NewsletterWorkbenchView: View {
             Text("Turn selected, redacted material into a draft. Nothing publishes automatically.")
                 .font(CortexFont.body)
                 .foregroundStyle(CortexColor.textSecondary)
+        }
+    }
+
+    @ViewBuilder
+    private var statusStrip: some View {
+        HStack(spacing: CortexSpacing.sm) {
+            statusPill(
+                label: "Private by default",
+                systemImage: "lock.fill",
+                color: CortexColor.textSecondary
+            )
+            statusPill(
+                label: "Redaction required",
+                systemImage: "shield.lefthalf.filled",
+                color: CortexColor.warning
+            )
+            statusPill(
+                label: "Manual publish only",
+                systemImage: "hand.raised.fill",
+                color: CortexColor.accent
+            )
         }
     }
 
@@ -62,9 +86,27 @@ struct NewsletterWorkbenchView: View {
                 .font(CortexFont.caption)
                 .foregroundStyle(CortexColor.textSecondary)
         }
-        .padding(CortexSpacing.lg)
-        .background(CortexColor.bgSurface)
-        .clipShape(RoundedRectangle(cornerRadius: CortexRadius.card, style: .continuous))
+        .cortexSurfaceCard()
+    }
+
+    @ViewBuilder
+    private var sourceQualityCard: some View {
+        let total = engine.snapshot?.newsletter?.sourceCountTotal ?? 0
+        let usable = engine.snapshot?.newsletter?.sourceCountUsable ?? 0
+        let quality = total > 0 ? Double(usable) / Double(total) : 0
+
+        VStack(alignment: .leading, spacing: CortexSpacing.md) {
+            Label("Draft inputs", systemImage: "line.3.horizontal.decrease.circle")
+                .font(CortexFont.headline)
+                .foregroundStyle(CortexColor.textPrimary)
+
+            HStack(spacing: CortexSpacing.lg) {
+                metric("Sources", "\(total)")
+                metric("Usable", "\(usable)")
+                metric("Quality", "\(Int(quality * 100))%")
+            }
+        }
+        .cortexSurfaceCard()
     }
 
     @ViewBuilder
@@ -85,37 +127,47 @@ struct NewsletterWorkbenchView: View {
                     Text(newsletter.preview)
                         .font(CortexFont.body)
                         .foregroundStyle(CortexColor.textSecondary)
-                        .lineLimit(5)
+                        .lineLimit(8)
                 }
 
-                Text("Status: \(newsletter.status)")
-                    .font(CortexFont.caption)
-                    .foregroundStyle(CortexColor.textTertiary)
+                HStack(spacing: CortexSpacing.sm) {
+                    Text("Status: \(newsletter.status)")
+                        .font(CortexFont.caption)
+                        .foregroundStyle(CortexColor.textTertiary)
+                    if !newsletter.generatedAt.isEmpty {
+                        Text("• Updated \(newsletter.generatedAt)")
+                            .font(CortexFont.caption)
+                            .foregroundStyle(CortexColor.textTertiary)
+                    }
+                }
             }
-            .padding(CortexSpacing.lg)
-            .background(CortexColor.bgSurface)
-            .clipShape(RoundedRectangle(cornerRadius: CortexRadius.card, style: .continuous))
+            .cortexSurfaceCard()
         } else {
-            VStack(alignment: .leading, spacing: CortexSpacing.sm) {
+            VStack(alignment: .leading, spacing: CortexSpacing.md) {
                 Text("Not enough public-safe material yet")
                     .font(CortexFont.bodyMedium)
                     .foregroundStyle(CortexColor.textPrimary)
                 Text("Capture thoughts and decisions first. SimpliXio will only draft from material that passes safety checks.")
                     .font(CortexFont.caption)
                     .foregroundStyle(CortexColor.textSecondary)
+
+                VStack(alignment: .leading, spacing: CortexSpacing.xs) {
+                    suggestionRow("Capture a thought", systemImage: "square.and.pencil")
+                    suggestionRow("Record a decision", systemImage: "checkmark.seal")
+                    suggestionRow("Run Weekly Review", systemImage: "calendar.badge.clock")
+                }
             }
-            .padding(CortexSpacing.lg)
-            .background(CortexColor.bgSurface)
-            .clipShape(RoundedRectangle(cornerRadius: CortexRadius.card, style: .continuous))
+            .cortexSurfaceCard()
         }
     }
 
     @ViewBuilder
     private var safetyCard: some View {
-        VStack(alignment: .leading, spacing: CortexSpacing.xs) {
-            Text("Trust")
-                .font(CortexFont.captionMedium)
-                .foregroundStyle(CortexColor.textTertiary)
+        VStack(alignment: .leading, spacing: CortexSpacing.sm) {
+            Label("Trust", systemImage: "checkmark.shield")
+                .font(CortexFont.headline)
+                .foregroundStyle(CortexColor.textPrimary)
+
             if let newsletter = engine.snapshot?.newsletter {
                 Text(newsletter.safeToPublish ? "Safe to publish: yes" : "Safe to publish: no")
                     .font(CortexFont.caption)
@@ -123,6 +175,12 @@ struct NewsletterWorkbenchView: View {
 
                 if let reasons = newsletter.tasteGate?.reasons, !reasons.isEmpty {
                     Text("Taste gate: \(reasons.joined(separator: ", "))")
+                    .font(CortexFont.caption)
+                    .foregroundStyle(CortexColor.textSecondary)
+                }
+
+                if let recommendation = newsletter.safetyReport?.recommendation, !recommendation.isEmpty {
+                    Text(recommendation)
                         .font(CortexFont.caption)
                         .foregroundStyle(CortexColor.textSecondary)
                 }
@@ -132,34 +190,22 @@ struct NewsletterWorkbenchView: View {
                     .foregroundStyle(CortexColor.textSecondary)
             }
         }
-        .padding(CortexSpacing.lg)
-        .background(CortexColor.bgSurface)
-        .clipShape(RoundedRectangle(cornerRadius: CortexRadius.card, style: .continuous))
+        .cortexSurfaceCard()
     }
 
     private var actions: some View {
-        HStack(spacing: CortexSpacing.sm) {
-            Button {
-                Task {
-                    _ = await engine.generateNewsletterDraft(
-                        period: selectedSource.periodValue,
-                        mode: selectedMode.modeValue
-                    )
-                }
-            } label: {
-                Label("Draft from safe material", systemImage: "wand.and.stars")
+        VStack(alignment: .leading, spacing: CortexSpacing.sm) {
+            #if os(iOS)
+            VStack(spacing: CortexSpacing.sm) {
+                primaryDraftButton
+                shareButton
             }
-            .buttonStyle(CortexPrimaryButtonStyle())
-            .disabled(!canGenerate)
-
-            if let newsletter = engine.snapshot?.newsletter,
-               !newsletter.markdownPath.isEmpty {
-                let url = URL(fileURLWithPath: newsletter.markdownPath)
-                ShareLink(item: url) {
-                    Label("Share", systemImage: "square.and.arrow.up")
-                }
-                .buttonStyle(CortexSecondaryButtonStyle())
+            #else
+            HStack(spacing: CortexSpacing.sm) {
+                primaryDraftButton
+                shareButton
             }
+            #endif
 
             if let status = engine.newsletterStatus, !status.isEmpty {
                 Text("Status: \(status)")
@@ -169,14 +215,82 @@ struct NewsletterWorkbenchView: View {
         }
     }
 
+    @ViewBuilder
+    private var primaryDraftButton: some View {
+        Button {
+            Task {
+                isGeneratingDraft = true
+                defer { isGeneratingDraft = false }
+                _ = await engine.generateNewsletterDraft(
+                    period: selectedSource.periodValue,
+                    mode: selectedMode.modeValue
+                )
+            }
+        } label: {
+            HStack(spacing: CortexSpacing.xs) {
+                if isGeneratingDraft {
+                    ProgressView()
+                        .controlSize(.small)
+                }
+                Text(isGeneratingDraft ? "Generating…" : "Draft from safe material")
+            }
+            .frame(maxWidth: .infinity)
+        }
+        .buttonStyle(CortexPrimaryButtonStyle(fullWidth: true))
+        .disabled(!canGenerate || isGeneratingDraft)
+    }
+
+    @ViewBuilder
+    private var shareButton: some View {
+        if let newsletter = engine.snapshot?.newsletter,
+           !newsletter.markdownPath.isEmpty {
+            let url = URL(fileURLWithPath: newsletter.markdownPath)
+            ShareLink(item: url) {
+                Label("Share Markdown", systemImage: "square.and.arrow.up")
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(CortexSecondaryButtonStyle(fullWidth: true))
+        }
+    }
+
     private var canGenerate: Bool {
-        if engine.isSyncing {
+        if engine.isSyncing || isGeneratingDraft {
             return false
         }
         if let count = engine.snapshot?.newsletter?.sourceCountTotal {
             return count > 0
         }
         return true
+    }
+
+    @ViewBuilder
+    private func statusPill(label: String, systemImage: String, color: Color) -> some View {
+        Label(label, systemImage: systemImage)
+            .font(CortexFont.caption)
+            .foregroundStyle(color)
+            .padding(.horizontal, CortexSpacing.sm)
+            .padding(.vertical, CortexSpacing.xs)
+            .background(CortexColor.bgSecondary)
+            .clipShape(Capsule(style: .continuous))
+    }
+
+    @ViewBuilder
+    private func metric(_ label: String, _ value: String) -> some View {
+        VStack(alignment: .leading, spacing: CortexSpacing.xxs) {
+            Text(label)
+                .font(CortexFont.caption)
+                .foregroundStyle(CortexColor.textTertiary)
+            Text(value)
+                .font(CortexFont.bodyMedium)
+                .foregroundStyle(CortexColor.textPrimary)
+        }
+    }
+
+    @ViewBuilder
+    private func suggestionRow(_ label: String, systemImage: String) -> some View {
+        Label(label, systemImage: systemImage)
+            .font(CortexFont.caption)
+            .foregroundStyle(CortexColor.textSecondary)
     }
 }
 
