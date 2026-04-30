@@ -23,6 +23,11 @@ ASSETS_DIR = ROOT / "CortexOSApp" / "store_assets"
 RAW_DIR = ROOT / "CortexOSApp" / "screenshot_results"
 OUTPUT_DIR = ASSETS_DIR / "marketing"
 ALLOW_SCREENSHOT_FALLBACK = os.getenv("ALLOW_SCREENSHOT_FALLBACK", "0").strip().lower() in {"1", "true", "yes"}
+REQUESTED_DEVICES = {
+    item.strip()
+    for item in os.getenv("STORE_ASSET_DEVICES", "").split(",")
+    if item.strip()
+}
 
 # SimpliXio Brand Colors (vibrant, electric aesthetic)
 BRAND_GRADIENT_START = (15, 23, 42)  # Deep navy
@@ -51,7 +56,7 @@ MAC_MARKETING = [
     ),
     (
         "03_queues",
-        {"headline": "Review ranked queues", "subheadline": "Decisions, actions, tensions, and content candidates stay focused."},
+        {"headline": "Review only what matters", "subheadline": "Decisions, actions, tensions, and content candidates stay curated."},
     ),
     (
         "04_memory",
@@ -489,6 +494,11 @@ def create_mac_screenshot(raw_path, marketing_info, output_size, variant=0):
     return bg.convert("RGB")
 
 
+def should_process_device(device):
+    """Allow App Store asset generation for one device class without touching stale others."""
+    return not REQUESTED_DEVICES or device in REQUESTED_DEVICES
+
+
 def process_all_screenshots():
     """Process all screenshots and create marketing versions."""
     print("═" * 55)
@@ -501,6 +511,8 @@ def process_all_screenshots():
 
     # Create output directories and clear old PNGs to avoid stale listing assets.
     for device in DIMENSIONS:
+        if not should_process_device(device):
+            continue
         device_dir = OUTPUT_DIR / device
         device_dir.mkdir(parents=True, exist_ok=True)
         for stale_png in device_dir.glob("*.png"):
@@ -509,6 +521,8 @@ def process_all_screenshots():
     # Process iPhone screenshots
     print("\n📱 Processing iPhone screenshots...")
     for device in ["iPhone_6.9", "iPhone_6.7", "iPhone_6.5", "iPhone_5.5"]:
+        if not should_process_device(device):
+            continue
         print(f"\n  {device}:")
         output_size = DIMENSIONS[device]
 
@@ -528,6 +542,8 @@ def process_all_screenshots():
     # Process iPad screenshots
     print("\n📱 Processing iPad screenshots...")
     for device in ["iPad_13", "iPad_12.9"]:
+        if not should_process_device(device):
+            continue
         print(f"\n  {device}:")
         output_size = DIMENSIONS[device]
 
@@ -544,24 +560,21 @@ def process_all_screenshots():
                 print(f"    ⚠️  Missing: {screen_name}")
 
     # Process Mac screenshots
-    print("\n🖥️  Processing Mac screenshots...")
-    output_size = DIMENSIONS["Mac"]
+    if should_process_device("Mac"):
+        print("\n🖥️  Processing Mac screenshots...")
+        output_size = DIMENSIONS["Mac"]
 
-    for idx, (screen_name, marketing) in enumerate(MAC_MARKETING):
-        raw_path = RAW_DIR / "mac_raw" / f"{screen_name}.png"
-        if not raw_path.exists() and screen_name == "03_queues":
-            raw_path = RAW_DIR / "mac_raw" / "03_ingest.png"
-        if not raw_path.exists() and ALLOW_SCREENSHOT_FALLBACK:
-            raw_path = ASSETS_DIR / "Mac" / f"{screen_name}.png"
-        if not raw_path.exists() and screen_name == "03_queues" and ALLOW_SCREENSHOT_FALLBACK:
-            raw_path = ASSETS_DIR / "Mac" / "03_ingest.png"
+        for idx, (screen_name, marketing) in enumerate(MAC_MARKETING):
+            raw_path = RAW_DIR / "mac_raw" / f"{screen_name}.png"
+            if not raw_path.exists() and ALLOW_SCREENSHOT_FALLBACK:
+                raw_path = ASSETS_DIR / "Mac" / f"{screen_name}.png"
 
-        if raw_path.exists():
-            print(f"    → {screen_name}")
-            result = create_mac_screenshot(raw_path, marketing, output_size, variant=idx)
-            result.save(OUTPUT_DIR / "Mac" / f"{screen_name}.png", quality=95)
-        else:
-            print(f"    ⚠️  Missing: {screen_name}")
+            if raw_path.exists():
+                print(f"    → {screen_name}")
+                result = create_mac_screenshot(raw_path, marketing, output_size, variant=idx)
+                result.save(OUTPUT_DIR / "Mac" / f"{screen_name}.png", quality=95)
+            else:
+                print(f"    ⚠️  Missing: {screen_name}")
 
     print("\n" + "═" * 55)
     print(" ✅ Marketing screenshots saved to:")
@@ -571,6 +584,8 @@ def process_all_screenshots():
     # Summary
     print("\nGenerated screenshots:")
     for device in DIMENSIONS:
+        if not should_process_device(device):
+            continue
         device_dir = OUTPUT_DIR / device
         if device_dir.exists():
             count = len(list(device_dir.glob("*.png")))

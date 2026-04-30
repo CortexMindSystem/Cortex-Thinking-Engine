@@ -33,14 +33,38 @@ CANONICAL_FILES: dict[str, list[str]] = {
     "iPhone_5.5": ["01_focus.png", "02_decide.png", "03_capture.png", "04_settings.png"],
     "iPad_13": ["01_focus.png", "02_decide.png", "03_capture.png", "04_settings.png"],
     "iPad_12.9": ["01_focus.png", "02_decide.png", "03_capture.png", "04_settings.png"],
-    "Mac": ["01_focus.png", "02_insights.png", "03_queues.png", "04_memory.png", "05_decisions.png"],
+    "Mac": ["01_focus.png", "02_insights.png", "03_queues.png", "04_memory.png", "05_decisions.png", "06_settings.png"],
 }
 
 RAW_REQUIRED: dict[str, list[str]] = {
     "iphone_raw": ["01_focus.png", "02_decide.png", "03_capture.png", "04_settings.png"],
     "ipad_raw": ["01_focus.png", "02_decide.png", "03_capture.png", "04_settings.png"],
-    "mac_raw": ["01_focus.png", "02_insights.png", "03_ingest.png", "04_memory.png", "05_decisions.png"],
+    "mac_raw": ["01_focus.png", "02_insights.png", "03_queues.png", "04_memory.png", "05_decisions.png", "06_settings.png"],
 }
+
+
+def selected_devices() -> dict[str, list[str]]:
+    raw_value = os.getenv("STORE_ASSET_DEVICES", "").strip()
+    if not raw_value:
+        return CANONICAL_FILES
+
+    requested = {item.strip() for item in raw_value.split(",") if item.strip()}
+    unknown = sorted(requested.difference(CANONICAL_FILES))
+    if unknown:
+        raise RuntimeError(f"Unknown STORE_ASSET_DEVICES value(s): {', '.join(unknown)}")
+    return {device: files for device, files in CANONICAL_FILES.items() if device in requested}
+
+
+def required_raw_folders(devices: dict[str, list[str]]) -> dict[str, list[str]]:
+    required: dict[str, list[str]] = {}
+    for device in devices:
+        if device.startswith("iPhone"):
+            required["iphone_raw"] = RAW_REQUIRED["iphone_raw"]
+        elif device.startswith("iPad"):
+            required["ipad_raw"] = RAW_REQUIRED["ipad_raw"]
+        elif device == "Mac":
+            required["mac_raw"] = RAW_REQUIRED["mac_raw"]
+    return required
 
 
 def read_marketing_version() -> str:
@@ -51,7 +75,7 @@ def read_marketing_version() -> str:
     return match.group(1) if match else "unknown"
 
 
-def ensure_fresh_raw_captures() -> None:
+def ensure_fresh_raw_captures(devices: dict[str, list[str]]) -> None:
     max_age_hours = float(os.getenv("SCREENSHOT_MAX_AGE_HOURS", "168"))  # 7 days default
     max_age_seconds = max_age_hours * 3600.0
     allow_stale = os.getenv("ALLOW_STALE_SCREENSHOTS", "0").strip().lower() in {"1", "true", "yes"}
@@ -60,7 +84,7 @@ def ensure_fresh_raw_captures() -> None:
     missing: list[str] = []
     stale: list[str] = []
 
-    for raw_folder, required_files in RAW_REQUIRED.items():
+    for raw_folder, required_files in required_raw_folders(devices).items():
         folder = RAW_ROOT / raw_folder
         for name in required_files:
             path = folder / name
@@ -87,7 +111,7 @@ def ensure_fresh_raw_captures() -> None:
             raise RuntimeError("\n".join(lines))
 
 
-def run_generator() -> None:
+def run_generator(devices: dict[str, list[str]]) -> None:
     venv_python = ROOT / ".venv" / "bin" / "python"
     python_bin = str(venv_python) if venv_python.exists() else sys.executable
     cmd = [python_bin, str(ROOT / "scripts" / "generate_marketing_screenshots.py")]
@@ -95,6 +119,7 @@ def run_generator() -> None:
     env = os.environ.copy()
     # Strict mode: never reuse old listing assets as raw fallback.
     env["ALLOW_SCREENSHOT_FALLBACK"] = "0"
+    env["STORE_ASSET_DEVICES"] = ",".join(devices)
 
     result = subprocess.run(cmd, cwd=ROOT, env=env, check=False)
     if result.returncode != 0:
@@ -135,11 +160,12 @@ def write_manifest(copied: dict[str, int]) -> None:
 
 
 def main() -> None:
-    ensure_fresh_raw_captures()
-    run_generator()
+    devices = selected_devices()
+    ensure_fresh_raw_captures(devices)
+    run_generator(devices)
 
     copied: dict[str, int] = {}
-    for device, files in CANONICAL_FILES.items():
+    for device, files in devices.items():
         copied[device] = sync_canonical_files(device, files)
 
     write_manifest(copied)
