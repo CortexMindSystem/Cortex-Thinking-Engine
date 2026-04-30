@@ -136,11 +136,8 @@ struct DecisionReplayView: View {
                 .foregroundStyle(CortexColor.textPrimary)
             content()
         }
-        .padding(CortexSpacing.lg)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(CortexColor.bgSurface)
-        .clipShape(RoundedRectangle(cornerRadius: CortexRadius.card, style: .continuous))
-        .cortexShadow()
+        .cortexSurfaceCard()
     }
 
     @ViewBuilder
@@ -155,4 +152,3 @@ struct DecisionReplayView: View {
         }
     }
 }
-

@@ -172,9 +172,7 @@ struct SignalWorkbenchView: View {
                 metric("Ignored", "\(counts?.ignored ?? 0)")
             }
         }
-        .padding(CortexSpacing.lg)
-        .background(CortexColor.bgSurface)
-        .clipShape(RoundedRectangle(cornerRadius: CortexRadius.card, style: .continuous))
+        .cortexSurfaceCard()
     }
 
     @ViewBuilder
@@ -250,9 +248,7 @@ struct SignalWorkbenchView: View {
                 }
             }
         }
-        .padding(CortexSpacing.lg)
-        .background(CortexColor.bgSurface)
-        .clipShape(RoundedRectangle(cornerRadius: CortexRadius.card, style: .continuous))
+        .cortexSurfaceCard()
     }
 
     @ViewBuilder
@@ -285,9 +281,7 @@ struct SignalWorkbenchView: View {
                 }
             }
         }
-        .padding(CortexSpacing.lg)
-        .background(CortexColor.bgSurface)
-        .clipShape(RoundedRectangle(cornerRadius: CortexRadius.card, style: .continuous))
+        .cortexSurfaceCard()
     }
 
     @ViewBuilder

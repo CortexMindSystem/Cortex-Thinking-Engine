@@ -129,11 +129,8 @@ struct DailyFocusView: View {
                 }
             }
         }
-        .padding(CortexSpacing.lg)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(CortexColor.bgSurface)
-        .clipShape(RoundedRectangle(cornerRadius: CortexRadius.card, style: .continuous))
-        .cortexShadow()
+        .cortexSurfaceCard()
         .padding(.horizontal, CortexSpacing.xl)
     }
 
@@ -384,10 +381,8 @@ struct DailyFocusView: View {
                     .font(.caption2)
                     .foregroundStyle(CortexColor.textTertiary)
             }
-            .padding(CortexSpacing.md)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(CortexColor.bgSurface)
-            .clipShape(RoundedRectangle(cornerRadius: CortexRadius.card, style: .continuous))
+            .cortexSurfaceCard(padding: CortexSpacing.md)
         }
         .buttonStyle(.plain)
         .accessibilityLabel("Decision Replay")
@@ -404,10 +399,8 @@ struct DailyFocusView: View {
                 .foregroundStyle(CortexColor.textPrimary)
                 .lineLimit(2)
         }
-        .padding(CortexSpacing.md)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(CortexColor.bgSurface)
-        .clipShape(RoundedRectangle(cornerRadius: CortexRadius.card, style: .continuous))
+        .cortexSurfaceCard(padding: CortexSpacing.md)
     }
 
     @ViewBuilder
@@ -442,10 +435,8 @@ struct DailyFocusView: View {
                 }
             }
         }
-        .padding(CortexSpacing.md)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(CortexColor.bgSurface)
-        .clipShape(RoundedRectangle(cornerRadius: CortexRadius.card, style: .continuous))
+        .cortexSurfaceCard(padding: CortexSpacing.md)
     }
 
     private func newsletterShareText(_ newsletter: SyncNewsletter) -> String? {
@@ -496,10 +487,8 @@ struct DailyFocusView: View {
                     .buttonStyle(CortexSecondaryButtonStyle())
                 }
             }
-            .padding(CortexSpacing.md)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(CortexColor.bgSurface)
-            .clipShape(RoundedRectangle(cornerRadius: CortexRadius.card, style: .continuous))
+            .cortexSurfaceCard(padding: CortexSpacing.md)
         }
     }
 }
@@ -619,10 +608,7 @@ private struct FocusPriorityCard: View {
             // Feedback — one-tap on both iOS and macOS
             FeedbackRow(onFeedback: onFeedback)
         }
-        .padding(CortexSpacing.md)
-        .background(CortexColor.bgSurface)
-        .clipShape(RoundedRectangle(cornerRadius: CortexRadius.card, style: .continuous))
-        .cortexShadow()
+        .cortexSurfaceCard(padding: CortexSpacing.md)
         .onTapGesture(perform: onOpen)
         #if os(iOS)
         .contextMenu {

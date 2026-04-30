@@ -159,6 +159,20 @@ extension View {
             .foregroundStyle(CortexColor.textSecondary)
             .frame(minHeight: CortexControl.labelMinHeight, alignment: .leading)
     }
+
+    /// Shared card container used by macOS/iOS surfaces to keep spacing, stroke,
+    /// and elevation consistent across settings, review, and creation screens.
+    func cortexSurfaceCard(padding: CGFloat = CortexSpacing.lg) -> some View {
+        self
+            .padding(padding)
+            .background(CortexColor.bgSurface)
+            .overlay(
+                RoundedRectangle(cornerRadius: CortexRadius.card, style: .continuous)
+                    .stroke(CortexColor.strokeSubtle, lineWidth: 1)
+            )
+            .clipShape(RoundedRectangle(cornerRadius: CortexRadius.card, style: .continuous))
+            .cortexShadow()
+    }
 }
 
 // MARK: - Button styles
