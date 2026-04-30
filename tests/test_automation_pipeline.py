@@ -575,7 +575,12 @@ def test_discord_proof_drafts_are_generated_as_manual_only(tmp_path):
     assert payload["status"] == "draft"
     assert payload["draft_only"] is True
     assert payload["requires_manual_post"] is True
+    assert payload["posting_rules"]["autopublish"] is False
+    assert "weekly-review" in payload["channels"]
+    assert "product-lessons" in payload["channels"]
     assert Path(payload["manifest"]).exists()
+    assert Path(payload["files"]["weekly_review"]).exists()
+    assert Path(payload["files"]["product_lesson"]).exists()
 
 
 def test_discord_proof_drafts_apply_redaction(tmp_path):

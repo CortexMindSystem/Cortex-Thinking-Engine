@@ -154,6 +154,75 @@ def build_weekly_proof(weekly: dict[str, Any], replay: dict[str, Any], newslette
     return "\n".join(lines) + "\n", redactions
 
 
+def build_weekly_review_post(weekly: dict[str, Any]) -> tuple[str, list[str]]:
+    redactions: list[str] = []
+
+    days = int(weekly.get("days_covered", 0) or 0)
+    ignored = int(weekly.get("total_ignored_signals", 0) or 0)
+    summary, changed = safe_line(
+        str(weekly.get("summary", "")),
+        "SimpliXio reviewed the week and kept the focus on what mattered.",
+    )
+    if changed:
+        redactions.append("weekly_review_summary")
+
+    priority = "Keep the top priority clear."
+    priorities = weekly.get("top_priorities", [])
+    if priorities:
+        priority, changed = safe_line(str(priorities[0].get("title", "")), priority)
+        if changed:
+            redactions.append("weekly_review_top_priority")
+
+    lines = [
+        "#weekly-review",
+        "",
+        "**Weekly Review**",
+        f"- Covered {days} day(s) of output.",
+        f"- Ignored {ignored} low-signal item(s).",
+        f"- Top pattern: {priority}.",
+        "",
+        "**What mattered**",
+        f"- {summary}",
+        "",
+        "**CTA**",
+        "- Share whether this weekly pattern feels useful.",
+    ]
+    return "\n".join(lines) + "\n", redactions
+
+
+def build_product_lesson(weekly: dict[str, Any], replay: dict[str, Any]) -> tuple[str, list[str]]:
+    redactions: list[str] = []
+
+    lesson = "Fewer surfaced items can create more trust than longer queues."
+    recs = weekly.get("recommendations", [])
+    if recs:
+        lesson, changed = safe_line(str(recs[0]), lesson)
+        if changed:
+            redactions.append("product_lesson_recommendation")
+
+    replay_summary, changed = safe_line(
+        str(replay.get("summary", "")),
+        "Decision Replay showed what was kept, ignored, and why.",
+    )
+    if changed:
+        redactions.append("product_lesson_replay_summary")
+
+    lines = [
+        "#product-lessons",
+        "",
+        "**Product lesson**",
+        f"- {lesson}",
+        "",
+        "**Why it matters**",
+        f"- {replay_summary}",
+        "- SimpliXio should reduce mental load, not create another backlog.",
+        "",
+        "**CTA**",
+        "- Tell us which surface still feels too noisy.",
+    ]
+    return "\n".join(lines) + "\n", redactions
+
+
 def build_feedback_prompt() -> str:
     return "\n".join(
         [
@@ -190,10 +259,14 @@ def run() -> dict[str, Any]:
 
     release_md, release_redactions = build_release_notes(weekly, replay)
     weekly_md, weekly_redactions = build_weekly_proof(weekly, replay, newsletter)
+    review_md, review_redactions = build_weekly_review_post(weekly)
+    lesson_md, lesson_redactions = build_product_lesson(weekly, replay)
     feedback_md = build_feedback_prompt()
 
     release_path = OUTPUT_DIR / "release_notes_latest.md"
     weekly_path = OUTPUT_DIR / "build_in_public_latest.md"
+    review_path = OUTPUT_DIR / "weekly_review_latest.md"
+    lesson_path = OUTPUT_DIR / "product_lesson_latest.md"
     feedback_path = OUTPUT_DIR / "feedback_prompt_latest.md"
     manifest_path = OUTPUT_DIR / "latest.json"
 
@@ -202,11 +275,20 @@ def run() -> dict[str, Any]:
         "status": "draft",
         "draft_only": True,
         "requires_manual_post": True,
-        "channels": ["release-notes", "build-in-public", "feedback"],
-        "redactions_applied": sorted(set(release_redactions + weekly_redactions)),
+        "channels": ["release-notes", "build-in-public", "weekly-review", "product-lessons", "feedback"],
+        "posting_rules": {
+            "manual_review_required": True,
+            "autopublish": False,
+            "private_material_allowed": False,
+        },
+        "redactions_applied": sorted(
+            set(release_redactions + weekly_redactions + review_redactions + lesson_redactions)
+        ),
         "files": {
             "release_notes": write_file(release_path, release_md),
             "build_in_public": write_file(weekly_path, weekly_md),
+            "weekly_review": write_file(review_path, review_md),
+            "product_lesson": write_file(lesson_path, lesson_md),
             "feedback": write_file(feedback_path, feedback_md),
         },
     }

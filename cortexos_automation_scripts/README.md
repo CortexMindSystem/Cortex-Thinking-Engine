@@ -1,7 +1,7 @@
 # SimpliXio Automation (Monorepo)
 
-This folder is the automation engine for marketing + weekly learning loops.
-It now also includes acquisition research + drafting automation with compliance gates.
+This folder is the automation engine for proof, weekly learning, and warm acquisition loops.
+It includes acquisition research + drafting automation with compliance gates.
 
 It is monorepo-aware:
 - reads source data from the main repo (`../growth_output`, `../weekly_digest_*.md`)
@@ -9,12 +9,12 @@ It is monorepo-aware:
 
 ## What It Does (Simple Words)
 
-### Marketing automation
+### Proof automation
 
-The marketing scripts do this:
+The proof scripts do this:
 1. Collect and filter real project signals.
 2. Build real product artifacts (`SimpliXio Today`, `Weekly Review`, `Decision Replay`).
-3. Generate draft posts (X, LinkedIn, blog), HTML pages, and cards from those artifacts.
+3. Generate draft posts (X, LinkedIn, blog), Discord proof drafts, HTML pages, and cards from those artifacts.
 4. Run quality checks (no hype words, no weak/generic copy, no repeated angle).
 5. Only queue publish output if quality passes and publish flags are enabled.
 
@@ -109,6 +109,8 @@ cortexos_automation_scripts/
     discord/
       release_notes_latest.md
       build_in_public_latest.md
+      weekly_review_latest.md
+      product_lesson_latest.md
       feedback_prompt_latest.md
       latest.json
     drafts/
@@ -175,6 +177,7 @@ The pipeline writes:
 - JSON run log: `output/logs/weekly-pipeline-*.json`
 - Markdown summary: `output/summaries/weekly-pipeline-*.md`
 - Curated Discord drafts: `output/discord/latest.json` + `output/discord/*_latest.md`
+- Discord channel coverage: `release-notes`, `build-in-public`, `weekly-review`, `product-lessons`, `feedback`
 
 ## Acquisition automation
 
