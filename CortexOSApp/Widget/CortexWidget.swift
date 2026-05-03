@@ -380,7 +380,7 @@ struct CortexWidgetBundle: WidgetBundle {
     CortexEntry(
         date: .now,
         data: CortexWidgetData(
-            topPriority: WidgetPriority(rank: 1, title: "Ship v1.1", whyItMatters: "Users waiting", nextStep: "Write tests"),
+            topPriority: WidgetPriority(rank: 1, title: "Decide launch focus", whyItMatters: "Too many open loops", nextStep: "Pick one release priority"),
             priorities: [],
             date: "2026-04-09",
             updatedAt: .now
@@ -394,7 +394,7 @@ struct CortexWidgetBundle: WidgetBundle {
     CortexEntry(
         date: .now,
         data: CortexWidgetData(
-            topPriority: WidgetPriority(rank: 1, title: "Ship v1.1", whyItMatters: "Users waiting for offline mode", nextStep: "Write tests"),
+            topPriority: WidgetPriority(rank: 1, title: "Decide launch focus", whyItMatters: "Too many open loops", nextStep: "Pick one release priority"),
             priorities: [],
             date: "2026-04-09",
             updatedAt: .now
@@ -408,7 +408,7 @@ struct CortexWidgetBundle: WidgetBundle {
     CortexEntry(
         date: .now,
         data: CortexWidgetData(
-            topPriority: WidgetPriority(rank: 1, title: "Ship the offline feature", whyItMatters: "Core differentiator", nextStep: "Implement CaptureQueue"),
+            topPriority: WidgetPriority(rank: 1, title: "Decide launch focus", whyItMatters: "Too many open loops", nextStep: "Pick one release priority"),
             priorities: [],
             date: "2026-04-09",
             updatedAt: .now
@@ -423,9 +423,9 @@ struct CortexWidgetBundle: WidgetBundle {
         data: CortexWidgetData(
             topPriority: nil,
             priorities: [
-                WidgetPriority(rank: 1, title: "Ship the offline feature", whyItMatters: "", nextStep: "Implement CaptureQueue"),
-                WidgetPriority(rank: 2, title: "Lock Screen widget", whyItMatters: "", nextStep: "Build WidgetKit extension"),
-                WidgetPriority(rank: 3, title: "Refine focus ranking", whyItMatters: "", nextStep: "Add user feedback weighting"),
+                WidgetPriority(rank: 1, title: "Decide launch focus", whyItMatters: "", nextStep: "Pick one release priority"),
+                WidgetPriority(rank: 2, title: "Tighten onboarding", whyItMatters: "", nextStep: "Cut one vague screen"),
+                WidgetPriority(rank: 3, title: "Review ignored noise", whyItMatters: "", nextStep: "Keep only repeated signals"),
             ],
             date: "2026-04-09",
             updatedAt: .now
