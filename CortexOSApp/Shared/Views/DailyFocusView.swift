@@ -633,7 +633,7 @@ private struct FeedbackRow: View {
                 HStack(spacing: CortexSpacing.md) {
                     Spacer()
                     feedbackButton(title: "Useful", icon: "hand.thumbsup", value: true)
-                    feedbackButton(title: "Not useful", icon: "hand.thumbsdown", value: false)
+                    feedbackButton(title: "Skip", icon: "hand.thumbsdown", value: false)
                 }
             } else {
                 HStack {
