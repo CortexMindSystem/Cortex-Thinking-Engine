@@ -239,7 +239,7 @@ struct CreateNoteView: View {
                         .cortexInputSurface()
                 }
                 Section("Tags (comma-separated)") {
-                    TextField("AI, retrieval, context", text: $tagsText)
+                    TextField("priority, tension, product", text: $tagsText)
                         .textFieldStyle(.plain)
                         .cortexInputSurface()
                 }
