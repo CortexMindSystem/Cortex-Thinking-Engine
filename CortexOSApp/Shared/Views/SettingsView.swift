@@ -47,10 +47,10 @@ struct SettingsView: View {
     private var iOSSettingsBody: some View {
         Form {
             connectionSection
-            identitySection
-            demoSection
-            aboutSection
             trustSection
+            identitySection
+            aboutSection
+            demoSection
             projectSection
             authorSection
         }
@@ -62,10 +62,10 @@ struct SettingsView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: CortexSpacing.lg) {
                 settingsCard("Sync") { connectionSectionBody }
-                settingsCard("Identity") { identitySectionBody }
-                settingsCard("Demo") { demoSectionBody }
-                settingsCard("About") { aboutSectionBody }
                 settingsCard("Privacy & Trust") { trustSectionBody }
+                settingsCard("Identity") { identitySectionBody }
+                settingsCard("About") { aboutSectionBody }
+                settingsCard("Sample Data") { demoSectionBody }
                 settingsCard("Project") { projectSectionBody }
                 settingsCard("Author") { authorSectionBody }
             }
@@ -122,7 +122,7 @@ struct SettingsView: View {
                 showQueueSheet = true
             } label: {
                 HStack {
-                    Label("Pending offline actions", systemImage: "tray.and.arrow.up")
+                    Label("Waiting to sync", systemImage: "tray.and.arrow.up")
                         .font(CortexFont.caption)
                         .foregroundStyle(CortexColor.textSecondary)
                     Spacer()
@@ -149,7 +149,7 @@ struct SettingsView: View {
     @ViewBuilder
     private var identitySectionBody: some View {
         VStack(alignment: .leading, spacing: CortexSpacing.xs) {
-            Text("System Name")
+            Text("Display Name")
                 .cortexFieldLabel()
             TextField("Name", text: $systemName)
                 .textFieldStyle(.plain)
@@ -161,13 +161,13 @@ struct SettingsView: View {
         Section {
             demoSectionBody
         } header: {
-            Text("Demo")
+            Text("Sample Data")
         }
     }
 
     @ViewBuilder
     private var demoSectionBody: some View {
-        Toggle("Demo Mode", isOn: $demoModeEnabled)
+        Toggle("Show sample content", isOn: $demoModeEnabled)
             .font(CortexFont.bodyMedium)
             .onChange(of: demoModeEnabled) { _, enabled in
                 Task {
@@ -185,7 +185,7 @@ struct SettingsView: View {
             }
         } label: {
             HStack(spacing: CortexSpacing.xs) {
-                Text("Populate Demo Content")
+                Text("Load sample priorities")
                 if isPreparingDemo {
                     ProgressView()
                         .controlSize(.small)
@@ -195,7 +195,7 @@ struct SettingsView: View {
         .buttonStyle(CortexSecondaryButtonStyle())
         .disabled(isPreparingDemo)
 
-        Text("Use demo mode to preload sample priorities and notes.")
+        Text("Use sample content to understand the product before your own captures build up.")
             .font(CortexFont.caption)
             .foregroundStyle(CortexColor.textTertiary)
 
@@ -360,16 +360,16 @@ struct SettingsView: View {
     private var queueSheet: some View {
         NavigationStack {
             List {
-                Section("Pending Counts") {
+                Section("Waiting to sync") {
                     LabeledContent("Notes", value: "\(engine.pendingNotes)")
                     LabeledContent("Decisions", value: "\(engine.pendingDecisions)")
                     LabeledContent("Feedback", value: "\(engine.pendingFeedback)")
                     LabeledContent("Total", value: "\(engine.pendingSyncActions)")
                 }
 
-                Section("Queued Items") {
+                Section("Captured offline") {
                     if engine.queuedActions.isEmpty {
-                        Text("No queued actions.")
+                        Text("Everything is synced.")
                             .font(CortexFont.caption)
                             .foregroundStyle(CortexColor.textTertiary)
                     } else {
@@ -394,7 +394,7 @@ struct SettingsView: View {
                     }
                 }
             }
-            .navigationTitle("Offline Queue")
+            .navigationTitle("Offline Captures")
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Close") { showQueueSheet = false }
@@ -410,7 +410,7 @@ struct SettingsView: View {
                         if isRetryingQueue {
                             ProgressView()
                         } else {
-                            Text("Retry Sync")
+                            Text("Sync now")
                         }
                     }
                     .buttonStyle(CortexPrimaryButtonStyle())
