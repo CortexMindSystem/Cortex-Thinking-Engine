@@ -29,8 +29,8 @@ scripts/*
 *.tmp
 tmp/
 
-# Fastlane config (do not commit sensitive files)
-# Appfile kept ignored: contains personal apple_id email + hardcoded team_id
+# Fastlane config files
+CortexOSApp/fastlane/Fastfile
 CortexOSApp/fastlane/Appfile
 
 # macOS
