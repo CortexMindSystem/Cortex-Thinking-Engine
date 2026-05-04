@@ -33,13 +33,19 @@ CANONICAL_FILES: dict[str, list[str]] = {
     "iPhone_5.5": ["01_focus.png", "02_decide.png", "03_capture.png", "04_settings.png"],
     "iPad_13": ["01_focus.png", "02_decide.png", "03_capture.png", "04_settings.png"],
     "iPad_12.9": ["01_focus.png", "02_decide.png", "03_capture.png", "04_settings.png"],
-    "Mac": ["01_focus.png", "02_insights.png", "03_queues.png", "04_memory.png", "05_decisions.png", "06_settings.png"],
+    "Mac": [
+        "01_focus.png", "02_insights.png", "03_queues.png",
+        "04_memory.png", "05_decisions.png", "06_settings.png",
+    ],
 }
 
 RAW_REQUIRED: dict[str, list[str]] = {
     "iphone_raw": ["01_focus.png", "02_decide.png", "03_capture.png", "04_settings.png"],
     "ipad_raw": ["01_focus.png", "02_decide.png", "03_capture.png", "04_settings.png"],
-    "mac_raw": ["01_focus.png", "02_insights.png", "03_queues.png", "04_memory.png", "05_decisions.png", "06_settings.png"],
+    "mac_raw": [
+        "01_focus.png", "02_insights.png", "03_queues.png",
+        "04_memory.png", "05_decisions.png", "06_settings.png",
+    ],
 }
 
 
@@ -121,7 +127,7 @@ def run_generator(devices: dict[str, list[str]]) -> None:
     env["ALLOW_SCREENSHOT_FALLBACK"] = "0"
     env["STORE_ASSET_DEVICES"] = ",".join(devices)
 
-    result = subprocess.run(cmd, cwd=ROOT, env=env, check=False)
+    result = subprocess.run(cmd, cwd=ROOT, env=env, check=False)  # noqa: S603
     if result.returncode != 0:
         raise RuntimeError("Marketing screenshot generator failed")
 

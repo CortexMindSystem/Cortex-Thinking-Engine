@@ -42,28 +42,55 @@ BRAND_TEXT_SECONDARY = (255, 255, 255, 200)  # White with alpha
 
 # Marketing copy for each screen (conversion-first, concrete output language).
 IPHONE_MARKETING = {
-    "01_focus": {"headline": "Decide what\nmatters now.", "subheadline": "Scattered thoughts become 3 priorities."},
-    "02_decide": {"headline": "Know why.\nTake action.", "subheadline": "Each priority includes why it matters and what to do next."},
-    "03_capture": {"headline": "Capture in seconds.\nStay clear.", "subheadline": "Capture notes, links, and thoughts fast, even offline."},
-    "04_settings": {"headline": "Private by default.\nHuman in control.", "subheadline": "No autopublish. Approval required for private outreach."},
+    "01_focus": {
+        "headline": "Decide what\nmatters now.",
+        "subheadline": "Scattered thoughts become 3 priorities.",
+    },
+    "02_decide": {
+        "headline": "Know why.\nTake action.",
+        "subheadline": "Each priority includes why it matters and what to do next.",
+    },
+    "03_capture": {
+        "headline": "Capture in seconds.\nStay clear.",
+        "subheadline": "Capture notes, links, and thoughts fast, even offline.",
+    },
+    "04_settings": {
+        "headline": "Private by default.\nHuman in control.",
+        "subheadline": "No autopublish. Approval required for private outreach.",
+    },
 }
 
 MAC_MARKETING = [
-    ("01_focus", {"headline": "Decide what matters now", "subheadline": "See your top 3 priorities and one next move."}),
+    (
+        "01_focus",
+        {"headline": "Decide what matters now", "subheadline": "See your top 3 priorities and one next move."},
+    ),
     (
         "02_insights",
         {"headline": "See what repeated", "subheadline": "Weekly Review surfaces recurring priorities and patterns."},
     ),
     (
         "03_queues",
-        {"headline": "Review only what matters", "subheadline": "Decisions, actions, tensions, and content candidates stay curated."},
+        {
+            "headline": "Review only what matters",
+            "subheadline": "Decisions, actions, tensions, and content candidates stay curated.",
+        },
     ),
     (
         "04_memory",
-        {"headline": "Understand the why", "subheadline": "Decision Replay shows what was reviewed, kept, and ignored."},
+        {
+            "headline": "Understand the why",
+            "subheadline": "Decision Replay shows what was reviewed, kept, and ignored.",
+        },
     ),
-    ("05_decisions", {"headline": "Act with confidence", "subheadline": "Feedback improves future prioritization over time."}),
-    ("06_settings", {"headline": "Private by default", "subheadline": "Human stays in control. No autopublish for sensitive content."}),
+    (
+        "05_decisions",
+        {"headline": "Act with confidence", "subheadline": "Feedback improves future prioritization over time."},
+    ),
+    (
+        "06_settings",
+        {"headline": "Private by default", "subheadline": "Human stays in control. No autopublish for sensitive content."},
+    ),
 ]
 
 # App Store screenshot dimensions
